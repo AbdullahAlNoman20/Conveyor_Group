@@ -1,0 +1,11 @@
+[
+  { "id": "M-001", "name": "Khichuri with Egg", "category": "Fixed Meal", "price": 90, "available": true },
+  { "id": "M-002", "name": "Fish Curry with Rice", "category": "Fixed Meal", "price": 120, "available": true },
+  { "id": "M-003", "name": "Chicken Curry with Rice", "category": "Fixed Meal", "price": 130, "available": true },
+  { "id": "M-004", "name": "Beef Curry with Rice", "category": "Fixed Meal", "price": 150, "available": true },
+  { "id": "M-005", "name": "Mixed Vegetable with Rice", "category": "Fixed Meal", "price": 80, "available": true },
+  { "id": "M-006", "name": "Grilled Sandwich", "category": "Custom Menu", "price": 110, "available": true },
+  { "id": "M-007", "name": "Chicken Fried Rice", "category": "Custom Menu", "price": 140, "available": true },
+  { "id": "M-008", "name": "Coffee", "category": "Beverage", "price": 60, "available": true },
+  { "id": "M-009", "name": "Fresh Lime Water", "category": "Beverage", "price": 30, "available": true }
+]

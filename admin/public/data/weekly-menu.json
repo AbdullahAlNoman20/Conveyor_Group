@@ -1,0 +1,9 @@
+[
+  { "day": "Saturday", "meal": "Khichuri with Egg" },
+  { "day": "Sunday", "meal": "Egg Curry with Rice" },
+  { "day": "Monday", "meal": "Fish Curry with Rice" },
+  { "day": "Tuesday", "meal": "Chicken Curry with Rice" },
+  { "day": "Wednesday", "meal": "Beef Curry with Rice" },
+  { "day": "Thursday", "meal": "Mixed Vegetable with Rice" },
+  { "day": "Friday", "meal": "Special Menu" }
+]

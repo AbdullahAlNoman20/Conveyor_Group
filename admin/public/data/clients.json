@@ -1,0 +1,6 @@
+[
+  { "id": "C-001", "name": "Farzana Karim", "employeeId": "EMP-1042", "department": "Finance", "designation": "Senior Accountant", "employmentType": "Company Employee", "mealPlan": "Fixed Company Meal", "mealBenefit": "Company Subsidized", "walletBalance": 620, "monthlyBill": 1840, "qrStatus": "active", "status": "active" },
+  { "id": "C-002", "name": "Tanvir Rahman", "employeeId": "EMP-1077", "department": "Engineering", "designation": "Software Engineer", "employmentType": "Company Employee", "mealPlan": "Custom Menu", "mealBenefit": "Self Paid", "walletBalance": 340, "monthlyBill": 2210, "qrStatus": "active", "status": "active" },
+  { "id": "C-003", "name": "Sabrina Yasmin", "employeeId": "EMP-1103", "department": "HR", "designation": "HR Executive", "employmentType": "Contractor", "mealPlan": "Custom Menu", "mealBenefit": "Self Paid", "walletBalance": 120, "monthlyBill": 980, "qrStatus": "expired", "status": "active" },
+  { "id": "C-004", "name": "Imran Chowdhury", "employeeId": "EMP-1155", "department": "Operations", "designation": "Operations Lead", "employmentType": "Company Employee", "mealPlan": "Fixed Company Meal", "mealBenefit": "Complimentary", "walletBalance": 0, "monthlyBill": 0, "qrStatus": "active", "status": "suspended" }
+]

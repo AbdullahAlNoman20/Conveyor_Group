@@ -1,0 +1,99 @@
+import { useEffect, useState } from "react";
+import { PackageCheck, Truck, CheckCircle2 } from "lucide-react";
+import { dataStore } from "../../../../components/services/dataStore";
+import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
+import { useToast } from "../../../../components/hooks/useToast";
+import Badge from "../../../../components/shared/Badge";
+import Loader from "../../../../components/shared/Loader";
+
+export default function WaiterOrders() {
+  const { push } = useToast();
+  const [orders, setOrders] = useState(null);
+
+  useEffect(() => {
+    (async () => setOrders(await dataStore.load("orders", "orders.json")))();
+  }, []);
+
+  if (!orders) return <Loader full label="Loading orders..." />;
+
+  async function assign(order) {
+    const next = await dataStore.update("orders", (o) => o.id === order.id, { assignedToWaiter: true });
+    setOrders(next);
+    push(`Order ${order.id} assigned to you for delivery.`, "success");
+  }
+
+  async function deliver(order) {
+    const next = await dataStore.update("orders", (o) => o.id === order.id, { status: "completed" });
+    setOrders(next);
+    socket.emit(SOCKET_EVENTS.FOOD_SERVED, { message: `Order ${order.id} served.` });
+    push(`Order ${order.id} marked as delivered.`, "success");
+  }
+
+  const ready = orders.filter((o) => o.status === "ready" && !o.assignedToWaiter);
+  const assigned = orders.filter((o) => o.status === "ready" && o.assignedToWaiter);
+  const delivered = orders.filter((o) => o.status === "completed");
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-ink-900">My Orders</h1>
+        <p className="text-sm text-ink-400">Receive ready orders from the kitchen and deliver them to the table.</p>
+      </div>
+
+      <Section title="Ready Orders" icon={PackageCheck}>
+        {ready.map((o) => (
+          <Row key={o.id} order={o}>
+            <button onClick={() => assign(o)} className="rounded-lg bg-ink-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-900">
+              Receive
+            </button>
+          </Row>
+        ))}
+        {ready.length === 0 && <Empty text="Nothing waiting for pickup." />}
+      </Section>
+
+      <Section title="Assigned Orders" icon={Truck}>
+        {assigned.map((o) => (
+          <Row key={o.id} order={o}>
+            <button onClick={() => deliver(o)} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700">
+              Mark Delivered
+            </button>
+          </Row>
+        ))}
+        {assigned.length === 0 && <Empty text="No orders in your hands right now." />}
+      </Section>
+
+      <Section title="Delivered Orders" icon={CheckCircle2}>
+        {delivered.map((o) => (
+          <Row key={o.id} order={o} />
+        ))}
+        {delivered.length === 0 && <Empty text="Nothing delivered yet." />}
+      </Section>
+    </div>
+  );
+}
+
+function Section({ title, icon: Icon, children }) {
+  return (
+    <div className="rounded-xl border border-ink-100 bg-white p-5">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-ink-700">
+        <Icon size={16} /> {title}
+      </h2>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function Row({ order, children }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-50 px-3 py-3 text-sm">
+      <span className="font-semibold text-ink-800">{order.id}</span>
+      <span className="text-ink-500">{order.tableNumber ? `Table ${order.tableNumber}` : "Take Away"}</span>
+      <Badge tone={order.status}>{order.status}</Badge>
+      {children}
+    </div>
+  );
+}
+
+function Empty({ text }) {
+  return <p className="py-4 text-center text-sm text-ink-400">{text}</p>;
+}

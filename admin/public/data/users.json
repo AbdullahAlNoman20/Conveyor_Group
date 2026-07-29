@@ -1,0 +1,68 @@
+[
+  {
+    "id": "U-001",
+    "name": "Rafiq Ahmed",
+    "email": "superadmin@conveyorgroup.com",
+    "role": "super_admin",
+    "status": "active",
+    "department": "Administration",
+    "designation": "Super Administrator",
+    "avatarColor": "#000000"
+  },
+  {
+    "id": "U-002",
+    "name": "Nadia Islam",
+    "email": "manager@conveyorgroup.com",
+    "role": "manager",
+    "status": "active",
+    "department": "Restaurant Operations",
+    "designation": "Restaurant Manager",
+    "avatarColor": "#eb2a2d"
+  },
+  {
+    "id": "U-003",
+    "name": "Kamal Hossain",
+    "email": "kitchen@conveyorgroup.com",
+    "role": "kitchen_head",
+    "status": "active",
+    "department": "Kitchen",
+    "designation": "Kitchen Head",
+    "avatarColor": "#d97706"
+  },
+  {
+    "id": "U-004",
+    "name": "Shakil Mia",
+    "email": "waiter@conveyorgroup.com",
+    "role": "waiter",
+    "status": "active",
+    "department": "Restaurant Operations",
+    "designation": "Waiter",
+    "avatarColor": "#0284c7"
+  },
+  {
+    "id": "U-005",
+    "name": "Farzana Karim",
+    "email": "client@conveyorgroup.com",
+    "role": "client",
+    "status": "active",
+    "department": "Finance",
+    "designation": "Senior Accountant",
+    "employeeId": "EMP-1042",
+    "employmentType": "Company Employee",
+    "mealPlan": "Fixed Company Meal",
+    "mealBenefit": "Company Subsidized",
+    "defaultPaymentMethod": "wallet",
+    "avatarColor": "#059669"
+  },
+  {
+    "id": "U-006",
+    "name": "Guest User",
+    "email": "guest@conveyorgroup.com",
+    "role": "guest",
+    "status": "active",
+    "department": "-",
+    "designation": "Temporary Guest",
+    "guestType": "Temporary Guest",
+    "avatarColor": "#98999b"
+  }
+]

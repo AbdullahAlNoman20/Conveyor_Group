@@ -1,0 +1,6 @@
+[
+  { "id": "ORD-1001", "clientName": "Farzana Karim", "tableNumber": 3, "items": [{"name": "Fish Curry with Rice", "qty": 1}], "amount": 120, "status": "preparing", "priority": "normal", "orderType": "dine_in", "createdAt": "2026-07-28T05:10:00Z" },
+  { "id": "ORD-1002", "clientName": "Tanvir Rahman", "tableNumber": 1, "items": [{"name": "Chicken Fried Rice", "qty": 1}, {"name": "Coffee", "qty": 1}], "amount": 200, "status": "ready", "priority": "high", "orderType": "dine_in", "createdAt": "2026-07-28T05:02:00Z" },
+  { "id": "ORD-1003", "clientName": "Guest - Sultana Begum", "tableNumber": null, "items": [{"name": "Grilled Sandwich", "qty": 2}], "amount": 220, "status": "pending", "priority": "urgent", "orderType": "take_away", "createdAt": "2026-07-28T05:14:00Z" },
+  { "id": "ORD-1004", "clientName": "Sabrina Yasmin", "tableNumber": 5, "items": [{"name": "Mixed Vegetable with Rice", "qty": 1}], "amount": 80, "status": "completed", "priority": "normal", "orderType": "dine_in", "createdAt": "2026-07-28T04:40:00Z" }
+]

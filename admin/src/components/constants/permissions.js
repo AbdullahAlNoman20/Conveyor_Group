@@ -1,0 +1,52 @@
+import { ROLES } from "./roles";
+
+// Consolidated from SRS Section 27 (RBAC Matrix). Used by RoleRoute and by
+// UI to conditionally show/hide action buttons. This is a FRONT-END gate
+// only for this design/testing phase — the real backend must re-enforce
+// every one of these server-side (SRS Section 28.1).
+export const PERMISSIONS = {
+  MANAGE_USERS: [ROLES.SUPER_ADMIN],
+  MANAGE_MANAGERS: [ROLES.SUPER_ADMIN],
+  MANAGE_KITCHEN_STAFF: [ROLES.SUPER_ADMIN],
+  MANAGE_MENU: [ROLES.SUPER_ADMIN],
+  MANAGE_RESTAURANT_SETTINGS: [ROLES.SUPER_ADMIN],
+  VIEW_ALL_REPORTS: [ROLES.SUPER_ADMIN],
+
+  SCAN_QR: [ROLES.MANAGER],
+  CREATE_ORDER: [ROLES.SUPER_ADMIN, ROLES.MANAGER],
+  CREATE_GUEST: [ROLES.SUPER_ADMIN, ROLES.MANAGER],
+  APPROVE_GUEST_REQUEST: [ROLES.SUPER_ADMIN, ROLES.MANAGER],
+  MANAGE_TABLES: [ROLES.SUPER_ADMIN, ROLES.MANAGER],
+  CONFIGURE_TOKEN_BOARD: [ROLES.SUPER_ADMIN, ROLES.MANAGER],
+  CREATE_PURCHASE_VOUCHER: [ROLES.SUPER_ADMIN, ROLES.MANAGER],
+  VIEW_FINANCIAL_DASHBOARD: [ROLES.SUPER_ADMIN, ROLES.MANAGER],
+
+  ACCEPT_ORDER: [ROLES.KITCHEN_HEAD],
+  UPDATE_ORDER_STATUS: [ROLES.KITCHEN_HEAD],
+  VIEW_KITCHEN_QUEUE: [ROLES.KITCHEN_HEAD, ROLES.MANAGER, ROLES.SUPER_ADMIN],
+
+  DELIVER_ORDER: [ROLES.WAITER],
+
+  RAISE_GUEST_REQUEST: [ROLES.CLIENT],
+  PRE_BOOK_MEAL: [ROLES.CLIENT],
+  USE_WALLET: [ROLES.CLIENT],
+  USE_SALARY_DEDUCTION: [ROLES.CLIENT],
+
+  VIEW_OWN_QR: [ROLES.CLIENT, ROLES.GUEST],
+  VIEW_OWN_INVOICES: [ROLES.CLIENT, ROLES.GUEST, ROLES.MANAGER, ROLES.SUPER_ADMIN],
+};
+
+export function hasPermission(role, permissionKey) {
+  const allowed = PERMISSIONS[permissionKey];
+  if (!allowed) return false;
+  return allowed.includes(role);
+}
+
+// Guest restrictions, SRS Section 17.2 — explicit denials, checked in the UI
+// even where a route might otherwise be reachable.
+export const GUEST_RESTRICTIONS = [
+  "USE_WALLET",
+  "ACCESS_MONTHLY_BILLING",
+  "USE_SALARY_DEDUCTION",
+  "MODIFY_ORDERS",
+];

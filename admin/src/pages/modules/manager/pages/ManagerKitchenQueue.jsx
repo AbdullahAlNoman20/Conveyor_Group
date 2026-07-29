@@ -1,0 +1,68 @@
+import { useEffect, useState } from "react";
+import { Eye } from "lucide-react";
+import { dataStore } from "../../../../components/services/dataStore";
+import Badge from "../../../../components/shared/Badge";
+import Loader from "../../../../components/shared/Loader";
+
+const PRIORITY_RANK = { urgent: 0, vip: 1, high: 2, normal: 3 };
+
+/**
+ * SRS §13.1 lists "Kitchen Coordination" as a Manager responsibility, and
+ * §27 (RBAC) grants Manager view-only access to the Kitchen Queue — actions
+ * (accept / prep time / status / delay) remain Kitchen Head-only per §14.
+ */
+export default function ManagerKitchenQueue() {
+  const [orders, setOrders] = useState(null);
+
+  useEffect(() => {
+    (async () => setOrders(await dataStore.load("orders", "orders.json")))();
+  }, []);
+
+  if (!orders) return <Loader full label="Loading kitchen queue..." />;
+
+  const queue = [...orders]
+    .filter((o) => o.status !== "completed")
+    .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Eye size={20} className="text-ink-400" />
+        <div>
+          <h1 className="text-2xl font-bold text-ink-900">Kitchen Queue (View Only)</h1>
+          <p className="text-sm text-ink-400">
+            Coordination view — order actions belong to the Kitchen Head (SRS §14).
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {queue.map((o) => (
+          <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-100 bg-white p-4 text-sm">
+            <div>
+              <p className="font-semibold text-ink-900">{o.id}</p>
+              <p className="text-xs text-ink-400">{o.clientName}</p>
+            </div>
+            <span className="text-ink-500">
+              {o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}
+            </span>
+            <span className="text-ink-400">
+              {o.tableNumber ? `Table ${o.tableNumber}` : "Take Away"}
+            </span>
+            {o.priority !== "normal" && (
+              <span className="rounded bg-brand-100 px-2 py-0.5 text-[10px] font-bold uppercase text-brand-700">
+                {o.priority}
+              </span>
+            )}
+            <Badge tone={o.status}>{o.status}</Badge>
+          </div>
+        ))}
+        {queue.length === 0 && (
+          <p className="rounded-xl border border-dashed border-ink-200 p-10 text-center text-sm text-ink-400">
+            Queue is empty.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

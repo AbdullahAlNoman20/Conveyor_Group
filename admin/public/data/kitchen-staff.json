@@ -1,0 +1,5 @@
+[
+  { "id": "KS-01", "name": "Kamal Hossain", "role": "Kitchen Head", "status": "active" },
+  { "id": "KS-02", "name": "Josna Begum", "role": "Cook", "status": "active" },
+  { "id": "KS-03", "name": "Selim Reza", "role": "Helper", "status": "active" }
+]

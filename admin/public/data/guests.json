@@ -1,0 +1,5 @@
+[
+  { "id": "G-201", "name": "Sultana Begum", "type": "Temporary Guest", "organization": "ABC Traders", "validity": "6 Hours", "status": "active" },
+  { "id": "G-202", "name": "Walk-in Customer", "type": "Walk-in Guest", "tableNumber": 2, "status": "active" },
+  { "id": "G-203", "name": "Corporate Guest - XYZ Ltd", "type": "Corporate Guest", "company": "XYZ Ltd", "status": "closed" }
+]

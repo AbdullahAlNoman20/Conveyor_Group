@@ -1,0 +1,6 @@
+[
+  { "id": "WT-01", "clientId": "C-001", "type": "Recharge", "amount": 1000, "date": "2026-07-20" },
+  { "id": "WT-02", "clientId": "C-001", "type": "Lunch", "amount": -180, "date": "2026-07-21" },
+  { "id": "WT-03", "clientId": "C-001", "type": "Coffee", "amount": -60, "date": "2026-07-21" },
+  { "id": "WT-04", "clientId": "C-001", "type": "Lunch", "amount": -140, "date": "2026-07-22" }
+]

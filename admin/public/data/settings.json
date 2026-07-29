@@ -1,0 +1,8 @@
+{
+  "restaurantName": "Conveyor Group Restaurant",
+  "invoicePrefix": "INV",
+  "taxRate": 5,
+  "emailNotifications": true,
+  "smsNotifications": false,
+  "displayNameOnBoard": "token_only"
+}
