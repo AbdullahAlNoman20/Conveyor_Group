@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Menu, LogOut } from "lucide-react";
 import Sidebar from "./Sidebar";
 import NotificationBell from "../shared/NotificationBell";
+import Loader from "../shared/Loader";
 import { useAuth } from "../hooks/useAuth";
 import { ROLE_BADGE_COLOR } from "../constants/roles";
 
@@ -69,7 +70,9 @@ export default function DashboardLayout({ navGroups, roleLabel }) {
         </header>
 
         <main className="flex-1 p-4 sm:p-6 board:mx-auto board:w-full board:max-w-[1800px]">
-          <Outlet />
+          <Suspense fallback={<Loader full label="Loading page..." />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

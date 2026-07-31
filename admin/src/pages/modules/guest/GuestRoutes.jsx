@@ -1,6 +1,8 @@
-import GuestDashboard from "./pages/GuestDashboard";
-import GuestOrders from "./pages/GuestOrders";
-import GuestInvoices from "./pages/GuestInvoices";
+import { lazy } from "react";
+
+const GuestDashboard = lazy(() => import("./pages/GuestDashboard"));
+const GuestOrders = lazy(() => import("./pages/GuestOrders"));
+const GuestInvoices = lazy(() => import("./pages/GuestInvoices"));
 
 const GuestRoutes = [
   { index: true, element: <GuestDashboard /> },

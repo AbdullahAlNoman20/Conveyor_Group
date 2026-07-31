@@ -1,5 +1,7 @@
-import WaiterDashboard from "./pages/WaiterDashboard";
-import WaiterOrders from "./pages/WaiterOrders";
+import { lazy } from "react";
+
+const WaiterDashboard = lazy(() => import("./pages/WaiterDashboard"));
+const WaiterOrders = lazy(() => import("./pages/WaiterOrders"));
 
 const WaiterRoutes = [
   { index: true, element: <WaiterDashboard /> },

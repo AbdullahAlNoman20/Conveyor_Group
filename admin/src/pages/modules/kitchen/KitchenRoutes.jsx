@@ -1,7 +1,9 @@
-import KitchenDashboard from "./pages/KitchenDashboard";
-import KitchenQueue from "./pages/KitchenQueue";
-import DemandForecast from "./pages/DemandForecast";
-import TomorrowPlanning from "./pages/TomorrowPlanning";
+import { lazy } from "react";
+
+const KitchenDashboard = lazy(() => import("./pages/KitchenDashboard"));
+const KitchenQueue = lazy(() => import("./pages/KitchenQueue"));
+const DemandForecast = lazy(() => import("./pages/DemandForecast"));
+const TomorrowPlanning = lazy(() => import("./pages/TomorrowPlanning"));
 
 const KitchenRoutes = [
   { index: true, element: <KitchenDashboard /> },

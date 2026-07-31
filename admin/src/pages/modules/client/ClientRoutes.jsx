@@ -1,11 +1,13 @@
-import ClientDashboard from "./pages/ClientDashboard";
-import ClientQRCard from "./pages/ClientQRCard";
-import ClientOrders from "./pages/ClientOrders";
-import ClientPreBooking from "./pages/ClientPreBooking";
-import ClientGuestRequest from "./pages/ClientGuestRequest";
-import ClientWallet from "./pages/ClientWallet";
-import ClientStatement from "./pages/ClientStatement";
-import ClientInvoices from "./pages/ClientInvoices";
+import { lazy } from "react";
+
+const ClientDashboard = lazy(() => import("./pages/ClientDashboard"));
+const ClientQRCard = lazy(() => import("./pages/ClientQRCard"));
+const ClientOrders = lazy(() => import("./pages/ClientOrders"));
+const ClientPreBooking = lazy(() => import("./pages/ClientPreBooking"));
+const ClientGuestRequest = lazy(() => import("./pages/ClientGuestRequest"));
+const ClientWallet = lazy(() => import("./pages/ClientWallet"));
+const ClientStatement = lazy(() => import("./pages/ClientStatement"));
+const ClientInvoices = lazy(() => import("./pages/ClientInvoices"));
 
 const ClientRoutes = [
   { index: true, element: <ClientDashboard /> },

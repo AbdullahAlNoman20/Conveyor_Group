@@ -1,18 +1,17 @@
-import SuperAdminDashboard from "./pages/SuperAdminDashboard";
-import SuperAdminClients from "./pages/SuperAdminClients";
-import SuperAdminMenu from "./pages/SuperAdminMenu";
-import SuperAdminTables from "./pages/SuperAdminTables";
-import StaffManagement from "./pages/StaffManagement";
-import RestaurantSettings from "./pages/RestaurantSettings";
-import QRManagement from "./pages/QRManagement";
-import FinancialDashboard from "./pages/FinancialDashboard";
-import Subsidy from "./pages/Subsidy";
-import Reports from "./pages/Reports";
-import AuditLogs from "./pages/AuditLogs";
-import PurchaseVoucher from "../manager/pages/PurchaseVoucher";
-import ComingSoon from "../../../components/shared/ComingSoon";
+import { lazy } from "react";
 
-const placeholder = (title) => <ComingSoon title={title} />;
+const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
+const SuperAdminClients = lazy(() => import("./pages/SuperAdminClients"));
+const SuperAdminMenu = lazy(() => import("./pages/SuperAdminMenu"));
+const SuperAdminTables = lazy(() => import("./pages/SuperAdminTables"));
+const StaffManagement = lazy(() => import("./pages/StaffManagement"));
+const RestaurantSettings = lazy(() => import("./pages/RestaurantSettings"));
+const QRManagement = lazy(() => import("./pages/QRManagement"));
+const FinancialDashboard = lazy(() => import("./pages/FinancialDashboard"));
+const Subsidy = lazy(() => import("./pages/Subsidy"));
+const Reports = lazy(() => import("./pages/Reports"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const PurchaseVoucher = lazy(() => import("../manager/pages/PurchaseVoucher"));
 
 const SuperAdminRoutes = [
   { index: true, element: <SuperAdminDashboard /> },
