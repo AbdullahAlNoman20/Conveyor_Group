@@ -108,12 +108,12 @@ export default function ScanQR() {
             <InfoRow
               icon={Wallet}
               label="Wallet Balance"
-              value={`\u09F3${result.client.walletBalance}`}
+              value={`Tk ${result.client.walletBalance}`}
             />
             <InfoRow
               icon={Receipt}
               label="Current Monthly Bill"
-              value={`\u09F3${result.client.monthlyBill}`}
+              value={`Tk ${result.client.monthlyBill}`}
             />
             <InfoRow icon={Clock} label="Last Order Date" value="2026-07-27" />
             <InfoRow icon={CheckCircle2} label="Account Status" value={result.client.status} />

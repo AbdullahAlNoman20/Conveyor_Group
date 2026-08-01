@@ -103,7 +103,7 @@ export default function SuperAdminMenu() {
                 <p className="font-semibold text-ink-900">{m.name}</p>
                 <p className="text-xs text-ink-400">{m.category}</p>
               </div>
-              <span className="font-bold text-brand-600">\u09F3{m.price}</span>
+              <span className="font-bold text-brand-600">Tk {m.price}</span>
             </div>
             <div className="mt-3 flex items-center justify-between">
               <button
@@ -151,7 +151,7 @@ export default function SuperAdminMenu() {
               <option>Beverage</option>
             </select>
           </FormField>
-          <FormField label="Unit Price (\u09F3)" required>
+          <FormField label="Unit Price (Tk )" required>
             <input
               type="number"
               min="0"

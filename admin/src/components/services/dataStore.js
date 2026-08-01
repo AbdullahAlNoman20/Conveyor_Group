@@ -33,10 +33,45 @@ function readLocal(key) {
 function writeLocal(key, value) {
   try {
     localStorage.setItem(storageKey(key), JSON.stringify(value));
+    notify(key);
     return true;
   } catch {
     return false;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Live-update layer
+//
+// localStorage writes don't trigger anything in the SAME tab that made them
+// (the native `storage` event only fires in OTHER tabs), so dashboards that
+// only load data once on mount would go stale the moment another screen (or
+// another tab logged in as a different role) changes an order. `notify`
+// dispatches a same-tab CustomEvent right after every write; `subscribe`
+// listens for both that same-tab event and the native cross-tab `storage`
+// event, so a Client's order-progress view, a Manager's queue, and the
+// public Kitchen Board all stay in sync with each other automatically.
+// ---------------------------------------------------------------------------
+
+const EVENT_NAME = "cccms:datachange";
+
+function notify(key) {
+  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { key } }));
+}
+
+function subscribe(key, callback) {
+  function onSameTabChange(e) {
+    if (e.detail?.key === key) callback();
+  }
+  function onCrossTabChange(e) {
+    if (e.key === storageKey(key)) callback();
+  }
+  window.addEventListener(EVENT_NAME, onSameTabChange);
+  window.addEventListener("storage", onCrossTabChange);
+  return () => {
+    window.removeEventListener(EVENT_NAME, onSameTabChange);
+    window.removeEventListener("storage", onCrossTabChange);
+  };
 }
 
 export const dataStore = {
@@ -106,4 +141,11 @@ export const dataStore = {
       .filter((k) => k.startsWith(`${NS}:`))
       .forEach((k) => localStorage.removeItem(k));
   },
+
+  /**
+   * Calls `callback()` whenever `key`'s data changes — from an action in
+   * this same tab, or from localStorage being changed in another tab.
+   * Returns an unsubscribe function; always call it in a cleanup effect.
+   */
+  subscribe,
 };

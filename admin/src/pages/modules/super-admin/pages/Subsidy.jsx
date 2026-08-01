@@ -43,9 +43,9 @@ export default function Subsidy() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <StatCard label="Today's Subsidy" value={`\u09F3${dailySubsidy.toLocaleString()}`} Icon={Banknote} accent="brand" />
-        <StatCard label="Monthly Subsidy" value={`\u09F3${monthlySubsidy.toLocaleString()}`} Icon={Banknote} accent="amber" />
-        <StatCard label="Yearly Subsidy" value={`\u09F3${yearlySubsidy.toLocaleString()}`} Icon={Banknote} accent="ink" />
+        <StatCard label="Today's Subsidy" value={`Tk ${dailySubsidy.toLocaleString()}`} Icon={Banknote} accent="brand" />
+        <StatCard label="Monthly Subsidy" value={`Tk ${monthlySubsidy.toLocaleString()}`} Icon={Banknote} accent="amber" />
+        <StatCard label="Yearly Subsidy" value={`Tk ${yearlySubsidy.toLocaleString()}`} Icon={Banknote} accent="ink" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -69,7 +69,7 @@ export default function Subsidy() {
             {Object.entries(byDept).map(([dept, amt]) => (
               <div key={dept} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
                 <span className="text-ink-600">{dept}</span>
-                <span className="font-semibold text-brand-600">\u09F3{amt.toLocaleString()}</span>
+                <span className="font-semibold text-brand-600">Tk {amt.toLocaleString()}</span>
               </div>
             ))}
             {Object.keys(byDept).length === 0 && (

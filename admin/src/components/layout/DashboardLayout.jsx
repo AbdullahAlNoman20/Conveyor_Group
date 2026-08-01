@@ -1,5 +1,5 @@
 import { Suspense, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Menu, LogOut } from "lucide-react";
 import Sidebar from "./Sidebar";
 import NotificationBell from "../shared/NotificationBell";
@@ -10,6 +10,15 @@ import { ROLE_BADGE_COLOR } from "../constants/roles";
 export default function DashboardLayout({ navGroups, roleLabel }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    // Navigate away immediately so we never linger on a now-stale protected
+    // URL while `user` updates — that lingering was the root cause of the
+    // "logout then log into a different account shows Unauthorized" bug.
+    navigate("/", { replace: true });
+  }
 
   return (
     <div className="flex min-h-screen bg-ink-50">
@@ -60,7 +69,7 @@ export default function DashboardLayout({ navGroups, roleLabel }) {
               </div>
             </div>
             <button
-              onClick={logout}
+              onClick={handleLogout}
               aria-label="Sign out"
               className="rounded-lg p-2 text-ink-500 hover:bg-brand-50 hover:text-brand-600"
             >
@@ -74,6 +83,13 @@ export default function DashboardLayout({ navGroups, roleLabel }) {
             <Outlet />
           </Suspense>
         </main>
+
+        <footer className="border-t border-ink-100 bg-white px-4 py-3 text-center text-xs text-ink-400 sm:px-6">
+          © {new Date().getFullYear()} Conveyor Group Restaurant · CCCMS ·{" "}
+          <a href="/" className="font-medium text-ink-500 hover:text-brand-600">
+            Home
+          </a>
+        </footer>
       </div>
     </div>
   );

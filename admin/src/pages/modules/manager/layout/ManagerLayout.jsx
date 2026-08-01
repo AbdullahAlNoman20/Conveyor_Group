@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   ScanLine,
   ClipboardPlus,
+  ClipboardCheck as ApprovalIcon,
   ChefHat,
   UserPlus,
   ClipboardCheck,
@@ -23,6 +24,7 @@ const navGroups = [
     items: [
       { to: "/app/manager/scan-qr", label: "Scan QR", Icon: ScanLine },
       { to: "/app/manager/new-order", label: "New Order", Icon: ClipboardPlus },
+      { to: "/app/manager/order-approvals", label: "Order Approvals", Icon: ApprovalIcon },
       { to: "/app/manager/kitchen-queue", label: "Kitchen Queue", Icon: ChefHat },
       { to: "/kitchen/board", label: "Token Display Board", Icon: Monitor },
     ],
@@ -32,6 +34,7 @@ const navGroups = [
     items: [
       { to: "/app/manager/guests", label: "Guest Management", Icon: UserPlus },
       { to: "/app/manager/guest-requests", label: "Guest Requests", Icon: ClipboardCheck },
+      { to: "/app/manager/profile-requests", label: "Profile Change Requests", Icon: ClipboardCheck },
     ],
   },
   {

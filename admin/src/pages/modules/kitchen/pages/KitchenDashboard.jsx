@@ -1,36 +1,33 @@
-import { useEffect, useState } from "react";
-import { ClipboardList, Clock, AlertTriangle, ChefHat, CheckCircle2 } from "lucide-react";
+import { ClipboardList, Clock, ChefHat, CheckCircle2 } from "lucide-react";
 import StatCard from "../../../../components/shared/StatCard";
-import Badge from "../../../../components/shared/Badge";
+import { PipelineBadge } from "../../../../components/shared/OrderPipeline";
 import Loader from "../../../../components/shared/Loader";
-import { dataStore } from "../../../../components/services/dataStore";
+import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
+
+const PRIORITY_RANK = { urgent: 0, vip: 1, high: 2, normal: 3 };
 
 export default function KitchenDashboard() {
-  const [orders, setOrders] = useState(null);
-
-  useEffect(() => {
-    (async () => setOrders(await dataStore.load("orders", "orders.json")))();
-  }, []);
+  const orders = useLiveCollection("orders", "orders.json");
 
   if (!orders) return <Loader full label="Loading kitchen queue..." />;
 
-  const pending = orders.filter((o) => o.status === "pending").length;
-  const preparing = orders.filter((o) => o.status === "preparing").length;
-  const ready = orders.filter((o) => o.status === "ready").length;
-  const completed = orders.filter((o) => o.status === "completed").length;
+  // Orders still waiting on Manager approval haven't reached the kitchen yet.
+  const kitchenOrders = orders.filter((o) => o.status !== "awaiting_manager");
 
-  const queue = [...orders]
-    .filter((o) => o.status !== "completed")
-    .sort((a, b) => {
-      const rank = { urgent: 0, vip: 1, high: 2, normal: 3 };
-      return (rank[a.priority] ?? 3) - (rank[b.priority] ?? 3);
-    });
+  const pending = kitchenOrders.filter((o) => o.status === "pending").length;
+  const preparing = kitchenOrders.filter((o) => o.status === "preparing").length;
+  const ready = kitchenOrders.filter((o) => o.status === "ready").length;
+  const completed = kitchenOrders.filter((o) => o.status === "completed").length;
+
+  const queue = kitchenOrders
+    .filter((o) => o.status !== "completed" && o.status !== "cancelled")
+    .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3));
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Kitchen Dashboard</h1>
-        <p className="text-sm text-ink-400">First-in, first-out — adjusted by priority.</p>
+        <p className="text-sm text-ink-400">First-in, first-out — adjusted by priority. Updates live.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -60,7 +57,7 @@ export default function KitchenDashboard() {
                   {o.priority}
                 </span>
               )}
-              <Badge tone={o.status}>{o.status}</Badge>
+              <PipelineBadge status={o.status} />
             </div>
           ))}
           {queue.length === 0 && (

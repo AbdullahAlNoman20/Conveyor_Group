@@ -41,8 +41,8 @@ export default function ClientWallet() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <StatCard label="Wallet Balance" value={`\u09F3${me?.walletBalance ?? 0}`} Icon={Wallet} accent="emerald" />
-        <StatCard label="Current Month Bill" value={`\u09F3${me?.monthlyBill ?? 0}`} Icon={Banknote} accent="brand" />
+        <StatCard label="Wallet Balance" value={`Tk ${me?.walletBalance ?? 0}`} Icon={Wallet} accent="emerald" />
+        <StatCard label="Current Month Bill" value={`Tk ${me?.monthlyBill ?? 0}`} Icon={Banknote} accent="brand" />
         <StatCard label="Meal Benefit" value={me?.mealBenefit ?? "Self Paid"} Icon={Wallet} accent="ink" />
       </div>
 

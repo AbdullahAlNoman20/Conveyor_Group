@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Clock, ChefHat, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { useToast } from "../../../../components/hooks/useToast";
-import Badge from "../../../../components/shared/Badge";
+import { PipelineBadge } from "../../../../components/shared/OrderPipeline";
+import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import Modal from "../../../../components/shared/Modal";
 import Loader from "../../../../components/shared/Loader";
 
@@ -13,18 +14,13 @@ const PRIORITY_RANK = { urgent: 0, vip: 1, high: 2, normal: 3 };
 
 export default function KitchenQueue() {
   const { push } = useToast();
-  const [orders, setOrders] = useState(null);
+  const orders = useLiveCollection("orders", "orders.json");
   const [prepModalOrder, setPrepModalOrder] = useState(null);
   const [customTime, setCustomTime] = useState("");
   const [delayModalOrder, setDelayModalOrder] = useState(null);
 
-  useEffect(() => {
-    (async () => setOrders(await dataStore.load("orders", "orders.json")))();
-  }, []);
-
   async function updateOrder(id, patch, event, message) {
-    const next = await dataStore.update("orders", (o) => o.id === id, patch);
-    setOrders(next);
+    await dataStore.update("orders", (o) => o.id === id, patch);
     if (event) socket.emit(event, { orderId: id, message });
     if (message) push(message, "success");
   }
@@ -66,8 +62,9 @@ export default function KitchenQueue() {
 
   if (!orders) return <Loader full label="Loading kitchen queue..." />;
 
+  const KITCHEN_VISIBLE = ["pending", "accepted", "preparing", "delayed", "ready"];
   const queue = [...orders]
-    .filter((o) => o.status !== "completed")
+    .filter((o) => KITCHEN_VISIBLE.includes(o.status))
     .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3));
 
   return (
@@ -89,7 +86,7 @@ export default function KitchenQueue() {
                       {o.priority}
                     </span>
                   )}
-                  <Badge tone={o.status}>{o.status}</Badge>
+                  <PipelineBadge status={o.status} />
                 </div>
                 <p className="text-sm text-ink-500">{o.clientName}</p>
                 <p className="text-xs text-ink-400">

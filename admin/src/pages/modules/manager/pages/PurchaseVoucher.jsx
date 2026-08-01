@@ -81,7 +81,7 @@ export default function PurchaseVoucher() {
             ))}
           </select>
         </FormField>
-        <FormField label="Amount (\u09F3)" required>
+        <FormField label="Amount (Tk )" required>
           <input
             type="number"
             min="1"
@@ -120,7 +120,7 @@ export default function PurchaseVoucher() {
           <span className="flex items-center gap-2">
             <Receipt size={16} /> Voucher History
           </span>
-          <span className="text-brand-600">Total: \u09F3{totalThisList.toLocaleString()}</span>
+          <span className="text-brand-600">Total: Tk {totalThisList.toLocaleString()}</span>
         </h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -146,7 +146,7 @@ export default function PurchaseVoucher() {
                     <td className="py-2 pr-3 text-ink-400">{v.date}</td>
                     <td className="py-2 pr-3 text-ink-400">{v.paymentMethod}</td>
                     <td className="py-2 text-right font-semibold text-ink-900">
-                      \u09F3{v.amount.toLocaleString()}
+                      Tk {v.amount.toLocaleString()}
                     </td>
                   </tr>
                 ))}

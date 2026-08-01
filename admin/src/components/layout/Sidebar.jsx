@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, Link } from "react-router-dom";
 import { X } from "lucide-react";
 import logo from "../../assets/logo.jpeg";
 
@@ -25,11 +25,13 @@ export default function Sidebar({ navGroups, roleLabel, open, onClose }) {
       >
         <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="Conveyor Group" className="h-8 w-auto" />
-            <div>
-              <p className="text-xs font-semibold text-ink-400">CCCMS</p>
-              <p className="text-sm font-bold text-ink-900">{roleLabel}</p>
-            </div>
+            <Link to="/" className="flex items-center gap-2" title="Back to Home">
+              <img src={logo} alt="Conveyor Group" className="h-8 w-auto" />
+              <div>
+                <p className="text-xs font-semibold text-ink-400">CCCMS</p>
+                <p className="text-sm font-bold text-ink-900">{roleLabel}</p>
+              </div>
+            </Link>
           </div>
           <button onClick={onClose} className="lg:hidden" aria-label="Close menu">
             <X size={20} />

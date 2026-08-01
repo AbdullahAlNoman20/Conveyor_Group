@@ -1,30 +1,24 @@
-import { useEffect, useState } from "react";
 import { PackageCheck, Truck, CheckCircle2 } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { useToast } from "../../../../components/hooks/useToast";
-import Badge from "../../../../components/shared/Badge";
+import { PipelineBadge } from "../../../../components/shared/OrderPipeline";
+import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import Loader from "../../../../components/shared/Loader";
 
 export default function WaiterOrders() {
   const { push } = useToast();
-  const [orders, setOrders] = useState(null);
-
-  useEffect(() => {
-    (async () => setOrders(await dataStore.load("orders", "orders.json")))();
-  }, []);
+  const orders = useLiveCollection("orders", "orders.json");
 
   if (!orders) return <Loader full label="Loading orders..." />;
 
   async function assign(order) {
-    const next = await dataStore.update("orders", (o) => o.id === order.id, { assignedToWaiter: true });
-    setOrders(next);
+    await dataStore.update("orders", (o) => o.id === order.id, { assignedToWaiter: true });
     push(`Order ${order.id} assigned to you for delivery.`, "success");
   }
 
   async function deliver(order) {
-    const next = await dataStore.update("orders", (o) => o.id === order.id, { status: "completed" });
-    setOrders(next);
+    await dataStore.update("orders", (o) => o.id === order.id, { status: "completed" });
     socket.emit(SOCKET_EVENTS.FOOD_SERVED, { message: `Order ${order.id} served.` });
     push(`Order ${order.id} marked as delivered.`, "success");
   }
@@ -88,7 +82,7 @@ function Row({ order, children }) {
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-50 px-3 py-3 text-sm">
       <span className="font-semibold text-ink-800">{order.id}</span>
       <span className="text-ink-500">{order.tableNumber ? `Table ${order.tableNumber}` : "Take Away"}</span>
-      <Badge tone={order.status}>{order.status}</Badge>
+      <PipelineBadge status={order.status} />
       {children}
     </div>
   );

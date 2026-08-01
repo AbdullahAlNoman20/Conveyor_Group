@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
 import { Eye } from "lucide-react";
-import { dataStore } from "../../../../components/services/dataStore";
-import Badge from "../../../../components/shared/Badge";
+import { PipelineBadge } from "../../../../components/shared/OrderPipeline";
+import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import Loader from "../../../../components/shared/Loader";
 
 const PRIORITY_RANK = { urgent: 0, vip: 1, high: 2, normal: 3 };
+const KITCHEN_VISIBLE = ["pending", "accepted", "preparing", "delayed", "ready"];
 
 /**
  * SRS §13.1 lists "Kitchen Coordination" as a Manager responsibility, and
@@ -12,16 +12,12 @@ const PRIORITY_RANK = { urgent: 0, vip: 1, high: 2, normal: 3 };
  * (accept / prep time / status / delay) remain Kitchen Head-only per §14.
  */
 export default function ManagerKitchenQueue() {
-  const [orders, setOrders] = useState(null);
-
-  useEffect(() => {
-    (async () => setOrders(await dataStore.load("orders", "orders.json")))();
-  }, []);
+  const orders = useLiveCollection("orders", "orders.json");
 
   if (!orders) return <Loader full label="Loading kitchen queue..." />;
 
   const queue = [...orders]
-    .filter((o) => o.status !== "completed")
+    .filter((o) => KITCHEN_VISIBLE.includes(o.status))
     .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3));
 
   return (
@@ -54,7 +50,7 @@ export default function ManagerKitchenQueue() {
                 {o.priority}
               </span>
             )}
-            <Badge tone={o.status}>{o.status}</Badge>
+            <PipelineBadge status={o.status} />
           </div>
         ))}
         {queue.length === 0 && (

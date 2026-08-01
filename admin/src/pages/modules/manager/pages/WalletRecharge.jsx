@@ -49,9 +49,9 @@ export default function WalletRecharge() {
     setTransactions(nextTx);
 
     socket.emit(SOCKET_EVENTS.WALLET_RECHARGED, {
-      message: `Wallet recharged with \u09F3${value} for ${client.name}.`,
+      message: `Wallet recharged with Tk ${value} for ${client.name}.`,
     });
-    push(`\u09F3${value} added to ${client.name}'s Meal Coin balance.`, "success");
+    push(`Tk ${value} added to ${client.name}'s Meal Coin balance.`, "success");
     setAmount("");
   }
 
@@ -74,12 +74,12 @@ export default function WalletRecharge() {
             <option value="">-- Select client --</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name} · \u09F3{c.walletBalance}
+                {c.name} · Tk {c.walletBalance}
               </option>
             ))}
           </select>
         </FormField>
-        <FormField label="Cash Received (\u09F3)" required>
+        <FormField label="Cash Received (Tk )" required>
           <input
             type="number"
             min="1"

@@ -8,10 +8,14 @@ const ClientGuestRequest = lazy(() => import("./pages/ClientGuestRequest"));
 const ClientWallet = lazy(() => import("./pages/ClientWallet"));
 const ClientStatement = lazy(() => import("./pages/ClientStatement"));
 const ClientInvoices = lazy(() => import("./pages/ClientInvoices"));
+const ClientProfile = lazy(() => import("./pages/ClientProfile"));
+const PlaceOrder = lazy(() => import("./pages/PlaceOrder"));
 
 const ClientRoutes = [
   { index: true, element: <ClientDashboard /> },
   { path: "qr-card", element: <ClientQRCard /> },
+  { path: "profile", element: <ClientProfile /> },
+  { path: "place-order", element: <PlaceOrder /> },
   { path: "orders", element: <ClientOrders /> },
   { path: "pre-booking", element: <ClientPreBooking /> },
   { path: "guest-request", element: <ClientGuestRequest /> },

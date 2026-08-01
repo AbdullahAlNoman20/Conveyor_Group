@@ -59,7 +59,7 @@ export default function Reports() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-xl border border-ink-100 bg-white p-5 lg:col-span-1">
           <h2 className="mb-3 text-sm font-bold text-ink-700">Daily Revenue</h2>
-          <p className="text-3xl font-bold text-brand-600">\u09F3{dailyRevenue.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-brand-600">Tk {dailyRevenue.toLocaleString()}</p>
           <p className="mt-1 text-xs text-ink-400">{orders.length} orders today</p>
         </div>
 
@@ -105,7 +105,7 @@ export default function Reports() {
                 <td className="py-2 font-medium text-ink-800">{o.id}</td>
                 <td className="py-2 text-ink-600">{o.clientName}</td>
                 <td className="py-2 capitalize text-ink-500">{o.status}</td>
-                <td className="py-2 text-right font-semibold text-ink-900">\u09F3{o.amount}</td>
+                <td className="py-2 text-right font-semibold text-ink-900">Tk {o.amount}</td>
               </tr>
             ))}
           </tbody>

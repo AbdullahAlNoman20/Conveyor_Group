@@ -1,5 +1,5 @@
 import DashboardLayout from "../../../../components/layout/DashboardLayout";
-import { LayoutDashboard, ClipboardList, Receipt } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Receipt, UtensilsCrossed } from "lucide-react";
 
 const navGroups = [
   {
@@ -9,6 +9,7 @@ const navGroups = [
   {
     title: "My Visit",
     items: [
+      { to: "/app/guest/place-order", label: "Place Order", Icon: UtensilsCrossed },
       { to: "/app/guest/orders", label: "Active Orders", Icon: ClipboardList },
       { to: "/app/guest/invoices", label: "Invoice History", Icon: Receipt },
     ],

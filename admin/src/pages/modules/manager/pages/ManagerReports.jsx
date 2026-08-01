@@ -47,7 +47,7 @@ export default function ManagerReports() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Daily Orders" value={orders.length} accent="ink" />
-        <StatCard label="Daily Revenue" value={`\u09F3${revenue.toLocaleString()}`} accent="brand" />
+        <StatCard label="Daily Revenue" value={`Tk ${revenue.toLocaleString()}`} accent="brand" />
         <StatCard label="Daily Guests" value={guests.length} accent="amber" />
         <StatCard label="Completed" value={completed} accent="emerald" />
       </div>

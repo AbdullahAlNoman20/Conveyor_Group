@@ -11,14 +11,18 @@ const PurchaseVoucher = lazy(() => import("./pages/PurchaseVoucher"));
 const ManagerKitchenQueue = lazy(() => import("./pages/ManagerKitchenQueue"));
 const ManagerPreBookings = lazy(() => import("./pages/ManagerPreBookings"));
 const ManagerReports = lazy(() => import("./pages/ManagerReports"));
+const OrderApprovals = lazy(() => import("./pages/OrderApprovals"));
+const ProfileRequests = lazy(() => import("./pages/ProfileRequests"));
 
 const ManagerRoutes = [
   { index: true, element: <ManagerDashboard /> },
   { path: "scan-qr", element: <ScanQR /> },
   { path: "new-order", element: <NewOrder /> },
+  { path: "order-approvals", element: <OrderApprovals /> },
   { path: "kitchen-queue", element: <ManagerKitchenQueue /> },
   { path: "guests", element: <GuestManagement /> },
   { path: "guest-requests", element: <GuestRequests /> },
+  { path: "profile-requests", element: <ProfileRequests /> },
   { path: "meal-planner", element: <MealPlanner /> },
   { path: "pre-bookings", element: <ManagerPreBookings /> },
   { path: "wallet-recharge", element: <WalletRecharge /> },

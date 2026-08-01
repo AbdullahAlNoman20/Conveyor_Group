@@ -50,9 +50,9 @@ export default function ClientStatement() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Total Orders" value={mine.length} accent="ink" />
-        <StatCard label="Total Amount" value={`\u09F3${totalAmount}`} accent="brand" />
-        <StatCard label="Paid Amount" value={`\u09F3${paid}`} accent="emerald" />
-        <StatCard label="Outstanding Balance" value={`\u09F3${outstanding}`} accent="amber" />
+        <StatCard label="Total Amount" value={`Tk ${totalAmount}`} accent="brand" />
+        <StatCard label="Paid Amount" value={`Tk ${paid}`} accent="emerald" />
+        <StatCard label="Outstanding Balance" value={`Tk ${outstanding}`} accent="amber" />
       </div>
 
       <div className="rounded-xl border border-ink-100 bg-white p-5">
@@ -70,7 +70,7 @@ export default function ClientStatement() {
               <tr key={o.id}>
                 <td className="py-2 text-ink-500">{new Date(o.createdAt).toLocaleDateString()}</td>
                 <td className="py-2 font-medium text-ink-800">{o.id}</td>
-                <td className="py-2 text-right font-semibold text-ink-900">\u09F3{o.amount}</td>
+                <td className="py-2 text-right font-semibold text-ink-900">Tk {o.amount}</td>
               </tr>
             ))}
           </tbody>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { UserPlus, QrCode, Clock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { useNavigate } from "react-router-dom";
 import { dataStore } from "../../../../components/services/dataStore";
 import { genId } from "../../../../components/utils/idGenerator";
 import { sanitizeText } from "../../../../components/utils/sanitize";
@@ -20,6 +21,7 @@ const VALIDITY_OPTIONS = ["1 Hour", "3 Hours", "6 Hours", "12 Hours", "24 Hours"
 
 export default function GuestManagement() {
   const { push } = useToast();
+  const navigate = useNavigate();
   const [tab, setTab] = useState("temporary");
   const [guests, setGuests] = useState(null);
   const [lastGenerated, setLastGenerated] = useState(null);
@@ -285,6 +287,17 @@ export default function GuestManagement() {
               <p className="mt-1 flex items-center justify-center gap-1 text-xs text-emerald-600">
                 <Clock size={12} /> Expires in {lastGenerated.validity}
               </p>
+              <button
+                type="button"
+                onClick={() =>
+                  navigate("/app/manager/new-order", {
+                    state: { guest: { name: lastGenerated.name, department: lastGenerated.organization } },
+                  })
+                }
+                className="mt-3 w-full rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+              >
+                Create Order for {lastGenerated.name.split(" ")[0]}
+              </button>
             </div>
           )}
 
@@ -301,7 +314,22 @@ export default function GuestManagement() {
                       <p className="font-medium text-ink-800">{g.name}</p>
                       <p className="text-xs text-ink-400">{g.type}</p>
                     </div>
-                    <Badge tone={g.status === "active" ? "active" : "cancelled"}>{g.status}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge tone={g.status === "active" ? "active" : "cancelled"}>{g.status}</Badge>
+                      {g.status === "active" && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate("/app/manager/new-order", {
+                              state: { guest: { name: g.name, department: g.company || g.organization || "" } },
+                            })
+                          }
+                          className="text-xs font-semibold text-brand-600 hover:underline"
+                        >
+                          Create Order
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
             </div>

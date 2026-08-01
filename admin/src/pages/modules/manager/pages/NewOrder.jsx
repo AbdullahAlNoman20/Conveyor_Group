@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Minus, Trash2, ClipboardPlus } from "lucide-react";
+import { Plus, Minus, Trash2, ClipboardPlus, Search, User, Users, X } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { genId } from "../../../../components/utils/idGenerator";
@@ -13,29 +13,96 @@ const ORDER_TYPES = ["Dine In", "Take Away", "Guest Order", "Corporate Guest"];
 const PRIORITIES = ["Normal", "High", "VIP", "Urgent"];
 const TAX_RATE = 0.05;
 
+/**
+ * SRS §13.4, updated per client request: instead of typing a client's name
+ * by hand, the Manager searches/picks from every existing Client AND every
+ * active Guest (Temporary / Walk-in / Corporate) in one combined list. A
+ * manual-entry fallback stays available for a true one-off walk-in that was
+ * never registered. Arriving here from Scan QR or from "Create Order" on the
+ * Guest Management page pre-selects that person automatically.
+ */
 export default function NewOrder() {
   const location = useLocation();
   const navigate = useNavigate();
   const { push } = useToast();
-  const preloadedClient = location.state?.client;
+  const preloaded = location.state?.client || location.state?.guest || null;
 
   const [menu, setMenu] = useState(null);
-  const [clientName, setClientName] = useState(preloadedClient?.name || "");
-  const [employeeId, setEmployeeId] = useState(preloadedClient?.employeeId || "");
-  const [department, setDepartment] = useState(preloadedClient?.department || "");
+  const [clients, setClients] = useState(null);
+  const [guests, setGuests] = useState(null);
+
+  const [pickerOpen, setPickerOpen] = useState(!preloaded);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(
+    preloaded
+      ? {
+          kind: location.state?.guest ? "guest" : "client",
+          name: preloaded.name,
+          employeeId: preloaded.employeeId || "",
+          department: preloaded.department || preloaded.company || "",
+        }
+      : null
+  );
+  const [manualName, setManualName] = useState("");
+
   const [orderType, setOrderType] = useState("Dine In");
   const [tableNumber, setTableNumber] = useState("");
   const [priority, setPriority] = useState("Normal");
   const [instructions, setInstructions] = useState("");
   const [discount, setDiscount] = useState(0);
-  const [items, setItems] = useState([]); // { menuId, name, qty, unitPrice }
+  const [items, setItems] = useState([]);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    (async () => setMenu(await dataStore.load("menu", "menu.json")))();
+    (async () => {
+      setMenu(await dataStore.load("menu", "menu.json"));
+      setClients(await dataStore.load("clients", "clients.json"));
+      setGuests(await dataStore.load("guests", "guests.json"));
+    })();
   }, []);
 
   const isTableRequired = orderType !== "Take Away";
+
+  const pickerResults = useMemo(() => {
+    if (!clients || !guests) return [];
+    const q = search.trim().toLowerCase();
+    const clientEntries = clients
+      .filter((c) => c.status === "active")
+      .map((c) => ({
+        kind: "client",
+        id: c.id,
+        name: c.name,
+        employeeId: c.employeeId,
+        department: c.department,
+        sub: `${c.employeeId} · ${c.department}`,
+      }));
+    const guestEntries = guests
+      .filter((g) => g.status === "active")
+      .map((g) => ({
+        kind: "guest",
+        id: g.id,
+        name: g.name,
+        employeeId: "",
+        department: g.company || g.organization || "",
+        sub: g.type,
+      }));
+    const all = [...clientEntries, ...guestEntries];
+    if (!q) return all.slice(0, 12);
+    return all.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 12);
+  }, [clients, guests, search]);
+
+  function pick(person) {
+    setSelected(person);
+    setManualName("");
+    setPickerOpen(false);
+    setSearch("");
+  }
+
+  function useManualEntry() {
+    if (!manualName.trim()) return;
+    setSelected({ kind: "manual", name: manualName.trim(), employeeId: "", department: "" });
+    setPickerOpen(false);
+  }
 
   function addItem(menuItem) {
     setItems((list) => {
@@ -68,7 +135,7 @@ export default function NewOrder() {
   async function handleSubmit(e) {
     e.preventDefault();
     const nextErrors = {};
-    if (!clientName.trim()) nextErrors.clientName = "Client name is required.";
+    if (!selected) nextErrors.client = "Pick a client or guest, or use manual entry.";
     if (isTableRequired && !tableNumber) nextErrors.tableNumber = "Table number is required for this order type.";
     if (items.length === 0) nextErrors.items = "Add at least one menu item.";
     setErrors(nextErrors);
@@ -76,9 +143,9 @@ export default function NewOrder() {
 
     const order = {
       id: genId("ORD"),
-      clientName: sanitizeText(clientName, 100),
-      employeeId: sanitizeText(employeeId, 30),
-      department: sanitizeText(department, 60),
+      clientName: sanitizeText(selected.kind === "guest" ? `Guest - ${selected.name}` : selected.name, 100),
+      employeeId: sanitizeText(selected.employeeId, 30),
+      department: sanitizeText(selected.department, 60),
       tableNumber: isTableRequired ? Number(tableNumber) : null,
       orderType: orderType.toLowerCase().replace(/\s+/g, "_"),
       priority: priority.toLowerCase(),
@@ -88,7 +155,7 @@ export default function NewOrder() {
       discount: discountAmount,
       tax,
       amount: grandTotal,
-      status: "pending",
+      status: "pending", // Manager created it — already approved by definition
       createdAt: new Date().toISOString(),
     };
 
@@ -98,45 +165,101 @@ export default function NewOrder() {
     navigate("/app/manager");
   }
 
-  if (!menu) return <Loader full label="Loading menu..." />;
+  if (!menu || !clients || !guests) return <Loader full label="Loading menu..." />;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">New Order</h1>
-        <p className="text-sm text-ink-400">Create an order for a scanned client, guest, or walk-in.</p>
+        <p className="text-sm text-ink-400">Pick a client or guest, add items, confirm — that's it.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <section className="rounded-xl border border-ink-100 bg-white p-5">
-            <h2 className="mb-4 text-sm font-bold text-ink-700">Client Information</h2>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <FormField label="Client Name" htmlFor="clientName" error={errors.clientName} required>
-                <input
-                  id="clientName"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                />
-              </FormField>
-              <FormField label="Employee ID" htmlFor="employeeId">
-                <input
-                  id="employeeId"
-                  value={employeeId}
-                  onChange={(e) => setEmployeeId(e.target.value)}
-                  className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                />
-              </FormField>
-              <FormField label="Department" htmlFor="department">
-                <input
-                  id="department"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                />
-              </FormField>
-            </div>
+            <h2 className="mb-4 text-sm font-bold text-ink-700">Who is this order for?</h2>
+
+            {selected && !pickerOpen ? (
+              <div className="flex items-center justify-between rounded-lg border border-brand-200 bg-brand-50 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
+                    {selected.name.charAt(0)}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-ink-900">{selected.name}</p>
+                    <p className="text-xs text-ink-500">
+                      {selected.kind === "client" && `Client · ${selected.employeeId} · ${selected.department}`}
+                      {selected.kind === "guest" && `Guest · ${selected.department || "Walk-in"}`}
+                      {selected.kind === "manual" && "Manual entry (not in system)"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelected(null);
+                    setPickerOpen(true);
+                  }}
+                  className="flex items-center gap-1 text-xs font-semibold text-ink-500 hover:text-brand-600"
+                >
+                  <X size={14} /> Change
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="relative">
+                  <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+                  <input
+                    autoFocus
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search any client or guest by name..."
+                    className="w-full rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  />
+                </div>
+                {errors.client && <p className="mt-1 text-xs font-medium text-brand-600">{errors.client}</p>}
+
+                <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+                  {pickerResults.map((p) => (
+                    <button
+                      type="button"
+                      key={`${p.kind}-${p.id}`}
+                      onClick={() => pick(p)}
+                      className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-ink-50"
+                    >
+                      <span className="flex items-center gap-2">
+                        {p.kind === "client" ? (
+                          <User size={14} className="text-ink-400" />
+                        ) : (
+                          <Users size={14} className="text-ink-400" />
+                        )}
+                        <span className="font-medium text-ink-800">{p.name}</span>
+                      </span>
+                      <span className="text-xs text-ink-400">{p.sub}</span>
+                    </button>
+                  ))}
+                  {pickerResults.length === 0 && (
+                    <p className="px-3 py-4 text-sm text-ink-400">No matches — use manual entry below.</p>
+                  )}
+                </div>
+
+                <div className="mt-3 flex gap-2 border-t border-ink-100 pt-3">
+                  <input
+                    value={manualName}
+                    onChange={(e) => setManualName(e.target.value)}
+                    placeholder="Or type a name for a one-off walk-in..."
+                    className="flex-1 rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={useManualEntry}
+                    className="rounded-lg border border-ink-200 px-3 py-2 text-sm font-semibold text-ink-600 hover:bg-ink-50"
+                  >
+                    Use this name
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
 
           <section className="rounded-xl border border-ink-100 bg-white p-5">
@@ -183,7 +306,7 @@ export default function NewOrder() {
                   ))}
                 </select>
               </FormField>
-              <FormField label="Discount (\u09F3)" htmlFor="discount">
+              <FormField label="Discount (Tk)" htmlFor="discount">
                 <input
                   id="discount"
                   type="number"
@@ -194,13 +317,13 @@ export default function NewOrder() {
                 />
               </FormField>
             </div>
-            <FormField label="Special Instructions" htmlFor="instructions" className="mt-4">
+            <FormField label="Special Instructions" htmlFor="instructions">
               <textarea
                 id="instructions"
                 rows={2}
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                className="mt-4 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </FormField>
           </section>
@@ -221,7 +344,7 @@ export default function NewOrder() {
                     <span className="block text-xs text-ink-400">{m.category}</span>
                   </span>
                   <span className="flex items-center gap-1 font-semibold text-brand-600">
-                    <Plus size={14} /> \u09F3{m.price}
+                    <Plus size={14} /> Tk {m.price}
                   </span>
                 </button>
               ))}
@@ -254,7 +377,7 @@ export default function NewOrder() {
                   </button>
                 </div>
                 <span className="w-16 text-right font-semibold text-ink-900">
-                  \u09F3{i.qty * i.unitPrice}
+                  Tk {i.qty * i.unitPrice}
                 </span>
                 <button type="button" onClick={() => removeItem(i.menuId)} className="text-ink-300 hover:text-brand-600">
                   <Trash2 size={14} />
@@ -266,19 +389,19 @@ export default function NewOrder() {
           <div className="space-y-1 border-t border-ink-100 pt-3 text-sm">
             <div className="flex justify-between text-ink-500">
               <span>Subtotal</span>
-              <span>\u09F3{subtotal}</span>
+              <span>Tk {subtotal}</span>
             </div>
             <div className="flex justify-between text-ink-500">
               <span>Discount</span>
-              <span>-\u09F3{discountAmount}</span>
+              <span>-Tk {discountAmount}</span>
             </div>
             <div className="flex justify-between text-ink-500">
               <span>Tax (5%)</span>
-              <span>\u09F3{tax}</span>
+              <span>Tk {tax}</span>
             </div>
             <div className="flex justify-between border-t border-ink-100 pt-2 text-base font-bold text-ink-900">
               <span>Grand Total</span>
-              <span>\u09F3{grandTotal}</span>
+              <span>Tk {grandTotal}</span>
             </div>
           </div>
 

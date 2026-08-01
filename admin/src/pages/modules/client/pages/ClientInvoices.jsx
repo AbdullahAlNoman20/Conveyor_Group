@@ -58,13 +58,13 @@ export default function ClientInvoices() {
               {o.items?.map((i, idx) => (
                 <div key={idx} className="flex justify-between">
                   <span>{i.qty}x {i.name}</span>
-                  <span>\u09F3{i.qty * i.unitPrice}</span>
+                  <span>Tk {i.qty * i.unitPrice}</span>
                 </div>
               ))}
             </div>
             <div className="mt-3 flex justify-between border-t border-ink-100 pt-2 text-sm font-bold text-ink-900">
               <span>Grand Total</span>
-              <span>\u09F3{o.amount}</span>
+              <span>Tk {o.amount}</span>
             </div>
           </div>
         ))}

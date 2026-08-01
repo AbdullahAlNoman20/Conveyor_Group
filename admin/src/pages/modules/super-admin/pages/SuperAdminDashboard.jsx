@@ -39,7 +39,7 @@ export default function SuperAdminDashboard() {
         <StatCard label="Running Orders" value={runningOrders} Icon={Utensils} accent="amber" />
         <StatCard
           label="Today's Revenue"
-          value={`\u09F3${todaysRevenue.toLocaleString()}`}
+          value={`Tk ${todaysRevenue.toLocaleString()}`}
           Icon={DollarSign}
           accent="brand"
         />
@@ -58,7 +58,7 @@ export default function SuperAdminDashboard() {
               >
                 <span className="font-medium text-ink-700">{o.clientName}</span>
                 <span className="text-ink-400">{o.status}</span>
-                <span className="font-semibold text-ink-900">\u09F3{o.amount}</span>
+                <span className="font-semibold text-ink-900">Tk {o.amount}</span>
               </div>
             ))}
           </div>

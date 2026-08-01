@@ -8,6 +8,7 @@ import { sanitizeEmail } from "../../components/utils/sanitize";
 import FormField from "../../components/shared/FormField";
 import { ROLE_HOME_ROUTE, ROLE_LABELS } from "../../components/constants/roles";
 import { dataStore } from "../../components/services/dataStore";
+import Footer from "../../components/Footer";
 import logo from "../../assets/logo.jpeg";
 
 const DEMO_PASSWORD = "Demo@123";
@@ -49,10 +50,29 @@ export default function Login() {
       return;
     }
     push(`Welcome back, ${result.user.name}!`, "success");
-    const redirectTo =
-      location.state?.from?.pathname || ROLE_HOME_ROUTE[result.user.role] || "/";
-    navigate(redirectTo, { replace: true });
+    // Deliberately not navigating here. Calling navigate() immediately after
+    // login() resolves can race ahead of the AuthContext re-render that
+    // actually propagates the new `user` to RoleRoute — RoleRoute would then
+    // briefly read the OLD (or null) user on the very first render of the
+    // destination route and bounce to /unauthorized, which only cleared on a
+    // manual reload. The effect below fires only once `user` has actually
+    // updated, which removes that race.
   }
+
+  useEffect(() => {
+    if (!user) return;
+    const roleHome = ROLE_HOME_ROUTE[user.role] || "/";
+    const requestedFrom = location.state?.from?.pathname;
+    // Only honor a "come back to where you were" redirect if that path
+    // actually belongs to this role's own area — otherwise a stale redirect
+    // captured from a *different* account's session (e.g. after switching
+    // users without navigating away first) would send the new user into a
+    // route that isn't theirs, which RoleRoute would then correctly block.
+    const redirectTo =
+      requestedFrom && requestedFrom.startsWith(roleHome) ? requestedFrom : roleHome;
+    navigate(redirectTo, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   function fillDemo(email) {
     setForm({ email, password: DEMO_PASSWORD });
@@ -60,7 +80,8 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-ink-950 via-ink-900 to-brand-950 px-4 py-10">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-ink-950 via-ink-900 to-brand-950">
+      <div className="relative flex flex-1 items-center justify-center px-4 py-10">
       <Link
         to="/"
         className="absolute left-4 top-4 flex items-center gap-1 text-sm text-ink-300 hover:text-white sm:left-6 sm:top-6"
@@ -163,6 +184,8 @@ export default function Login() {
           </div>
         </div>
       </div>
+      </div>
+      <Footer />
     </div>
   );
 }

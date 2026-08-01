@@ -38,15 +38,15 @@ export default function FinancialDashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Total Income" value={`\u09F3${totalIncome.toLocaleString()}`} Icon={TrendingUp} accent="emerald" />
-        <StatCard label="Total Expense" value={`\u09F3${totalExpense.toLocaleString()}`} Icon={TrendingDown} accent="brand" />
+        <StatCard label="Total Income" value={`Tk ${totalIncome.toLocaleString()}`} Icon={TrendingUp} accent="emerald" />
+        <StatCard label="Total Expense" value={`Tk ${totalExpense.toLocaleString()}`} Icon={TrendingDown} accent="brand" />
         <StatCard
           label="Profit"
-          value={`\u09F3${profit.toLocaleString()}`}
+          value={`Tk ${profit.toLocaleString()}`}
           Icon={DollarSign}
           accent={profit >= 0 ? "emerald" : "brand"}
         />
-        <StatCard label="Wallet Recharges" value={`\u09F3${walletRecharge.toLocaleString()}`} Icon={PiggyBank} accent="sky" />
+        <StatCard label="Wallet Recharges" value={`Tk ${walletRecharge.toLocaleString()}`} Icon={PiggyBank} accent="sky" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -81,7 +81,7 @@ function Row({ label, value, negative }) {
     <div className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2">
       <span className="text-ink-600">{label}</span>
       <span className={`font-semibold ${negative ? "text-brand-600" : "text-emerald-600"}`}>
-        \u09F3{value.toLocaleString()}
+        Tk {value.toLocaleString()}
       </span>
     </div>
   );

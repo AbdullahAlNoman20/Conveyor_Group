@@ -33,9 +33,9 @@ export default {
         },
       },
       fontFamily: {
-        display: ["Oswald", "Segoe UI", "sans-serif"],
-        body: ["Inter", "Segoe UI", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        display: ["Oswald", "Segoe UI", "Noto Sans Bengali", "sans-serif"],
+        body: ["Inter", "Segoe UI", "Noto Sans Bengali", "sans-serif"],
+        mono: ["JetBrains Mono", "Noto Sans Bengali", "monospace"],
       },
       screens: {
         xs: "420px",

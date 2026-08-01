@@ -28,7 +28,7 @@ export default function GuestOrders() {
             <span className="text-ink-500">
               {o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}
             </span>
-            <span className="font-semibold text-ink-900">\u09F3{o.amount}</span>
+            <span className="font-semibold text-ink-900">Tk {o.amount}</span>
             <Badge tone={o.status}>{o.status}</Badge>
           </div>
         ))}

@@ -54,7 +54,7 @@ export default function ClientOrders() {
                 <td className="px-4 py-3 text-ink-500">
                   {o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}
                 </td>
-                <td className="px-4 py-3 font-semibold text-ink-900">\u09F3{o.amount}</td>
+                <td className="px-4 py-3 font-semibold text-ink-900">Tk {o.amount}</td>
                 <td className="px-4 py-3">
                   <Badge tone={o.status}>{o.status}</Badge>
                 </td>

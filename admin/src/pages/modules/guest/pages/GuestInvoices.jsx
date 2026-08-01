@@ -34,7 +34,7 @@ export default function GuestInvoices() {
             </div>
             <div className="mt-3 flex justify-between border-t border-ink-100 pt-2 text-sm font-bold text-ink-900">
               <span>Grand Total</span>
-              <span>\u09F3{o.amount}</span>
+              <span>Tk {o.amount}</span>
             </div>
           </div>
         ))}
