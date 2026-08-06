@@ -49,8 +49,20 @@ export default function KitchenBoard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-ink-950 text-white">
-      <div className="flex-1 p-4 board:p-8">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-ink-950 text-white"> 
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        src="/videos/hero-bg.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+      />
+      <div className="absolute inset-0 bg-ink-950/95" />
+
+      <div className="relative flex-1 p-4 board:p-8">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-ink-800 pb-4">
           <div className="flex items-center gap-3">
             <img src={logo} alt="Conveyor Group" className="h-10 w-auto rounded bg-white p-1 board:h-14" />
@@ -149,10 +161,6 @@ export default function KitchenBoard() {
             </section>
           </div>
         )}
-
-        <p className="mt-8 text-center text-xs text-ink-600">
-          Public display — no login required. Updates automatically.
-        </p>
       </div>
 
       <Footer />

@@ -55,7 +55,7 @@ export default function Home() {
       {/* Hero */}
       <section className="relative overflow-hidden bg-ink-950 text-white">
         <video
-          className="absolute inset-0 hidden h-full w-full object-cover sm:block"
+          className="absolute inset-0 h-full w-full object-cover"
           src="/videos/hero-bg.mp4"
           autoPlay
           loop
