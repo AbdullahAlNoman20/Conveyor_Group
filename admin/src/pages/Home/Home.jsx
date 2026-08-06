@@ -7,7 +7,6 @@ import {
   Monitor,
   ScanLine,
   Timer,
-  CalendarCheck,
   ArrowRight,
   Moon,
 } from "lucide-react";
@@ -42,12 +41,30 @@ export default function Home() {
   const lunchItems = menu.filter((m) => m.category === "Fixed Meal" || m.category === "Custom Menu");
   const eveningItems = menu.filter((m) => m.category === "Beverage" || m.category === "Evening Snack");
 
+  function menuIdForDish(name) {
+    return menu.find((m) => m.name === name)?.id;
+  }
+
+  // Duplicate the week twice so the belt loops seamlessly.
+  const beltItems = [...weeklyMenu, ...weeklyMenu];
+
   return (
     <div className="min-h-screen bg-white">
       <Nav />
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-ink-950 text-white">
+        <video
+          className="absolute inset-0 hidden h-full w-full object-cover sm:block"
+          src="/videos/hero-bg.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 bg-ink-950/70" />
         <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full border-[40px] border-ink-800/40" />
         <div className="pointer-events-none absolute -right-10 top-10 h-64 w-64 rounded-full border-[28px] border-brand-600/30" />
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 md:grid-cols-2 md:items-center md:py-24">
@@ -98,47 +115,60 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Weekly Fixed Meals */}
-      <section id="weekly-meals" className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-ink-900">This Week's Fixed Meals</h2>
-            <p className="mt-1 text-sm text-ink-400">
-              Fixed-Meal employees automatically get the day's dish below — no need to choose.
-            </p>
-          </div>
-          <CalendarCheck className="hidden text-ink-300 sm:block" size={28} />
+      {/* Signature section: the week's fixed meals, literally riding a conveyor belt */}
+      <section id="weekly-meals" className="overflow-hidden bg-ink-50 py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <h2 className="text-2xl font-bold text-ink-900">This Week, On the Belt</h2>
+          <p className="mt-1 text-sm text-ink-400">
+            Fixed-Meal employees get the day's dish automatically — hover the belt to pause it.
+          </p>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-7">
-          {weeklyMenu.map((d) => {
+        <div className="conveyor-track relative mt-10 flex w-max gap-8 px-4">
+          {beltItems.map((d, i) => {
             const isToday = d.day === todayName;
+            const id = menuIdForDish(d.meal);
+            const Wrapper = id ? Link : "div";
             return (
-              <div
-                key={d.day}
-                className={`overflow-hidden rounded-xl border transition-transform hover:-translate-y-1 ${
-                  isToday ? "border-brand-500 ring-2 ring-brand-100" : "border-ink-100"
-                }`}
+              <Wrapper
+                key={`${d.day}-${i}`}
+                to={id ? `/menu/${id}` : undefined}
+                className="flex w-32 shrink-0 flex-col items-center text-center"
               >
-                <DishImage name={d.meal} className="h-20" />
-                <div className="p-3">
-                  <p className={`text-xs font-bold uppercase tracking-wide ${isToday ? "text-brand-600" : "text-ink-400"}`}>
-                    {d.day} {isToday && "· Today"}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-ink-900">{d.meal}</p>
+                <div
+                  className={`overflow-hidden rounded-full border-4 bg-white shadow-md transition-transform hover:-translate-y-1 ${
+                    isToday ? "border-brand-500" : "border-white"
+                  }`}
+                >
+                  <DishImage name={d.meal} className="h-24 w-24" rounded="" />
                 </div>
-              </div>
+                <p className={`mt-2 text-[11px] font-bold uppercase tracking-wide ${isToday ? "text-brand-600" : "text-ink-400"}`}>
+                  {d.day} {isToday && "· Today"}
+                </p>
+                <p className="text-xs font-semibold leading-tight text-ink-800">{d.meal}</p>
+              </Wrapper>
             );
           })}
           {weeklyMenu.length === 0 &&
             Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="h-40 animate-pulse rounded-xl bg-ink-100" />
+              <div key={i} className="h-32 w-32 shrink-0 animate-pulse rounded-full bg-ink-200" />
             ))}
+        </div>
+        {/* The belt line itself */}
+        <div className="relative mt-4 h-3 w-full bg-ink-200">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(135deg, #eb2a2d 0, #eb2a2d 14px, transparent 14px, transparent 28px)",
+              opacity: 0.5,
+            }}
+          />
         </div>
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="bg-ink-50 py-16">
+      <section id="how-it-works" className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <h2 className="text-center text-2xl font-bold text-ink-900">How the cafeteria works</h2>
           <p className="mx-auto mt-2 max-w-lg text-center text-sm text-ink-400">
@@ -146,7 +176,7 @@ export default function Home() {
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map(({ Icon, title, text }, i) => (
-              <div key={title} className="relative rounded-2xl border border-ink-100 bg-white p-6">
+              <div key={title} className="relative rounded-2xl border border-ink-100 p-6 transition-shadow hover:shadow-md">
                 <span className="text-xs font-bold text-brand-500">0{i + 1}</span>
                 <Icon className="mt-2 text-ink-900" size={28} />
                 <h3 className="mt-3 font-semibold text-ink-900">{title}</h3>
@@ -158,7 +188,7 @@ export default function Home() {
       </section>
 
       {/* Live board teaser */}
-      <section className="py-16">
+      <section className="bg-ink-50 py-16">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-4 text-center sm:px-6 md:flex-row md:text-left">
           <Monitor size={48} className="shrink-0 text-brand-600" />
           <div className="flex-1">
@@ -185,19 +215,24 @@ export default function Home() {
         </div>
         <p className="mt-1 text-sm text-ink-400">
           Fixed-Meal dishes plus everything Custom-Menu employees and guests can order freely.
+          Tap a dish for details.
         </p>
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {lunchItems.map((m) => (
-            <div key={m.id} className="overflow-hidden rounded-xl border border-ink-100">
+            <Link
+              key={m.id}
+              to={`/menu/${m.id}`}
+              className="group overflow-hidden rounded-xl border border-ink-100 transition-shadow hover:shadow-lg"
+            >
               <DishImage name={m.name} />
               <div className="flex items-center justify-between p-4">
                 <div>
-                  <p className="font-semibold text-ink-900">{m.name}</p>
+                  <p className="font-semibold text-ink-900 group-hover:text-brand-600">{m.name}</p>
                   <p className="text-xs text-ink-400">{m.category}</p>
                 </div>
                 <span className="font-bold text-brand-600">Tk {m.price}</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -214,13 +249,17 @@ export default function Home() {
           </p>
           <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {eveningItems.map((m) => (
-              <div key={m.id} className="overflow-hidden rounded-xl border border-ink-100 bg-white">
+              <Link
+                key={m.id}
+                to={`/menu/${m.id}`}
+                className="group overflow-hidden rounded-xl border border-ink-100 bg-white transition-shadow hover:shadow-lg"
+              >
                 <DishImage name={m.name} className="h-24" />
                 <div className="flex items-center justify-between p-3">
-                  <p className="text-sm font-semibold text-ink-900">{m.name}</p>
+                  <p className="text-sm font-semibold text-ink-900 group-hover:text-brand-600">{m.name}</p>
                   <span className="font-bold text-brand-600">Tk {m.price}</span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

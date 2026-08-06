@@ -4,6 +4,7 @@ import { Menu, LogOut } from "lucide-react";
 import Sidebar from "./Sidebar";
 import NotificationBell from "../shared/NotificationBell";
 import Loader from "../shared/Loader";
+import AvatarImage from "../shared/AvatarImage";
 import { useAuth } from "../hooks/useAuth";
 import { ROLE_BADGE_COLOR } from "../constants/roles";
 
@@ -51,12 +52,7 @@ export default function DashboardLayout({ navGroups, roleLabel }) {
           <div className="flex items-center gap-3">
             <NotificationBell />
             <div className="hidden items-center gap-2 sm:flex">
-              <span
-                className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
-                style={{ backgroundColor: user?.avatarColor || "#000" }}
-              >
-                {user?.name?.charAt(0)}
-              </span>
+              <AvatarImage name={user?.name} size={32} />
               <div className="leading-tight">
                 <p className="text-sm font-semibold text-ink-900">{user?.name}</p>
                 <span

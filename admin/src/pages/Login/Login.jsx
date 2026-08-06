@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation, Navigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Eye, EyeOff, LogIn, FlaskConical, ArrowLeft } from "lucide-react";
 import { useAuth } from "../../components/hooks/useAuth";
 import { useToast } from "../../components/hooks/useToast";
 import { validateLoginForm } from "../../components/utils/validators";
 import { sanitizeEmail } from "../../components/utils/sanitize";
 import FormField from "../../components/shared/FormField";
+import Loader from "../../components/shared/Loader";
+import AvatarImage from "../../components/shared/AvatarImage";
 import { ROLE_HOME_ROUTE, ROLE_LABELS } from "../../components/constants/roles";
 import { dataStore } from "../../components/services/dataStore";
 import Footer from "../../components/Footer";
@@ -31,8 +33,6 @@ export default function Login() {
       setDemoUsers(users.filter((u) => u.status === "active"));
     })();
   }, []);
-
-  if (user) return <Navigate to={ROLE_HOME_ROUTE[user.role] || "/"} replace />;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -78,6 +78,14 @@ export default function Login() {
     setForm({ email, password: DEMO_PASSWORD });
     setErrors({});
   }
+
+  // IMPORTANT: this early return must come AFTER every Hook call above.
+  // It previously sat between the two useEffect() calls — the moment `user`
+  // became truthy (right after a successful login), this component would
+  // call one fewer Hook than it did on the render before, which is a Rules
+  // of Hooks violation. React throws in that case, and that thrown error is
+  // exactly what was bouncing the app to the custom error page on login.
+  if (user) return <Loader full label="Redirecting..." />;
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-br from-ink-950 via-ink-900 to-brand-950">
@@ -161,12 +169,7 @@ export default function Login() {
                 className="flex w-full items-center justify-between gap-3 rounded-lg border border-ink-100 px-3 py-2.5 text-left transition hover:border-brand-300 hover:bg-brand-50"
               >
                 <span className="flex items-center gap-2">
-                  <span
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
-                    style={{ backgroundColor: u.avatarColor }}
-                  >
-                    {u.name.charAt(0)}
-                  </span>
+                  <AvatarImage name={u.name} size={32} />
                   <span>
                     <span className="block text-sm font-medium text-ink-900">{u.name}</span>
                     <span className="block text-xs text-ink-400">{ROLE_LABELS[u.role]}</span>

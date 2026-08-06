@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import Root from "./Root";
 import Home from "./pages/Home/Home";
+import MenuDetail from "./pages/Menu/MenuDetail";
 import Login from "./pages/Login/Login";
 import KitchenBoard from "./pages/Board/KitchenBoard";
 import Unauthorized from "./components/shared/Unauthorized";
@@ -35,6 +36,7 @@ const Router = createBrowserRouter([
     errorElement: <RouteErrorBoundary />,
     children: [
       { index: true, element: <Home /> },
+      { path: "menu/:id", element: <MenuDetail /> },
       { path: "login", element: <Login /> },
       { path: "unauthorized", element: <Unauthorized /> },
       { path: "kitchen/board", element: <KitchenBoard /> },

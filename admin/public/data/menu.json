@@ -4,83 +4,146 @@
     "name": "Khichuri with Egg",
     "category": "Fixed Meal",
     "price": 90,
-    "available": true
+    "available": true,
+    "description": "A warming one-pot blend of rice and lentils, slow-cooked with turmeric and cumin, finished with a boiled egg on the side. Saturday's fixed lunch \u2014 comfort food built for a full afternoon shift.",
+    "spiceLevel": "Mild",
+    "calories": 420,
+    "allergens": [
+      "Egg"
+    ]
   },
   {
     "id": "M-002",
     "name": "Fish Curry with Rice",
     "category": "Fixed Meal",
     "price": 120,
-    "available": true
+    "available": true,
+    "description": "River fish cooked in a light turmeric-forward curry, a Monday cafeteria tradition. Served with steamed rice and a wedge of lime.",
+    "spiceLevel": "Medium",
+    "calories": 480,
+    "allergens": [
+      "Fish"
+    ]
   },
   {
     "id": "M-003",
     "name": "Chicken Curry with Rice",
     "category": "Fixed Meal",
     "price": 130,
-    "available": true
+    "available": true,
+    "description": "Bone-in chicken slow-cooked in a rich onion-tomato masala, Tuesday's fixed meal \u2014 the one most people ask for seconds of.",
+    "spiceLevel": "Medium-Hot",
+    "calories": 520,
+    "allergens": []
   },
   {
     "id": "M-004",
     "name": "Beef Curry with Rice",
     "category": "Fixed Meal",
     "price": 150,
-    "available": true
+    "available": true,
+    "description": "Slow-braised beef in a deep, dark bhuna-style curry. Wednesday's fixed meal, and the kitchen's most-requested dish company-wide.",
+    "spiceLevel": "Hot",
+    "calories": 560,
+    "allergens": []
   },
   {
     "id": "M-005",
     "name": "Mixed Vegetable with Rice",
     "category": "Fixed Meal",
     "price": 80,
-    "available": true
+    "available": true,
+    "description": "A lighter Thursday option \u2014 seasonal vegetables tempered with panch phoron, served with steamed rice. The go-to for anyone easing off heavier meals.",
+    "spiceLevel": "Mild",
+    "calories": 340,
+    "allergens": []
   },
   {
     "id": "M-006",
     "name": "Grilled Sandwich",
     "category": "Custom Menu",
     "price": 110,
-    "available": true
+    "available": true,
+    "description": "Toasted bread layered with vegetables, cheese, and a smoky sauce. Available any day for Custom Menu employees and guests.",
+    "spiceLevel": "Mild",
+    "calories": 380,
+    "allergens": [
+      "Dairy",
+      "Gluten"
+    ]
   },
   {
     "id": "M-007",
     "name": "Chicken Fried Rice",
     "category": "Custom Menu",
     "price": 140,
-    "available": true
+    "available": true,
+    "description": "Wok-tossed rice with chicken, egg, and vegetables. A quick, filling \u00e0 la carte option available every day.",
+    "spiceLevel": "Mild",
+    "calories": 540,
+    "allergens": [
+      "Egg"
+    ]
   },
   {
     "id": "M-008",
     "name": "Coffee",
     "category": "Beverage",
     "price": 60,
-    "available": true
+    "available": true,
+    "description": "Freshly brewed, served hot. The unofficial fuel of every 3pm meeting.",
+    "spiceLevel": "-",
+    "calories": 5,
+    "allergens": []
   },
   {
     "id": "M-009",
     "name": "Fresh Lime Water",
     "category": "Beverage",
     "price": 30,
-    "available": true
+    "available": true,
+    "description": "Lime, a touch of salt and sugar, ice-cold. The house cure for a heavy lunch.",
+    "spiceLevel": "-",
+    "calories": 60,
+    "allergens": []
   },
   {
     "id": "M-010",
     "name": "Vegetable Samosa",
     "category": "Evening Snack",
     "price": 25,
-    "available": true
+    "available": true,
+    "description": "Crisp pastry parcels filled with spiced potato and peas. An evening-shift favorite.",
+    "spiceLevel": "Medium",
+    "calories": 150,
+    "allergens": [
+      "Gluten"
+    ]
   },
   {
     "id": "M-011",
     "name": "Singara",
     "category": "Evening Snack",
     "price": 20,
-    "available": true
+    "available": true,
+    "description": "Bengal's take on the samosa \u2014 smaller, spicier, with a distinct triangular fold.",
+    "spiceLevel": "Medium",
+    "calories": 140,
+    "allergens": [
+      "Gluten"
+    ]
   },
   {
     "id": "M-012",
     "name": "Beef Roll",
     "category": "Evening Snack",
     "price": 70,
-    "available": true
+    "available": true,
+    "description": "Spiced minced beef wrapped in a flaky paratha roll. A hearty evening snack.",
+    "spiceLevel": "Medium-Hot",
+    "calories": 320,
+    "allergens": [
+      "Gluten"
+    ]
   }
 ]

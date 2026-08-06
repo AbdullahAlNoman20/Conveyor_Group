@@ -5,6 +5,7 @@ import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import { genInvoiceNumber } from "../../../../components/utils/idGenerator";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function ClientInvoices() {
   const { user } = useAuth();
@@ -15,9 +16,10 @@ export default function ClientInvoices() {
     (async () => setOrders(await dataStore.load("orders", "orders.json")))();
   }, []);
 
-  if (!orders) return <Loader full label="Loading invoices..." />;
+  const mine = (orders || []).filter((o) => o.clientName?.includes(user?.name?.split(" ")[0] || ""));
+  const { page, setPage, totalPages, pageItems: pagedMine } = usePagination(mine, 5);
 
-  const mine = orders.filter((o) => o.clientName?.includes(user?.name?.split(" ")[0] || ""));
+  if (!orders) return <Loader full label="Loading invoices..." />;
 
   function action(kind, order) {
     if (kind === "print") window.print();
@@ -32,7 +34,7 @@ export default function ClientInvoices() {
       </div>
 
       <div className="space-y-3">
-        {mine.map((o) => (
+        {pagedMine.map((o) => (
           <div key={o.id} className="rounded-xl border border-ink-100 bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -74,6 +76,7 @@ export default function ClientInvoices() {
           </p>
         )}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }

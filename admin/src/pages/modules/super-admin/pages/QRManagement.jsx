@@ -5,6 +5,7 @@ import { useToast } from "../../../../components/hooks/useToast";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
 import SearchInput from "../../../../components/shared/SearchInput";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function QRManagement() {
   const { push } = useToast();
@@ -15,11 +16,12 @@ export default function QRManagement() {
     (async () => setClients(await dataStore.load("clients", "clients.json")))();
   }, []);
 
-  if (!clients) return <Loader full label="Loading QR records..." />;
-
-  const filtered = clients.filter(
+  const filtered = (clients || []).filter(
     (c) => c.name.toLowerCase().includes(query.toLowerCase()) || c.employeeId.toLowerCase().includes(query.toLowerCase())
   );
+  const { page, setPage, totalPages, pageItems: pagedClients } = usePagination(filtered, 10);
+
+  if (!clients) return <Loader full label="Loading QR records..." />;
 
   async function setStatus(id, qrStatus) {
     const next = await dataStore.update("clients", (c) => c.id === id, { qrStatus });
@@ -54,7 +56,7 @@ export default function QRManagement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100">
-            {filtered.map((c) => (
+            {pagedClients.map((c) => (
               <tr key={c.id}>
                 <td className="px-4 py-3 font-medium text-ink-800">{c.name}</td>
                 <td className="px-4 py-3 text-ink-500">{c.employeeId}</td>
@@ -88,6 +90,7 @@ export default function QRManagement() {
             )}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-4 pb-3" />
       </div>
 
       <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">

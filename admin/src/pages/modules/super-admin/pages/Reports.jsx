@@ -3,6 +3,7 @@ import { Download, FileSpreadsheet, FileText, Printer } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { useToast } from "../../../../components/hooks/useToast";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function Reports() {
   const { push } = useToast();
@@ -16,10 +17,8 @@ export default function Reports() {
     })();
   }, []);
 
-  if (!orders || !clients) return <Loader full label="Loading reports..." />;
-
-  const dailyRevenue = orders.reduce((s, o) => s + o.amount, 0);
-  const foodCount = orders
+  const dailyRevenue = (orders || []).reduce((s, o) => s + o.amount, 0);
+  const foodCount = (orders || [])
     .flatMap((o) => o.items || [])
     .reduce((acc, i) => {
       acc[i.name] = (acc[i.name] || 0) + i.qty;
@@ -27,10 +26,13 @@ export default function Reports() {
     }, {});
   const topFood = Object.entries(foodCount).sort((a, b) => b[1] - a[1]);
 
-  const byDept = clients.reduce((acc, c) => {
+  const byDept = (clients || []).reduce((acc, c) => {
     acc[c.department] = (acc[c.department] || 0) + 1;
     return acc;
   }, {});
+  const { page, setPage, totalPages, pageItems: pagedOrders } = usePagination(orders || [], 10);
+
+  if (!orders || !clients) return <Loader full label="Loading reports..." />;
 
   function exportAs(format) {
     push(`${format} export queued (mock — no backend export service connected yet).`, "info");
@@ -100,7 +102,7 @@ export default function Reports() {
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100">
-            {orders.map((o) => (
+            {pagedOrders.map((o) => (
               <tr key={o.id}>
                 <td className="py-2 font-medium text-ink-800">{o.id}</td>
                 <td className="py-2 text-ink-600">{o.clientName}</td>
@@ -110,6 +112,7 @@ export default function Reports() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-1 pt-1" />
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
+import AvatarImage from "../../../../components/shared/AvatarImage";
 
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB — sane client-side upload guard
 
@@ -96,11 +97,11 @@ export default function ClientProfile() {
       <form onSubmit={submitRequest} className="space-y-4 rounded-xl border border-ink-100 bg-white p-6">
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
-            <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-ink-100 text-2xl font-bold text-ink-400">
+            <div className="h-24 w-24 overflow-hidden rounded-full bg-ink-100">
               {photoPreview ? (
                 <img src={photoPreview} alt="Profile preview" className="h-full w-full object-cover" />
               ) : (
-                me?.name?.charAt(0)
+                <AvatarImage name={me?.name} size={96} />
               )}
             </div>
             <button

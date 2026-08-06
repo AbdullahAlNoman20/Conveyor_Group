@@ -4,6 +4,7 @@ import { dataStore } from "../../../../components/services/dataStore";
 import { useToast } from "../../../../components/hooks/useToast";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import SearchInput from "../../../../components/shared/SearchInput";
 
 export default function ManagerPreBookings() {
@@ -15,9 +16,10 @@ export default function ManagerPreBookings() {
     (async () => setBookings(await dataStore.load("preBookings", "pre-bookings.json")))();
   }, []);
 
-  if (!bookings) return <Loader full label="Loading pre-bookings..." />;
+  const filtered = (bookings || []).filter((b) => b.clientName.toLowerCase().includes(query.toLowerCase()));
+  const { page, setPage, totalPages, pageItems: pagedBookings } = usePagination(filtered, 10);
 
-  const filtered = bookings.filter((b) => b.clientName.toLowerCase().includes(query.toLowerCase()));
+  if (!bookings) return <Loader full label="Loading pre-bookings..." />;
 
   async function editStatus(id, status) {
     const next = await dataStore.update("preBookings", (b) => b.id === id, { status });
@@ -50,7 +52,7 @@ export default function ManagerPreBookings() {
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100">
-            {filtered.map((b) => (
+            {pagedBookings.map((b) => (
               <tr key={b.id}>
                 <td className="px-4 py-3 font-medium text-ink-800">{b.clientName}</td>
                 <td className="px-4 py-3 text-ink-500">{b.date}</td>
@@ -80,6 +82,7 @@ export default function ManagerPreBookings() {
             )}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-4 pb-3" />
       </div>
     </div>
   );

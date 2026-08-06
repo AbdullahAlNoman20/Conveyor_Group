@@ -47,3 +47,22 @@ h4 {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Signature homepage element: dishes riding a literal conveyor belt, a
+   direct nod to "Conveyor Group". Paused on hover/focus and frozen for
+   prefers-reduced-motion via the rule above. */
+@keyframes conveyor-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.conveyor-track {
+  animation: conveyor-scroll 32s linear infinite;
+}
+.conveyor-track:hover,
+.conveyor-track:focus-within {
+  animation-play-state: paused;
+}

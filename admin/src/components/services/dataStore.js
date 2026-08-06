@@ -16,6 +16,36 @@ import { api } from "./api";
 
 const NS = "cccms"; // localStorage namespace, avoids collisions with other apps
 
+// ---------------------------------------------------------------------------
+// Seed versioning
+//
+// Once a collection is cached in localStorage, `load()` never looks at the
+// JSON file again — which is correct for data the USER edited, but it also
+// means a developer update to a seed file (new menu items, new descriptions,
+// a corrected weekly menu, etc.) would silently never appear for anyone who
+// already used the app. Bumping SEED_VERSION forces exactly one reseed of
+// every collection on first load after an update, then behaves normally
+// (local edits after that are preserved as before).
+// ---------------------------------------------------------------------------
+const SEED_VERSION = "2";
+const VERSION_KEY = `${NS}:seed-version`;
+
+function ensureCurrentSeedVersion() {
+  try {
+    const stored = localStorage.getItem(VERSION_KEY);
+    if (stored !== SEED_VERSION) {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith(`${NS}:`) && k !== VERSION_KEY)
+        .forEach((k) => localStorage.removeItem(k));
+      localStorage.setItem(VERSION_KEY, SEED_VERSION);
+    }
+  } catch {
+    // Storage unavailable (private mode, quota, etc.) — fall back to
+    // whatever's already there rather than crashing.
+  }
+}
+ensureCurrentSeedVersion();
+
 function storageKey(key) {
   return `${NS}:${key}`;
 }

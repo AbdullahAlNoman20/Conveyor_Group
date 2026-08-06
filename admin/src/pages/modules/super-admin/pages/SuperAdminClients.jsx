@@ -9,6 +9,7 @@ import Modal from "../../../../components/shared/Modal";
 import ConfirmDialog from "../../../../components/shared/ConfirmDialog";
 import Badge from "../../../../components/shared/Badge";
 import SearchInput from "../../../../components/shared/SearchInput";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import Loader from "../../../../components/shared/Loader";
 
 const EMPTY_FORM = {
@@ -34,13 +35,14 @@ export default function SuperAdminClients() {
     (async () => setClients(await dataStore.load("clients", "clients.json")))();
   }, []);
 
-  if (!clients) return <Loader full label="Loading clients..." />;
-
-  const filtered = clients.filter(
+  const filtered = (clients || []).filter(
     (c) =>
       c.name.toLowerCase().includes(query.toLowerCase()) ||
       c.employeeId.toLowerCase().includes(query.toLowerCase())
   );
+  const { page, setPage, totalPages, pageItems: pagedClients } = usePagination(filtered, 10);
+
+  if (!clients) return <Loader full label="Loading clients..." />;
 
   function openCreate() {
     setEditing(null);
@@ -138,7 +140,7 @@ export default function SuperAdminClients() {
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100">
-            {filtered.map((c) => (
+            {pagedClients.map((c) => (
               <tr key={c.id}>
                 <td className="px-4 py-3 font-medium text-ink-800">{c.name}</td>
                 <td className="px-4 py-3 text-ink-500">{c.employeeId}</td>
@@ -184,6 +186,7 @@ export default function SuperAdminClients() {
             )}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-4 pb-3" />
       </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Client" : "Create Client"}>

@@ -8,6 +8,7 @@ import FormField from "../../../../components/shared/FormField";
 import Modal from "../../../../components/shared/Modal";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 /**
  * Reused for both:
@@ -25,6 +26,8 @@ export default function StaffManagement({ title, storageKey, seedFile, idPrefix,
     (async () => setStaff(await dataStore.load(storageKey, seedFile)))();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
+
+  const { page, setPage, totalPages, pageItems: pagedStaff } = usePagination(staff || [], 10);
 
   if (!staff) return <Loader full label={`Loading ${title.toLowerCase()}...`} />;
 
@@ -88,7 +91,7 @@ export default function StaffManagement({ title, storageKey, seedFile, idPrefix,
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100">
-            {staff.map((s) => (
+            {pagedStaff.map((s) => (
               <tr key={s.id}>
                 <td className="px-4 py-3 font-medium text-ink-800">{s.name}</td>
                 {showEmail && <td className="px-4 py-3 text-ink-500">{s.email}</td>}
@@ -125,6 +128,7 @@ export default function StaffManagement({ title, storageKey, seedFile, idPrefix,
             )}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-4 pb-3" />
       </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={`Add ${title.slice(0, -11) || title}`} size="sm">

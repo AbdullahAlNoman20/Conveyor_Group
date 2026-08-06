@@ -4,6 +4,7 @@ import { useAuth } from "../../../../components/hooks/useAuth";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
 import SearchInput from "../../../../components/shared/SearchInput";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function ClientOrders() {
   const { user } = useAuth();
@@ -14,14 +15,15 @@ export default function ClientOrders() {
     (async () => setOrders(await dataStore.load("orders", "orders.json")))();
   }, []);
 
-  if (!orders) return <Loader full label="Loading your orders..." />;
-
-  const mine = orders.filter(
+  const mine = (orders || []).filter(
     (o) => o.clientName?.toLowerCase().includes(user?.name?.toLowerCase().split(" ")[0] || "")
   );
   const list = query
     ? mine.filter((o) => o.id.toLowerCase().includes(query.toLowerCase()))
     : mine;
+  const { page, setPage, totalPages, pageItems: pagedList } = usePagination(list, 10);
+
+  if (!orders) return <Loader full label="Loading your orders..." />;
 
   return (
     <div className="space-y-6">
@@ -45,7 +47,7 @@ export default function ClientOrders() {
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100">
-            {list.map((o) => (
+            {pagedList.map((o) => (
               <tr key={o.id}>
                 <td className="px-4 py-3 text-ink-500">
                   {new Date(o.createdAt).toLocaleDateString()}
@@ -69,6 +71,7 @@ export default function ClientOrders() {
             )}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-4 pb-3" />
       </div>
     </div>
   );

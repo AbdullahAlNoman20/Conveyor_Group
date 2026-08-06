@@ -3,6 +3,7 @@ import { ShieldCheck } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import Loader from "../../../../components/shared/Loader";
 import SearchInput from "../../../../components/shared/SearchInput";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 const CATEGORY_TONE = {
   "User Management": "bg-ink-100 text-ink-700",
@@ -19,9 +20,7 @@ export default function AuditLogs() {
     (async () => setLogs(await dataStore.load("auditLogs", "audit-logs.json")))();
   }, []);
 
-  if (!logs) return <Loader full label="Loading audit logs..." />;
-
-  const filtered = logs
+  const filtered = (logs || [])
     .filter(
       (l) =>
         l.actor.toLowerCase().includes(query.toLowerCase()) ||
@@ -29,6 +28,10 @@ export default function AuditLogs() {
     )
     .slice()
     .reverse();
+
+  const { page, setPage, totalPages, pageItems: pagedLogs } = usePagination(filtered, 10);
+
+  if (!logs) return <Loader full label="Loading audit logs..." />;
 
   return (
     <div className="space-y-6">
@@ -43,7 +46,7 @@ export default function AuditLogs() {
       </div>
 
       <div className="space-y-2">
-        {filtered.map((l) => (
+        {pagedLogs.map((l) => (
           <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-100 bg-white p-4 text-sm">
             <div className="flex items-center gap-2">
               <ShieldCheck size={16} className="text-ink-300" />
@@ -64,6 +67,7 @@ export default function AuditLogs() {
           </p>
         )}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }

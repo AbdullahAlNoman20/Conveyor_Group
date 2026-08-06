@@ -8,6 +8,7 @@ import { sanitizeText } from "../../../../components/utils/sanitize";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 const ORDER_TYPES = ["Dine In", "Take Away", "Guest Order", "Corporate Guest"];
 const PRIORITIES = ["Normal", "High", "VIP", "Urgent"];
@@ -87,9 +88,11 @@ export default function NewOrder() {
         sub: g.type,
       }));
     const all = [...clientEntries, ...guestEntries];
-    if (!q) return all.slice(0, 12);
-    return all.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 12);
+    if (!q) return all;
+    return all.filter((p) => p.name.toLowerCase().includes(q));
   }, [clients, guests, search]);
+
+  const { page, setPage, totalPages, pageItems: pagedResults } = usePagination(pickerResults, 8);
 
   function pick(person) {
     setSelected(person);
@@ -220,7 +223,7 @@ export default function NewOrder() {
                 {errors.client && <p className="mt-1 text-xs font-medium text-brand-600">{errors.client}</p>}
 
                 <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
-                  {pickerResults.map((p) => (
+                  {pagedResults.map((p) => (
                     <button
                       type="button"
                       key={`${p.kind}-${p.id}`}
@@ -242,6 +245,7 @@ export default function NewOrder() {
                     <p className="px-3 py-4 text-sm text-ink-400">No matches — use manual entry below.</p>
                   )}
                 </div>
+                <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
                 <div className="mt-3 flex gap-2 border-t border-ink-100 pt-3">
                   <input
