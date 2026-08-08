@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/manager/pages/WalletRecharge.jsx  (MODIFIED, full rewrite — also fixes a stray "Tk )" label artifact from the earlier currency-symbol swap)
 import { useEffect, useState } from "react";
 import { Wallet, Plus } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
@@ -7,6 +8,7 @@ import { sanitizeNumber } from "../../../../components/utils/sanitize";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function WalletRecharge() {
   const { push } = useToast();
@@ -21,6 +23,9 @@ export default function WalletRecharge() {
       setTransactions(await dataStore.load("walletTransactions", "wallet-transactions.json"));
     })();
   }, []);
+
+  const sortedTx = (transactions || []).slice().reverse();
+  const { page, setPage, totalPages, pageItems: pagedTx } = usePagination(sortedTx, 10);
 
   if (!clients || !transactions) return <Loader full label="Loading wallet recharge..." />;
 
@@ -79,7 +84,7 @@ export default function WalletRecharge() {
             ))}
           </select>
         </FormField>
-        <FormField label="Cash Received (Tk )" required>
+        <FormField label="Cash Received (Tk)" required>
           <input
             type="number"
             min="1"
@@ -100,24 +105,21 @@ export default function WalletRecharge() {
           <Wallet size={16} /> Recent Transactions
         </h2>
         <div className="space-y-2">
-          {transactions
-            .slice()
-            .reverse()
-            .slice(0, 10)
-            .map((t) => (
-              <div key={t.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
-                <span className="text-ink-700">
-                  {clients.find((c) => c.id === t.clientId)?.name || t.clientId}
-                </span>
-                <span className="text-ink-400">{t.type}</span>
-                <span className="text-ink-400">{t.date}</span>
-                <span className={`font-semibold ${t.amount >= 0 ? "text-emerald-600" : "text-brand-600"}`}>
-                  {t.amount >= 0 ? "+" : ""}
-                  {t.amount}
-                </span>
-              </div>
-            ))}
+          {pagedTx.map((t) => (
+            <div key={t.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
+              <span className="text-ink-700">
+                {clients.find((c) => c.id === t.clientId)?.name || t.clientId}
+              </span>
+              <span className="text-ink-400">{t.type}</span>
+              <span className="text-ink-400">{t.date}</span>
+              <span className={`font-semibold ${t.amount >= 0 ? "text-emerald-600" : "text-brand-600"}`}>
+                {t.amount >= 0 ? "+" : ""}
+                {t.amount}
+              </span>
+            </div>
+          ))}
         </div>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       </div>
     </div>
   );

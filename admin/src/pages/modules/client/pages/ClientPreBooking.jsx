@@ -8,6 +8,7 @@ import { useLiveCollection } from "../../../../components/hooks/useLiveCollectio
 import FormField from "../../../../components/shared/FormField";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 const CUT_OFF_HOUR = 22; // 10:00 PM, per SRS 10.2
 const MAX_DAYS_AHEAD = 7;
@@ -35,6 +36,9 @@ export default function ClientPreBooking() {
   const [selectedMealIds, setSelectedMealIds] = useState([]);
   const [collectionType, setCollectionType] = useState("dine_in");
   const [tableNumber, setTableNumber] = useState("");
+
+  const mine = (bookings || []).filter((b) => b.clientId === user?.id || b.clientName === user?.name);
+  const { page, setPage, totalPages, pageItems: pagedMine } = usePagination(mine, 8);
 
   if (!bookings || !clients || !weeklyMenu || !menu) {
     return <Loader full label="Loading your bookings..." />;
@@ -95,8 +99,6 @@ export default function ClientPreBooking() {
     await dataStore.update("preBookings", (b) => b.id === id, { status: "cancelled" });
     push("Booking cancelled.", "info");
   }
-
-  const mine = bookings.filter((b) => b.clientId === user?.id || b.clientName === user?.name);
 
   return (
     <div className="space-y-6">
@@ -200,7 +202,7 @@ export default function ClientPreBooking() {
           <CalendarClock size={16} /> My Bookings
         </h2>
         <div className="space-y-2">
-          {mine.map((b) => (
+          {pagedMine.map((b) => (
             <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-50 px-3 py-2 text-sm">
               <span className="font-medium text-ink-800">{b.date}</span>
               <span className="text-ink-500">{b.meal}</span>
@@ -220,6 +222,7 @@ export default function ClientPreBooking() {
             <p className="py-6 text-center text-sm text-ink-400">No bookings yet.</p>
           )}
         </div>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       </div>
     </div>
   );

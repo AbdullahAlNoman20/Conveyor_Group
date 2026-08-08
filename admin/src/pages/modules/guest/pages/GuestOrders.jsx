@@ -1,7 +1,9 @@
+// FILE: src/pages/modules/guest/pages/GuestOrders.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
 import { dataStore } from "../../../../components/services/dataStore";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function GuestOrders() {
   const [orders, setOrders] = useState(null);
@@ -10,9 +12,10 @@ export default function GuestOrders() {
     (async () => setOrders(await dataStore.load("orders", "orders.json")))();
   }, []);
 
-  if (!orders) return <Loader full label="Loading your orders..." />;
+  const mine = (orders || []).filter((o) => o.clientName?.toLowerCase().startsWith("guest"));
+  const { page, setPage, totalPages, pageItems: pagedMine } = usePagination(mine, 10);
 
-  const mine = orders.filter((o) => o.clientName?.toLowerCase().startsWith("guest"));
+  if (!orders) return <Loader full label="Loading your orders..." />;
 
   return (
     <div className="space-y-6">
@@ -22,7 +25,7 @@ export default function GuestOrders() {
       </div>
 
       <div className="space-y-2">
-        {mine.map((o) => (
+        {pagedMine.map((o) => (
           <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-100 bg-white p-4 text-sm">
             <span className="font-semibold text-ink-900">{o.id}</span>
             <span className="text-ink-500">
@@ -38,6 +41,7 @@ export default function GuestOrders() {
           </p>
         )}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }

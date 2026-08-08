@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/super-admin/pages/SuperAdminTables.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
@@ -6,7 +7,10 @@ import { useToast } from "../../../../components/hooks/useToast";
 import Badge from "../../../../components/shared/Badge";
 import Modal from "../../../../components/shared/Modal";
 import FormField from "../../../../components/shared/FormField";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import Loader from "../../../../components/shared/Loader";
+
+const STATUS_OPTIONS = ["free", "occupied", "reserved"];
 
 export default function SuperAdminTables() {
   const { push } = useToast();
@@ -14,10 +18,13 @@ export default function SuperAdminTables() {
   const [modalOpen, setModalOpen] = useState(false);
   const [number, setNumber] = useState("");
   const [capacity, setCapacity] = useState(4);
+  const [status, setStatus] = useState("free");
 
   useEffect(() => {
     (async () => setTables(await dataStore.load("tables", "tables.json")))();
   }, []);
+
+  const { page, setPage, totalPages, pageItems: pagedTables } = usePagination(tables || [], 12);
 
   if (!tables) return <Loader full label="Loading tables..." />;
 
@@ -27,18 +34,18 @@ export default function SuperAdminTables() {
       push("Table number is required.", "error");
       return;
     }
-    const record = { id: genId("T"), number: Number(number), capacity: Number(capacity), status: "free" };
+    const record = { id: genId("T"), number: Number(number), capacity: Number(capacity), status };
     const next = await dataStore.insert("tables", record);
     setTables(next);
-    push(`Table ${number} added.`, "success");
+    push(`Table ${number} added as ${status}.`, "success");
     setModalOpen(false);
     setNumber("");
     setCapacity(4);
+    setStatus("free");
   }
 
   async function cycleStatus(t) {
-    const order = ["free", "occupied", "reserved"];
-    const nextStatus = order[(order.indexOf(t.status) + 1) % order.length];
+    const nextStatus = STATUS_OPTIONS[(STATUS_OPTIONS.indexOf(t.status) + 1) % STATUS_OPTIONS.length];
     const next = await dataStore.update("tables", (x) => x.id === t.id, { status: nextStatus });
     setTables(next);
   }
@@ -65,7 +72,7 @@ export default function SuperAdminTables() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {tables.map((t) => (
+        {pagedTables.map((t) => (
           <div key={t.id} className="rounded-xl border border-ink-100 bg-white p-4 text-center">
             <p className="text-2xl font-bold text-ink-900">#{t.number}</p>
             <p className="text-xs text-ink-400">Seats {t.capacity}</p>
@@ -85,6 +92,7 @@ export default function SuperAdminTables() {
           </div>
         ))}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Table" size="sm">
         <form onSubmit={addTable} className="space-y-4">
@@ -103,6 +111,19 @@ export default function SuperAdminTables() {
               onChange={(e) => setCapacity(e.target.value)}
               className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
+          </FormField>
+          <FormField label="Initial Status" required>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm capitalize outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s} className="capitalize">
+                  {s}
+                </option>
+              ))}
+            </select>
           </FormField>
           <button className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
             Add Table

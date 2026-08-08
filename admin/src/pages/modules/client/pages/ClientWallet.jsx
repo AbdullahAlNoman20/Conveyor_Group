@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/client/pages/ClientWallet.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
 import { Wallet, Banknote, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
@@ -6,6 +7,7 @@ import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function ClientWallet() {
   const { user } = useAuth();
@@ -21,10 +23,11 @@ export default function ClientWallet() {
     })();
   }, []);
 
-  if (!clients || !transactions) return <Loader full label="Loading wallet..." />;
+  const me = (clients || []).find((c) => c.name === user?.name) || (clients || [])[0];
+  const myTx = (transactions || []).filter((t) => t.clientId === me?.id);
+  const { page, setPage, totalPages, pageItems: pagedTx } = usePagination(myTx, 10);
 
-  const me = clients.find((c) => c.name === user?.name) || clients[0];
-  const myTx = transactions.filter((t) => t.clientId === me?.id);
+  if (!clients || !transactions) return <Loader full label="Loading wallet..." />;
 
   async function saveDefaultMethod(method) {
     setDefaultMethod(method);
@@ -71,7 +74,7 @@ export default function ClientWallet() {
       <div className="rounded-xl border border-ink-100 bg-white p-5">
         <h2 className="mb-3 text-sm font-bold text-ink-700">Wallet Transaction History</h2>
         <div className="space-y-2">
-          {myTx.map((t) => (
+          {pagedTx.map((t) => (
             <div key={t.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
               <span className="flex items-center gap-2 font-medium text-ink-700">
                 {t.amount >= 0 ? (
@@ -92,6 +95,7 @@ export default function ClientWallet() {
             <p className="py-6 text-center text-sm text-ink-400">No transactions yet.</p>
           )}
         </div>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       </div>
     </div>
   );

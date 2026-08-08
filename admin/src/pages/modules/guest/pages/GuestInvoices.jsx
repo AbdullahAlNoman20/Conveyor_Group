@@ -1,8 +1,10 @@
+// FILE: src/pages/modules/guest/pages/GuestInvoices.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
 import { Receipt } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { genInvoiceNumber } from "../../../../components/utils/idGenerator";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function GuestInvoices() {
   const [orders, setOrders] = useState(null);
@@ -11,9 +13,10 @@ export default function GuestInvoices() {
     (async () => setOrders(await dataStore.load("orders", "orders.json")))();
   }, []);
 
-  if (!orders) return <Loader full label="Loading invoice history..." />;
+  const mine = (orders || []).filter((o) => o.clientName?.toLowerCase().startsWith("guest"));
+  const { page, setPage, totalPages, pageItems: pagedMine } = usePagination(mine, 5);
 
-  const mine = orders.filter((o) => o.clientName?.toLowerCase().startsWith("guest"));
+  if (!orders) return <Loader full label="Loading invoice history..." />;
 
   return (
     <div className="space-y-6">
@@ -23,7 +26,7 @@ export default function GuestInvoices() {
       </div>
 
       <div className="space-y-3">
-        {mine.map((o) => (
+        {pagedMine.map((o) => (
           <div key={o.id} className="rounded-xl border border-ink-100 bg-white p-5">
             <div className="flex items-center gap-2">
               <Receipt size={18} className="text-brand-600" />
@@ -44,6 +47,7 @@ export default function GuestInvoices() {
           </p>
         )}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }

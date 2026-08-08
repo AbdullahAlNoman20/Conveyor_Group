@@ -1,24 +1,22 @@
+// FILE: src/pages/modules/manager/pages/ManagerKitchenQueue.jsx  (MODIFIED, full rewrite)
 import { Eye } from "lucide-react";
 import { PipelineBadge } from "../../../../components/shared/OrderPipeline";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 const PRIORITY_RANK = { urgent: 0, vip: 1, high: 2, normal: 3 };
 const KITCHEN_VISIBLE = ["pending", "accepted", "preparing", "delayed", "ready"];
 
-/**
- * SRS §13.1 lists "Kitchen Coordination" as a Manager responsibility, and
- * §27 (RBAC) grants Manager view-only access to the Kitchen Queue — actions
- * (accept / prep time / status / delay) remain Kitchen Head-only per §14.
- */
 export default function ManagerKitchenQueue() {
   const orders = useLiveCollection("orders", "orders.json");
 
-  if (!orders) return <Loader full label="Loading kitchen queue..." />;
-
-  const queue = [...orders]
+  const queue = [...(orders || [])]
     .filter((o) => KITCHEN_VISIBLE.includes(o.status))
     .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3));
+  const { page, setPage, totalPages, pageItems: pagedQueue } = usePagination(queue, 15);
+
+  if (!orders) return <Loader full label="Loading kitchen queue..." />;
 
   return (
     <div className="space-y-6">
@@ -33,7 +31,7 @@ export default function ManagerKitchenQueue() {
       </div>
 
       <div className="space-y-2">
-        {queue.map((o) => (
+        {pagedQueue.map((o) => (
           <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-100 bg-white p-4 text-sm">
             <div>
               <p className="font-semibold text-ink-900">{o.id}</p>
@@ -59,6 +57,7 @@ export default function ManagerKitchenQueue() {
           </p>
         )}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 const TABS = [
   { key: "temporary", label: "Temporary Guest" },
@@ -122,6 +123,9 @@ export default function GuestManagement() {
     setCorpForm({ name: "", company: "", department: "", purpose: "", billTo: "Company" });
     push(`Corporate guest ${record.name} added, billed to ${record.billTo}.`, "success");
   }
+
+  const recentGuests = (guests || []).slice().reverse();
+  const { page: guestsPage, setPage: setGuestsPage, totalPages: guestsTotalPages, pageItems: pagedRecentGuests } = usePagination(recentGuests, 8);
 
   if (!guests) return <Loader full label="Loading guests..." />;
 
@@ -304,11 +308,7 @@ export default function GuestManagement() {
           <div className="rounded-xl border border-ink-100 bg-white p-4">
             <h3 className="mb-3 text-sm font-bold text-ink-700">Recent Guests</h3>
             <div className="space-y-2">
-              {guests
-                .slice()
-                .reverse()
-                .slice(0, 8)
-                .map((g) => (
+              {pagedRecentGuests.map((g) => (
                   <div key={g.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
                     <div>
                       <p className="font-medium text-ink-800">{g.name}</p>
@@ -333,6 +333,7 @@ export default function GuestManagement() {
                   </div>
                 ))}
             </div>
+            <Pagination page={guestsPage} totalPages={guestsTotalPages} onChange={setGuestsPage} />
           </div>
         </aside>
       </div>

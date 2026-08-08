@@ -9,6 +9,7 @@ import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function ClientGuestRequest() {
   const { user } = useAuth();
@@ -66,9 +67,10 @@ export default function ClientGuestRequest() {
     setGuests([{ name: "", phone: "", organization: "" }]);
   }
 
-  if (!requests) return <Loader full label="Loading your guest requests..." />;
+  const mine = (requests || []).filter((r) => r.clientId === user?.id || r.clientName === user?.name);
+  const { page, setPage, totalPages, pageItems: pagedMine } = usePagination(mine, 8);
 
-  const mine = requests.filter((r) => r.clientId === user?.id || r.clientName === user?.name);
+  if (!requests) return <Loader full label="Loading your guest requests..." />;
 
   return (
     <div className="space-y-6">
@@ -146,7 +148,7 @@ export default function ClientGuestRequest() {
       <div className="rounded-xl border border-ink-100 bg-white p-5">
         <h2 className="mb-3 text-sm font-bold text-ink-700">My Guest Requests</h2>
         <div className="space-y-2">
-          {mine.map((r) => (
+          {pagedMine.map((r) => (
             <div key={r.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
               <span className="font-medium text-ink-700">{r.guestCount} guest(s) · {r.meal}</span>
               <span className="text-ink-400">{new Date(r.createdAt).toLocaleDateString()}</span>
@@ -159,6 +161,7 @@ export default function ClientGuestRequest() {
             <p className="py-6 text-center text-sm text-ink-400">No guest requests yet.</p>
           )}
         </div>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       </div>
     </div>
   );

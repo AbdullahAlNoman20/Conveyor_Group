@@ -25,6 +25,7 @@ const SuperAdminRoutes = [
         seedFile="managers.json"
         idPrefix="MG"
         showEmail
+        loginRole="manager"
       />
     ),
   },
@@ -38,6 +39,7 @@ const SuperAdminRoutes = [
         idPrefix="KS"
         showEmail={false}
         roleField
+        loginRole="kitchen_head"
       />
     ),
   },

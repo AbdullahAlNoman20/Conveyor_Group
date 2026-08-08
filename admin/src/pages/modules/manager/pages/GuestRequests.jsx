@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/manager/pages/GuestRequests.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
 import { CheckCircle2, XCircle, Users } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
@@ -5,6 +6,7 @@ import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { useToast } from "../../../../components/hooks/useToast";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function GuestRequests() {
   const { push } = useToast();
@@ -30,10 +32,12 @@ export default function GuestRequests() {
     }
   }
 
-  if (!requests) return <Loader full label="Loading guest requests..." />;
+  const pending = (requests || []).filter((r) => r.status === "pending");
+  const decided = (requests || []).filter((r) => r.status !== "pending");
+  const { page: pendingPage, setPage: setPendingPage, totalPages: pendingTotalPages, pageItems: pagedPending } = usePagination(pending, 5);
+  const { page: decidedPage, setPage: setDecidedPage, totalPages: decidedTotalPages, pageItems: pagedDecided } = usePagination(decided, 8);
 
-  const pending = requests.filter((r) => r.status === "pending");
-  const decided = requests.filter((r) => r.status !== "pending");
+  if (!requests) return <Loader full label="Loading guest requests..." />;
 
   return (
     <div className="space-y-6">
@@ -48,7 +52,7 @@ export default function GuestRequests() {
       <div className="rounded-xl border border-ink-100 bg-white p-5">
         <h2 className="mb-3 text-sm font-bold text-ink-700">Pending Approval ({pending.length})</h2>
         <div className="space-y-3">
-          {pending.map((r) => (
+          {pagedPending.map((r) => (
             <div key={r.id} className="rounded-lg border border-amber-200 bg-amber-50 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -88,12 +92,13 @@ export default function GuestRequests() {
             <p className="py-6 text-center text-sm text-ink-400">No pending guest requests.</p>
           )}
         </div>
+        <Pagination page={pendingPage} totalPages={pendingTotalPages} onChange={setPendingPage} />
       </div>
 
       <div className="rounded-xl border border-ink-100 bg-white p-5">
         <h2 className="mb-3 text-sm font-bold text-ink-700">Decided</h2>
         <div className="space-y-2">
-          {decided.map((r) => (
+          {pagedDecided.map((r) => (
             <div key={r.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
               <span className="font-medium text-ink-700">{r.clientName}</span>
               <span className="text-ink-400">{r.guestCount} guest(s)</span>
@@ -101,6 +106,7 @@ export default function GuestRequests() {
             </div>
           ))}
         </div>
+        <Pagination page={decidedPage} totalPages={decidedTotalPages} onChange={setDecidedPage} />
       </div>
     </div>
   );

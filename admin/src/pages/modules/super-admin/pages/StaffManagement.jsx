@@ -1,26 +1,34 @@
+// FILE: src/pages/modules/super-admin/pages/StaffManagement.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
-import { UserPlus, Ban, CheckCircle2, Trash2 } from "lucide-react";
+import { UserPlus, Ban, CheckCircle2, Trash2, KeyRound, IdCard } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { genId } from "../../../../components/utils/idGenerator";
 import { sanitizeText, sanitizeEmail } from "../../../../components/utils/sanitize";
+import { generatePassword, deriveEmail } from "../../../../components/utils/credentials";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Modal from "../../../../components/shared/Modal";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
+import EmailPreviewModal from "../../../../components/shared/EmailPreviewModal";
+import ProfileCardModal from "../../../../components/shared/ProfileCardModal";
 
 /**
  * Reused for both:
  *  - Super Admin -> Manager Management (SRS 12.3.2)
  *  - Super Admin -> Kitchen Staff Management (SRS 12.3.3)
- * The only differences between the two are the storage key, seed file, and labels.
+ * `loginRole` ("manager" | "kitchen_head") controls which role the linked
+ * login account gets — every staff member created here gets both a staff
+ * profile record AND a real login account, same as Client Management.
  */
-export default function StaffManagement({ title, storageKey, seedFile, idPrefix, showEmail = true, roleField }) {
+export default function StaffManagement({ title, storageKey, seedFile, idPrefix, showEmail = true, roleField, loginRole }) {
   const { push } = useToast();
   const [staff, setStaff] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", role: "" });
+  const [emailPreview, setEmailPreview] = useState(null);
+  const [viewing, setViewing] = useState(null);
 
   useEffect(() => {
     (async () => setStaff(await dataStore.load(storageKey, seedFile)))();
@@ -37,30 +45,74 @@ export default function StaffManagement({ title, storageKey, seedFile, idPrefix,
       push("Name is required.", "error");
       return;
     }
+    const cleanName = sanitizeText(form.name, 100);
+    const email = form.email ? sanitizeEmail(form.email) : deriveEmail(cleanName);
+    const password = generatePassword();
+    const staffId = genId(idPrefix);
+    const userId = genId("U");
+
     const record = {
-      id: genId(idPrefix),
-      name: sanitizeText(form.name, 100),
-      ...(showEmail ? { email: sanitizeEmail(form.email) } : {}),
+      id: staffId,
+      userId,
+      name: cleanName,
+      email,
       ...(roleField ? { role: form.role || "Staff" } : {}),
       status: "active",
     };
+    const userRecord = {
+      id: userId,
+      name: cleanName,
+      email,
+      password,
+      role: loginRole,
+      status: "active",
+      designation: roleField ? form.role || "Staff" : title.replace(" Management", ""),
+      avatarColor: loginRole === "manager" ? "#eb2a2d" : "#d97706",
+    };
+
     const next = await dataStore.insert(storageKey, record);
     setStaff(next);
-    push(`${record.name} added.`, "success");
+    await dataStore.insert("users", userRecord);
+
+    push(`${cleanName} added — login account ready.`, "success");
     setModalOpen(false);
     setForm({ name: "", email: "", role: "" });
+    setEmailPreview({
+      name: cleanName,
+      email,
+      password,
+      role: roleField ? form.role || "Staff" : title.replace(" Management", ""),
+    });
   }
 
   async function toggleStatus(id, current) {
-    const next = await dataStore.update(storageKey, (s) => s.id === id, {
-      status: current === "active" ? "disabled" : "active",
-    });
+    const person = staff.find((s) => s.id === id);
+    const nextStatus = current === "active" ? "disabled" : "active";
+    const next = await dataStore.update(storageKey, (s) => s.id === id, { status: nextStatus });
     setStaff(next);
+    if (person?.userId) {
+      await dataStore.update("users", (u) => u.id === person.userId, {
+        status: nextStatus === "disabled" ? "suspended" : "active",
+      });
+    }
+  }
+
+  async function resetPassword(person) {
+    const newPassword = generatePassword();
+    if (person.userId) await dataStore.update("users", (u) => u.id === person.userId, { password: newPassword });
+    setEmailPreview({
+      name: person.name,
+      email: person.email || deriveEmail(person.name),
+      password: newPassword,
+      role: person.role || title.replace(" Management", ""),
+    });
   }
 
   async function remove(id) {
+    const person = staff.find((s) => s.id === id);
     const next = await dataStore.remove(storageKey, (s) => s.id === id);
     setStaff(next);
+    if (person?.userId) await dataStore.remove("users", (u) => u.id === person.userId);
     push("Removed.", "success");
   }
 
@@ -102,6 +154,20 @@ export default function StaffManagement({ title, storageKey, seedFile, idPrefix,
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
                     <button
+                      onClick={() => setViewing(s)}
+                      className="rounded-lg p-2 text-ink-500 hover:bg-ink-100"
+                      title="View Profile"
+                    >
+                      <IdCard size={14} />
+                    </button>
+                    <button
+                      onClick={() => resetPassword(s)}
+                      className="rounded-lg p-2 text-ink-500 hover:bg-ink-100"
+                      title="Reset Password"
+                    >
+                      <KeyRound size={14} />
+                    </button>
+                    <button
                       onClick={() => toggleStatus(s.id, s.status)}
                       className="rounded-lg p-2 text-ink-500 hover:bg-ink-100"
                       title={s.status === "active" ? "Disable" : "Enable"}
@@ -141,7 +207,7 @@ export default function StaffManagement({ title, storageKey, seedFile, idPrefix,
             />
           </FormField>
           {showEmail && (
-            <FormField label="Email">
+            <FormField label="Email" hint="Leave blank to auto-generate from the name">
               <input
                 type="email"
                 value={form.email}
@@ -164,10 +230,20 @@ export default function StaffManagement({ title, storageKey, seedFile, idPrefix,
             </FormField>
           )}
           <button className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-            Save
+            Save & Send Credentials
           </button>
         </form>
       </Modal>
+
+      <ProfileCardModal
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        person={viewing}
+        role={viewing?.role || title.replace(" Management", "")}
+        qrValue={viewing ? JSON.stringify({ staffId: viewing.id, role: loginRole }) : ""}
+      />
+
+      <EmailPreviewModal open={!!emailPreview} onClose={() => setEmailPreview(null)} {...(emailPreview || {})} />
     </div>
   );
 }

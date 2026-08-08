@@ -1,8 +1,10 @@
+// FILE: src/pages/modules/super-admin/pages/SuperAdminClients.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
-import { UserPlus, Edit2, Ban, Trash2, KeyRound, Eye } from "lucide-react";
+import { UserPlus, Edit2, Ban, Trash2, KeyRound, Eye, IdCard } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { genId } from "../../../../components/utils/idGenerator";
-import { sanitizeText } from "../../../../components/utils/sanitize";
+import { sanitizeText, sanitizeEmail } from "../../../../components/utils/sanitize";
+import { generatePassword, deriveEmail } from "../../../../components/utils/credentials";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Modal from "../../../../components/shared/Modal";
@@ -11,10 +13,14 @@ import Badge from "../../../../components/shared/Badge";
 import SearchInput from "../../../../components/shared/SearchInput";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import Loader from "../../../../components/shared/Loader";
+import EmailPreviewModal from "../../../../components/shared/EmailPreviewModal";
+import ProfileCardModal from "../../../../components/shared/ProfileCardModal";
 
 const EMPTY_FORM = {
   name: "",
   employeeId: "",
+  email: "",
+  phone: "",
   department: "",
   designation: "",
   employmentType: "Company Employee",
@@ -30,6 +36,8 @@ export default function SuperAdminClients() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirmTarget, setConfirmTarget] = useState(null); // { id, action }
+  const [emailPreview, setEmailPreview] = useState(null); // { name, email, password, role, qrToken }
+  const [viewing, setViewing] = useState(null); // client being viewed in the profile modal
 
   useEffect(() => {
     (async () => setClients(await dataStore.load("clients", "clients.json")))();
@@ -62,49 +70,103 @@ export default function SuperAdminClients() {
       push("Name and Employee ID are required.", "error");
       return;
     }
+    const cleanName = sanitizeText(form.name, 100);
+
     if (editing) {
       const next = await dataStore.update("clients", (c) => c.id === editing.id, {
         ...form,
-        name: sanitizeText(form.name, 100),
+        name: cleanName,
       });
       setClients(next);
-      push(`${form.name} updated.`, "success");
-    } else {
-      const record = {
-        id: genId("C"),
-        ...form,
-        name: sanitizeText(form.name, 100),
-        walletBalance: 0,
-        monthlyBill: 0,
-        qrStatus: "active",
-        status: "active",
-      };
-      const next = await dataStore.insert("clients", record);
-      setClients(next);
-      push(`${record.name} created.`, "success");
+      // Keep the linked login account's display name/email in sync.
+      await dataStore.update("users", (u) => u.id === editing.userId, {
+        name: cleanName,
+        email: form.email ? sanitizeEmail(form.email) : undefined,
+      });
+      push(`${cleanName} updated.`, "success");
+      setModalOpen(false);
+      return;
     }
+
+    // --- New client: create the profile AND a linked login account ---
+    const email = form.email ? sanitizeEmail(form.email) : deriveEmail(cleanName);
+    const password = generatePassword();
+    const clientId = genId("C");
+    const userId = genId("U");
+
+    const clientRecord = {
+      id: clientId,
+      userId,
+      ...form,
+      name: cleanName,
+      email,
+      walletBalance: 0,
+      monthlyBill: 0,
+      qrStatus: "active",
+      qrToken: genId("QR"),
+      status: "active",
+    };
+    const userRecord = {
+      id: userId,
+      name: cleanName,
+      email,
+      password,
+      role: "client",
+      status: "active",
+      department: form.department,
+      designation: form.designation,
+      employeeId: form.employeeId,
+      employmentType: form.employmentType,
+      mealPlan: form.mealPlan,
+      mealBenefit: form.mealBenefit,
+      defaultPaymentMethod: "wallet",
+      avatarColor: "#059669",
+    };
+
+    const next = await dataStore.insert("clients", clientRecord);
+    setClients(next);
+    await dataStore.insert("users", userRecord);
+
+    push(`${cleanName} created — login account ready.`, "success");
     setModalOpen(false);
+    setEmailPreview({
+      name: cleanName,
+      email,
+      password,
+      role: `Client (${form.mealPlan})`,
+      qrToken: clientId,
+    });
   }
 
   async function handleConfirm() {
     if (!confirmTarget) return;
     const { id, action } = confirmTarget;
+    const client = clients.find((c) => c.id === id);
+
     if (action === "delete") {
       const next = await dataStore.remove("clients", (c) => c.id === id);
       setClients(next);
+      if (client?.userId) await dataStore.remove("users", (u) => u.id === client.userId);
       push("Client deleted.", "success");
     } else if (action === "suspend") {
-      const next = await dataStore.update("clients", (c) => c.id === id, {
-        status: "suspended",
-      });
+      const next = await dataStore.update("clients", (c) => c.id === id, { status: "suspended" });
       setClients(next);
+      if (client?.userId) await dataStore.update("users", (u) => u.id === client.userId, { status: "suspended" });
       push("Client suspended.", "success");
     } else if (action === "activate") {
       const next = await dataStore.update("clients", (c) => c.id === id, { status: "active" });
       setClients(next);
+      if (client?.userId) await dataStore.update("users", (u) => u.id === client.userId, { status: "active" });
       push("Client reactivated.", "success");
     } else if (action === "reset") {
-      push("Password reset link sent (mock — no email backend yet).", "info");
+      const newPassword = generatePassword();
+      if (client?.userId) await dataStore.update("users", (u) => u.id === client.userId, { password: newPassword });
+      setEmailPreview({
+        name: client.name,
+        email: client.email || deriveEmail(client.name),
+        password: newPassword,
+        role: `Client (${client.mealPlan})`,
+      });
     }
     setConfirmTarget(null);
   }
@@ -114,7 +176,9 @@ export default function SuperAdminClients() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Client Management</h1>
-          <p className="text-sm text-ink-400">Create, edit, suspend, or remove client accounts.</p>
+          <p className="text-sm text-ink-400">
+            Create a client and their login account, ID card, and QR are generated together.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <SearchInput value={query} onChange={setQuery} placeholder="Search name or Employee ID..." />
@@ -151,6 +215,9 @@ export default function SuperAdminClients() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
+                    <IconBtn title="View Profile" onClick={() => setViewing(c)}>
+                      <IdCard size={14} />
+                    </IconBtn>
                     <IconBtn title="Edit" onClick={() => openEdit(c)}>
                       <Edit2 size={14} />
                     </IconBtn>
@@ -205,6 +272,21 @@ export default function SuperAdminClients() {
               className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </FormField>
+          <FormField label="Email" hint="Leave blank to auto-generate from the name">
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            />
+          </FormField>
+          <FormField label="Phone">
+            <input
+              value={form.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            />
+          </FormField>
           <FormField label="Department">
             <input
               value={form.department}
@@ -242,24 +324,40 @@ export default function SuperAdminClients() {
               <option>Complimentary Meal</option>
             </select>
           </FormField>
-          <FormField label="Meal Benefit" className="sm:col-span-2">
-            <select
-              value={form.mealBenefit}
-              onChange={(e) => setForm((f) => ({ ...f, mealBenefit: e.target.value }))}
-              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-            >
-              <option>Company Subsidized</option>
-              <option>Complimentary</option>
-              <option>Self Paid</option>
-            </select>
-          </FormField>
+          <div className="sm:col-span-2">
+            <FormField label="Meal Benefit">
+              <select
+                value={form.mealBenefit}
+                onChange={(e) => setForm((f) => ({ ...f, mealBenefit: e.target.value }))}
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              >
+                <option>Company Subsidized</option>
+                <option>Complimentary</option>
+                <option>Self Paid</option>
+              </select>
+            </FormField>
+          </div>
           <div className="sm:col-span-2">
             <button className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-              {editing ? "Save Changes" : "Create Client"}
+              {editing ? "Save Changes" : "Create Client & Send Credentials"}
             </button>
           </div>
         </form>
       </Modal>
+
+      <ProfileCardModal
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        person={viewing}
+        role="Client"
+        qrValue={viewing ? JSON.stringify({ clientId: viewing.id, employeeId: viewing.employeeId, status: viewing.qrStatus }) : ""}
+      />
+
+      <EmailPreviewModal
+        open={!!emailPreview}
+        onClose={() => setEmailPreview(null)}
+        {...(emailPreview || {})}
+      />
 
       <ConfirmDialog
         open={!!confirmTarget}
@@ -274,7 +372,9 @@ export default function SuperAdminClients() {
         }
         message={
           confirmTarget?.action === "delete"
-            ? "This permanently removes the client record from local data."
+            ? "This permanently removes the client record and their login account."
+            : confirmTarget?.action === "reset"
+            ? "A new password will be generated and shown for you to share with the client."
             : "This action can be reversed later from this same screen."
         }
         confirmLabel="Confirm"

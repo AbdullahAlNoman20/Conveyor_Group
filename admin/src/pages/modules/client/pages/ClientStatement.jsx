@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/client/pages/ClientStatement.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
 import { Download, FileText } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
@@ -5,6 +6,7 @@ import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 export default function ClientStatement() {
   const { user } = useAuth();
@@ -19,13 +21,14 @@ export default function ClientStatement() {
     })();
   }, []);
 
-  if (!clients || !orders) return <Loader full label="Loading your statement..." />;
-
-  const me = clients.find((c) => c.name === user?.name) || clients[0];
-  const mine = orders.filter((o) => o.clientName?.includes(user?.name?.split(" ")[0] || ""));
+  const me = (clients || []).find((c) => c.name === user?.name) || (clients || [])[0];
+  const mine = (orders || []).filter((o) => o.clientName?.includes(user?.name?.split(" ")[0] || ""));
   const totalAmount = mine.reduce((s, o) => s + o.amount, 0);
   const paid = Math.round(totalAmount * 0.6);
   const outstanding = totalAmount - paid;
+  const { page, setPage, totalPages, pageItems: pagedMine } = usePagination(mine, 10);
+
+  if (!clients || !orders) return <Loader full label="Loading your statement..." />;
 
   function download(format) {
     push(`${format} statement download started (mock).`, "info");
@@ -66,7 +69,7 @@ export default function ClientStatement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100">
-            {mine.map((o) => (
+            {pagedMine.map((o) => (
               <tr key={o.id}>
                 <td className="py-2 text-ink-500">{new Date(o.createdAt).toLocaleDateString()}</td>
                 <td className="py-2 font-medium text-ink-800">{o.id}</td>
@@ -75,6 +78,7 @@ export default function ClientStatement() {
             ))}
           </tbody>
         </table>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-1 pt-1" />
       </div>
     </div>
   );

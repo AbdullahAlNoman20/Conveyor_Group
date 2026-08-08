@@ -7,6 +7,7 @@ import { PipelineBadge } from "../../../../components/shared/OrderPipeline";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import Modal from "../../../../components/shared/Modal";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 const PREP_TIMES = [10, 15, 20, 30];
 const DELAY_REASONS = ["Ingredient Shortage", "High Kitchen Workload", "Equipment Issue"];
@@ -60,12 +61,13 @@ export default function KitchenQueue() {
     setDelayModalOrder(null);
   }
 
-  if (!orders) return <Loader full label="Loading kitchen queue..." />;
-
   const KITCHEN_VISIBLE = ["pending", "accepted", "preparing", "delayed", "ready"];
-  const queue = [...orders]
+  const queue = [...(orders || [])]
     .filter((o) => KITCHEN_VISIBLE.includes(o.status))
     .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3));
+  const { page, setPage, totalPages, pageItems: pagedQueue } = usePagination(queue, 20);
+
+  if (!orders) return <Loader full label="Loading kitchen queue..." />;
 
   return (
     <div className="space-y-6">
@@ -75,7 +77,7 @@ export default function KitchenQueue() {
       </div>
 
       <div className="space-y-3">
-        {queue.map((o) => (
+        {pagedQueue.map((o) => (
           <div key={o.id} className="rounded-xl border border-ink-100 bg-white p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -151,6 +153,7 @@ export default function KitchenQueue() {
           </p>
         )}
       </div>
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       <Modal open={!!prepModalOrder} onClose={() => setPrepModalOrder(null)} title="Set Preparation Time" size="sm">
         <div className="grid grid-cols-2 gap-2">
