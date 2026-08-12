@@ -1,12 +1,23 @@
+// FILE: src/components/shared/ConfirmDialog.jsx  (MODIFIED, full rewrite)
 import Modal from "./Modal";
+import Button from "./Button";
 import { AlertTriangle } from "lucide-react";
 
+/**
+ * `busy` (NEW): pass true while the confirmed action is actually running
+ * (an async dataStore call, etc.) so the Confirm button shows the shared
+ * loading-spinner -> success-pulse transaction animation instead of just
+ * closing instantly. Every caller that awaits something inside onConfirm
+ * should track this in its own state and pass it through — see
+ * StaffManagement.jsx / SuperAdminClients.jsx for the pattern.
+ */
 export default function ConfirmDialog({
   open,
   title = "Are you sure?",
   message,
   confirmLabel = "Confirm",
   danger = false,
+  busy = false,
   onConfirm,
   onCancel,
 }) {
@@ -17,20 +28,12 @@ export default function ConfirmDialog({
         <p className="text-sm text-ink-600">{message}</p>
       </div>
       <div className="mt-6 flex justify-end gap-2">
-        <button
-          onClick={onCancel}
-          className="rounded-lg border border-ink-200 px-4 py-2 text-sm font-medium text-ink-600 hover:bg-ink-50"
-        >
+        <Button variant="secondary" onClick={onCancel} disabled={busy}>
           Cancel
-        </button>
-        <button
-          onClick={onConfirm}
-          className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-            danger ? "bg-brand-600 hover:bg-brand-700" : "bg-ink-800 hover:bg-ink-900"
-          }`}
-        >
+        </Button>
+        <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} loading={busy}>
           {confirmLabel}
-        </button>
+        </Button>
       </div>
     </Modal>
   );

@@ -1,6 +1,8 @@
+// FILE: src/components/shared/Modal.jsx  (MODIFIED — close button now uses shared Button)
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { createPortal } from "react-dom";
+import Button from "./Button";
 
 export default function Modal({ open, onClose, title, children, size = "md" }) {
   const ref = useRef(null);
@@ -33,13 +35,9 @@ export default function Modal({ open, onClose, title, children, size = "md" }) {
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">{title}</h2>
-          <button
-            onClick={onClose}
-            aria-label="Close dialog"
-            className="rounded-full p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
-          >
+          <Button variant="icon" onClick={onClose} aria-label="Close dialog">
             <X size={18} />
-          </button>
+          </Button>
         </div>
         {children}
       </div>

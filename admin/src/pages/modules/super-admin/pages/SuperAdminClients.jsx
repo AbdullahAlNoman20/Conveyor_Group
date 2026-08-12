@@ -1,11 +1,13 @@
 // FILE: src/pages/modules/super-admin/pages/SuperAdminClients.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
-import { UserPlus, Edit2, Ban, Trash2, KeyRound, Eye, IdCard } from "lucide-react";
+import { UserPlus, Edit2, Ban, Trash2, KeyRound, Eye, IdCard, FileDown } from "lucide-react";
+import { printBlankRegistrationForm } from "../../../../components/utils/registrationForm";
 import { dataStore } from "../../../../components/services/dataStore";
 import { genId } from "../../../../components/utils/idGenerator";
 import { sanitizeText, sanitizeEmail } from "../../../../components/utils/sanitize";
 import { generatePassword, deriveEmail } from "../../../../components/utils/credentials";
 import { useToast } from "../../../../components/hooks/useToast";
+import Button from "../../../../components/shared/Button";
 import FormField from "../../../../components/shared/FormField";
 import Modal from "../../../../components/shared/Modal";
 import ConfirmDialog from "../../../../components/shared/ConfirmDialog";
@@ -35,7 +37,9 @@ export default function SuperAdminClients() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false); // drives the submit button's transaction animation
   const [confirmTarget, setConfirmTarget] = useState(null); // { id, action }
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const [emailPreview, setEmailPreview] = useState(null); // { name, email, password, role, qrToken }
   const [viewing, setViewing] = useState(null); // client being viewed in the profile modal
 
@@ -70,6 +74,7 @@ export default function SuperAdminClients() {
       push("Name and Employee ID are required.", "error");
       return;
     }
+    setSaving(true);
     const cleanName = sanitizeText(form.name, 100);
 
     if (editing) {
@@ -78,18 +83,26 @@ export default function SuperAdminClients() {
         name: cleanName,
       });
       setClients(next);
-      // Keep the linked login account's display name/email in sync.
+      // Keep the linked login account's display name/email/phone in sync —
+      // this is the SAME account the client logs in with, so a profile edit
+      // here must never drift from what ScanQR/Login/etc. reads later.
       await dataStore.update("users", (u) => u.id === editing.userId, {
         name: cleanName,
         email: form.email ? sanitizeEmail(form.email) : undefined,
+        phone: sanitizeText(form.phone, 20),
       });
+      setSaving(false);
       push(`${cleanName} updated.`, "success");
       setModalOpen(false);
       return;
     }
 
     // --- New client: create the profile AND a linked login account ---
+    // Everything below (userId, password, QR token) is generated together
+    // in one shot so the profile, the login credentials, and the virtual
+    // ID card/QR are never out of sync with each other.
     const email = form.email ? sanitizeEmail(form.email) : deriveEmail(cleanName);
+    const phone = sanitizeText(form.phone, 20);
     const password = generatePassword();
     const clientId = genId("C");
     const userId = genId("U");
@@ -100,6 +113,7 @@ export default function SuperAdminClients() {
       ...form,
       name: cleanName,
       email,
+      phone,
       walletBalance: 0,
       monthlyBill: 0,
       qrStatus: "active",
@@ -110,6 +124,7 @@ export default function SuperAdminClients() {
       id: userId,
       name: cleanName,
       email,
+      phone,
       password,
       role: "client",
       status: "active",
@@ -117,8 +132,8 @@ export default function SuperAdminClients() {
       designation: form.designation,
       employeeId: form.employeeId,
       employmentType: form.employmentType,
-      mealPlan: form.mealPlan,
-      mealBenefit: form.mealBenefit,
+      mealPlan: form.mealPlan, // Fixed Company Meal | Custom Menu | Complimentary Meal — read
+      mealBenefit: form.mealBenefit, // by PlaceOrder / NewOrder to decide fixed-vs-full menu flow
       defaultPaymentMethod: "wallet",
       avatarColor: "#059669",
     };
@@ -127,8 +142,12 @@ export default function SuperAdminClients() {
     setClients(next);
     await dataStore.insert("users", userRecord);
 
+    setSaving(false);
     push(`${cleanName} created — login account ready.`, "success");
     setModalOpen(false);
+    // Immediately hand the Super Admin the "send credentials" modal — this
+    // is the one-click welcome-email step from the SRS: profile + QR +
+    // login all exist the moment this fires.
     setEmailPreview({
       name: cleanName,
       email,
@@ -140,6 +159,7 @@ export default function SuperAdminClients() {
 
   async function handleConfirm() {
     if (!confirmTarget) return;
+    setConfirmBusy(true);
     const { id, action } = confirmTarget;
     const client = clients.find((c) => c.id === id);
 
@@ -168,6 +188,7 @@ export default function SuperAdminClients() {
         role: `Client (${client.mealPlan})`,
       });
     }
+    setConfirmBusy(false);
     setConfirmTarget(null);
   }
 
@@ -177,17 +198,17 @@ export default function SuperAdminClients() {
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Client Management</h1>
           <p className="text-sm text-ink-400">
-            Create a client and their login account, ID card, and QR are generated together.
+            Create a client and their login account, virtual ID card, and QR are generated together.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <SearchInput value={query} onChange={setQuery} placeholder="Search name or Employee ID..." />
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-          >
-            <UserPlus size={16} /> Create Client
-          </button>
+          <Button variant="secondary" icon={FileDown} onClick={printBlankRegistrationForm}>
+            Blank Registration Form
+          </Button>
+          <Button variant="primary" icon={UserPlus} onClick={openCreate}>
+            Create Client
+          </Button>
         </div>
       </div>
 
@@ -215,31 +236,32 @@ export default function SuperAdminClients() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <IconBtn title="View Profile" onClick={() => setViewing(c)}>
+                    <Button variant="icon" title="View Profile" onClick={() => setViewing(c)}>
                       <IdCard size={14} />
-                    </IconBtn>
-                    <IconBtn title="Edit" onClick={() => openEdit(c)}>
+                    </Button>
+                    <Button variant="icon" title="Edit" onClick={() => openEdit(c)}>
                       <Edit2 size={14} />
-                    </IconBtn>
-                    <IconBtn title="Reset Password" onClick={() => setConfirmTarget({ id: c.id, action: "reset" })}>
+                    </Button>
+                    <Button variant="icon" title="Reset Password" onClick={() => setConfirmTarget({ id: c.id, action: "reset" })}>
                       <KeyRound size={14} />
-                    </IconBtn>
+                    </Button>
                     {c.status === "active" ? (
-                      <IconBtn title="Suspend" onClick={() => setConfirmTarget({ id: c.id, action: "suspend" })}>
+                      <Button variant="icon" title="Suspend" onClick={() => setConfirmTarget({ id: c.id, action: "suspend" })}>
                         <Ban size={14} />
-                      </IconBtn>
+                      </Button>
                     ) : (
-                      <IconBtn title="Reactivate" onClick={() => setConfirmTarget({ id: c.id, action: "activate" })}>
+                      <Button variant="icon" title="Reactivate" onClick={() => setConfirmTarget({ id: c.id, action: "activate" })}>
                         <Eye size={14} />
-                      </IconBtn>
+                      </Button>
                     )}
-                    <IconBtn
+                    <Button
+                      variant="icon"
                       title="Delete"
-                      danger
+                      className="hover:text-brand-600 hover:bg-brand-50"
                       onClick={() => setConfirmTarget({ id: c.id, action: "delete" })}
                     >
                       <Trash2 size={14} />
-                    </IconBtn>
+                    </Button>
                   </div>
                 </td>
               </tr>
@@ -313,7 +335,7 @@ export default function SuperAdminClients() {
               <option>Temporary Employee</option>
             </select>
           </FormField>
-          <FormField label="Meal Plan">
+          <FormField label="Meal Plan" hint="Controls whether they see the fixed daily meal or the full menu at order time">
             <select
               value={form.mealPlan}
               onChange={(e) => setForm((f) => ({ ...f, mealPlan: e.target.value }))}
@@ -338,9 +360,9 @@ export default function SuperAdminClients() {
             </FormField>
           </div>
           <div className="sm:col-span-2">
-            <button className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
+            <Button type="submit" variant="primary" fullWidth loading={saving}>
               {editing ? "Save Changes" : "Create Client & Send Credentials"}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
@@ -379,21 +401,10 @@ export default function SuperAdminClients() {
         }
         confirmLabel="Confirm"
         danger={confirmTarget?.action === "delete" || confirmTarget?.action === "suspend"}
+        busy={confirmBusy}
         onConfirm={handleConfirm}
         onCancel={() => setConfirmTarget(null)}
       />
     </div>
-  );
-}
-
-function IconBtn({ children, onClick, title, danger }) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      className={`rounded-lg p-2 hover:bg-ink-100 ${danger ? "text-brand-600 hover:bg-brand-50" : "text-ink-500"}`}
-    >
-      {children}
-    </button>
   );
 }

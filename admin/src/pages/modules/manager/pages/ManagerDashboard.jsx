@@ -1,14 +1,34 @@
-import { ClipboardList, Clock, ChefHat, CheckCircle2, Armchair, Users, UserCheck } from "lucide-react";
+// FILE: src/pages/modules/manager/pages/ManagerDashboard.jsx  (MODIFIED, full rewrite)
+import { ClipboardList, Clock, ChefHat, CheckCircle2, Armchair, UserCheck } from "lucide-react";
+import {
+  ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
+} from "recharts";
+import { Link } from "react-router-dom";
 import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import { PipelineBadge } from "../../../../components/shared/OrderPipeline";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
-import { Link } from "react-router-dom";
+
+const STATUS_COLORS = {
+  awaiting_manager: "#d97706",
+  pending: "#0284c7",
+  accepted: "#0284c7",
+  preparing: "#d97706",
+  ready: "#059669",
+  completed: "#1c1c1d",
+  delayed: "#c00000",
+};
 
 export default function ManagerDashboard() {
   const orders = useLiveCollection("orders", "orders.json");
   const tables = useLiveCollection("tables", "tables.json");
   const guests = useLiveCollection("guests", "guests.json");
+
+  const { page, setPage, totalPages, pageItems: pagedOrders } = usePagination(
+    (orders || []).slice().reverse(),
+    8
+  );
 
   if (!orders || !tables || !guests) return <Loader full label="Loading dashboard..." />;
 
@@ -19,6 +39,23 @@ export default function ManagerDashboard() {
   const completed = orders.filter((o) => o.status === "completed").length;
   const activeTables = tables.filter((t) => t.status !== "free").length;
   const revenue = orders.reduce((s, o) => s + o.amount, 0);
+
+  const statusCounts = orders.reduce((acc, o) => {
+    acc[o.status] = (acc[o.status] || 0) + 1;
+    return acc;
+  }, {});
+  const statusChartData = Object.entries(statusCounts).map(([status, count]) => ({
+    name: status.replace(/_/g, " "),
+    value: count,
+    color: STATUS_COLORS[status] || "#98999b",
+  }));
+
+  const clientOrders = orders.filter((o) => !o.clientName?.startsWith("Guest")).length;
+  const guestOrders = orders.length - clientOrders;
+  const splitData = [
+    { name: "Client", count: clientOrders },
+    { name: "Guest", count: guestOrders },
+  ];
 
   return (
     <div className="space-y-6">
@@ -64,25 +101,70 @@ export default function ManagerDashboard() {
         <StatCard label="Active Tables" value={activeTables} Icon={Armchair} accent="sky" />
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-ink-100 bg-white p-5">
+          <h2 className="mb-3 text-sm font-bold text-ink-700">Orders by Status</h2>
+          {statusChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={statusChartData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={80} paddingAngle={2}>
+                  {statusChartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="py-10 text-center text-sm text-ink-400">No orders yet.</p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-ink-100 bg-white p-5">
+          <h2 className="mb-3 text-sm font-bold text-ink-700">Client vs Guest Orders</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={splitData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" fontSize={12} />
+              <YAxis allowDecimals={false} fontSize={11} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#eb2a2d" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       <div className="rounded-xl border border-ink-100 bg-white p-5">
         <h2 className="mb-3 text-sm font-bold text-ink-700">
           Today's Revenue: <span className="text-brand-600">Tk {revenue.toLocaleString()}</span>
         </h2>
-        <div className="space-y-2">
-          {orders.map((o) => (
-            <div
-              key={o.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-50 px-3 py-2 text-sm"
-            >
-              <span className="font-medium text-ink-700">{o.clientName}</span>
-              <span className="text-ink-400">
-                {o.tableNumber ? `Table ${o.tableNumber}` : "Take Away"}
-              </span>
-              <PipelineBadge status={o.status} />
-              <span className="font-semibold text-ink-900">Tk {o.amount}</span>
-            </div>
-          ))}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs uppercase text-ink-400">
+              <tr>
+                <th className="py-2 pr-3">Customer</th>
+                <th className="py-2 pr-3">Table</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-100">
+              {pagedOrders.map((o) => (
+                <tr key={o.id}>
+                  <td className="py-2 pr-3 font-medium text-ink-800">{o.clientName}</td>
+                  <td className="py-2 pr-3 text-ink-500">
+                    {o.tableNumber ? `Table ${o.tableNumber}` : "Take Away"}
+                  </td>
+                  <td className="py-2 pr-3">
+                    <PipelineBadge status={o.status} />
+                  </td>
+                  <td className="py-2 text-right font-semibold text-ink-900">Tk {o.amount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-1 pt-2" />
       </div>
     </div>
   );

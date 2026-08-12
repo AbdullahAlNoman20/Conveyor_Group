@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+// FILE: src/pages/modules/super-admin/pages/Subsidy.jsx  (MODIFIED, full rewrite)
 import { Banknote, Building2 } from "lucide-react";
-import { dataStore } from "../../../../components/services/dataStore";
+import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import StatCard from "../../../../components/shared/StatCard";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import Loader from "../../../../components/shared/Loader";
 import Badge from "../../../../components/shared/Badge";
 
@@ -10,35 +11,37 @@ import Badge from "../../../../components/shared/Badge";
 const MOCK_MEAL_COST = 120;
 
 export default function Subsidy() {
-  const [clients, setClients] = useState(null);
+  const clients = useLiveCollection("clients", "clients.json");
 
-  useEffect(() => {
-    (async () => setClients(await dataStore.load("clients", "clients.json")))();
-  }, []);
-
-  if (!clients) return <Loader full label="Loading subsidy data..." />;
-
-  const complimentary = clients.filter((c) => c.mealBenefit === "Complimentary");
-  const subsidized = clients.filter((c) => c.mealBenefit === "Company Subsidized");
-  const selfPaid = clients.filter((c) => c.mealBenefit === "Self Paid");
+  const all = clients || [];
+  const complimentary = all.filter((c) => c.mealBenefit === "Complimentary");
+  const subsidized = all.filter((c) => c.mealBenefit === "Company Subsidized");
 
   const dailySubsidy = (complimentary.length + subsidized.length) * MOCK_MEAL_COST;
   const monthlySubsidy = dailySubsidy * 22; // approx working days
   const yearlySubsidy = monthlySubsidy * 12;
 
-  const byDept = clients.reduce((acc, c) => {
+  const byDept = all.reduce((acc, c) => {
     if (c.mealBenefit === "Self Paid") return acc;
     acc[c.department] = (acc[c.department] || 0) + MOCK_MEAL_COST;
     return acc;
   }, {});
+
+  // Self-Paid employees cost the company nothing, so they don't belong in a
+  // "who are we subsidizing" list — filter them out entirely, not just
+  // badge them differently.
+  const subsidizedEmployees = all.filter((c) => c.mealBenefit !== "Self Paid");
+  const { page, setPage, totalPages, pageItems: pagedEmployees } = usePagination(subsidizedEmployees, 8);
+
+  if (!clients) return <Loader full label="Loading subsidy data..." />;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Company Subsidy Management</h1>
         <p className="text-sm text-ink-400">
-          Tracks meals fully or partially borne by the company (SRS §23), driven by each client's
-          Meal Benefit setting (§7.3).
+          Tracks meals fully or partially borne by the company, driven by each client's Meal
+          Benefit setting.
         </p>
       </div>
 
@@ -50,15 +53,21 @@ export default function Subsidy() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-ink-100 bg-white p-5">
-          <h2 className="mb-3 text-sm font-bold text-ink-700">Employee-wise Subsidy</h2>
+          <h2 className="mb-3 text-sm font-bold text-ink-700">
+            Employee-wise Subsidy <span className="font-normal text-ink-400">(Self-Paid employees excluded)</span>
+          </h2>
           <div className="space-y-2">
-            {clients.map((c) => (
+            {pagedEmployees.map((c) => (
               <div key={c.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
                 <span className="font-medium text-ink-700">{c.name}</span>
-                <Badge tone={c.mealBenefit === "Self Paid" ? "cancelled" : "active"}>{c.mealBenefit}</Badge>
+                <Badge tone="active">{c.mealBenefit}</Badge>
               </div>
             ))}
+            {subsidizedEmployees.length === 0 && (
+              <p className="text-sm text-ink-400">No subsidized employees yet.</p>
+            )}
           </div>
+          <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </div>
 
         <div className="rounded-xl border border-ink-100 bg-white p-5">

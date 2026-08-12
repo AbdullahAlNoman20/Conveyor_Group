@@ -13,6 +13,8 @@ import {
   BarChart3,
   QrCode,
   ShieldCheck,
+  HardDriveDownload,
+  Archive,
 } from "lucide-react";
 
 const navGroups = [
@@ -26,6 +28,7 @@ const navGroups = [
       { to: "/app/super-admin/clients", label: "Clients", Icon: Users },
       { to: "/app/super-admin/managers", label: "Managers", Icon: UserCog },
       { to: "/app/super-admin/kitchen-staff", label: "Kitchen Staff", Icon: ChefHat },
+      { to: "/app/super-admin/registration-archive", label: "Registration Archive", Icon: Archive },
     ],
   },
   {
@@ -53,6 +56,7 @@ const navGroups = [
     items: [
       { to: "/app/super-admin/reports", label: "Reports & Analytics", Icon: BarChart3 },
       { to: "/app/super-admin/audit", label: "Audit Logs", Icon: ShieldCheck },
+      { to: "/app/super-admin/system-backup", label: "System Backup", Icon: HardDriveDownload },
     ],
   },
 ];

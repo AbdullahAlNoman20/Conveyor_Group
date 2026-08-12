@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+// FILE: src/pages/modules/manager/pages/ScanQR.jsx  (MODIFIED, full rewrite)
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ScanLine, CheckCircle2, XCircle, User, Wallet, Receipt, Clock, Monitor, Keyboard,
+  ScanLine, CheckCircle2, XCircle, User, Wallet, Receipt, Clock, Monitor, Keyboard, Search,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { dataStore } from "../../../../components/services/dataStore";
@@ -16,13 +17,14 @@ import Loader from "../../../../components/shared/Loader";
  *    show a message directing staff to a connected scanner or their phone,
  *    and accept input from a physical USB/Bluetooth barcode scanner (which
  *    behaves like a keyboard typing the code followed by Enter) via the
- *    text field below. A manual "simulate" dropdown stays available too,
+ *    text field below. A searchable "simulate" picker stays available too,
  *    for testing without any hardware.
  */
 export default function ScanQR() {
   const [clients, setClients] = useState(null);
   const [guests, setGuests] = useState(null);
   const [selectedId, setSelectedId] = useState("");
+  const [simSearch, setSimSearch] = useState("");
   const [result, setResult] = useState(null); // { ok, message, client, guest }
   const [scannerInput, setScannerInput] = useState("");
   const inputRef = useRef(null);
@@ -41,11 +43,14 @@ export default function ScanQR() {
 
   if (!clients || !guests) return <Loader full label="Loading directory..." />;
 
-  function evaluateClient(client) {
+  function evaluateClient(client, scannedToken) {
     if (!client) return { ok: false, message: "Invalid QR Code" };
     if (client.status === "suspended") return { ok: false, message: "Account Suspended", client };
     if (client.qrStatus === "expired") return { ok: false, message: "Expired QR Code", client };
     if (client.qrStatus !== "active") return { ok: false, message: "Invalid QR Code", client };
+    if (scannedToken && client.qrToken && scannedToken !== client.qrToken) {
+      return { ok: false, message: "Invalid QR Code — this card has been replaced", client };
+    }
     return { ok: true, message: "QR Verified", client };
   }
 
@@ -55,15 +60,12 @@ export default function ScanQR() {
     return { ok: true, message: "Guest QR Verified", guest };
   }
 
-  /** Decodes whatever a camera or hardware scanner just read and matches it
-   *  against clients (JSON payload from ClientQRCard) or guests (plain
-   *  qrToken string from GuestManagement). */
   function handleDecoded(text) {
     try {
       const payload = JSON.parse(text);
       if (payload?.clientId) {
         const client = clients.find((c) => c.id === payload.clientId);
-        setResult(evaluateClient(client));
+        setResult(evaluateClient(client, payload.qrToken));
         return;
       }
     } catch {
@@ -73,8 +75,16 @@ export default function ScanQR() {
     setResult(guest ? evaluateGuest(guest) : { ok: false, message: "Invalid QR Code" });
   }
 
-  function simulateScan() {
-    const client = clients.find((c) => c.id === selectedId);
+  const simResults = useMemo(() => {
+    const q = simSearch.trim().toLowerCase();
+    if (!q) return clients.slice(0, 8);
+    return clients
+      .filter((c) => c.name.toLowerCase().includes(q) || c.employeeId.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [clients, simSearch]);
+
+  function simulateScan(client) {
+    setSelectedId(client.id);
     setResult(evaluateClient(client));
   }
 
@@ -125,27 +135,37 @@ export default function ScanQR() {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-400">
               No hardware handy? Simulate a scan for testing
             </p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <select
-                value={selectedId}
-                onChange={(e) => setSelectedId(e.target.value)}
-                className="flex-1 rounded-lg border border-ink-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-              >
-                <option value="">-- Select a client QR card --</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} · {c.employeeId} ({c.qrStatus}
-                    {c.status === "suspended" ? ", suspended" : ""})
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={simulateScan}
-                disabled={!selectedId}
-                className="flex items-center justify-center gap-2 rounded-lg bg-ink-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-ink-900 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ScanLine size={16} /> Simulate
-              </button>
+            <div className="relative">
+              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+              <input
+                value={simSearch}
+                onChange={(e) => setSimSearch(e.target.value)}
+                placeholder="Search a client by name or Employee ID..."
+                className="w-full rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+            <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+              {simResults.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => simulateScan(c)}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-ink-50 ${
+                    selectedId === c.id ? "bg-brand-50 ring-1 ring-brand-200" : ""
+                  }`}
+                >
+                  <span className="font-medium text-ink-800">{c.name}</span>
+                  <span className="flex items-center gap-2 text-xs text-ink-400">
+                    {c.employeeId}
+                    <span className={c.status === "suspended" || c.qrStatus !== "active" ? "text-brand-600" : "text-emerald-600"}>
+                      {c.status === "suspended" ? "suspended" : c.qrStatus}
+                    </span>
+                    <ScanLine size={14} className="text-ink-300" />
+                  </span>
+                </button>
+              ))}
+              {simResults.length === 0 && (
+                <p className="px-3 py-4 text-sm text-ink-400">No matching clients.</p>
+              )}
             </div>
           </div>
         </div>

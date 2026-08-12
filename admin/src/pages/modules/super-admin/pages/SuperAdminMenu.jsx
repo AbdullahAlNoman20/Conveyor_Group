@@ -1,54 +1,52 @@
 // FILE: src/pages/modules/super-admin/pages/SuperAdminMenu.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
-import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Image as ImageIcon } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { genId } from "../../../../components/utils/idGenerator";
 import { sanitizeText, sanitizeNumber } from "../../../../components/utils/sanitize";
 import { useToast } from "../../../../components/hooks/useToast";
+import Button from "../../../../components/shared/Button";
 import FormField from "../../../../components/shared/FormField";
 import Modal from "../../../../components/shared/Modal";
 import ConfirmDialog from "../../../../components/shared/ConfirmDialog";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import Loader from "../../../../components/shared/Loader";
+import SearchInput from "../../../../components/shared/SearchInput";
 import { DishImage } from "../../../../components/shared/DishImage";
 
+const CATEGORIES = ["Fixed Meal", "Custom Menu", "Beverage", "Evening Snack"];
 const SPICE_LEVELS = ["Mild", "Medium", "Medium-Hot", "Hot"];
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2MB — same client-side guard used for profile photos
 
 const EMPTY = {
   name: "",
   category: "Fixed Meal",
   price: "",
-  image: "",
+  image: "", // data-URL from an uploaded photo, OR blank to use the auto name-matched asset
   description: "",
   calories: "",
   spiceLevel: "Mild",
   allergens: "",
 };
 
-/** "Fish Curry with Rice" -> "fish-curry-with-rice" — matches the naming
- * convention documented for public/assets/food/, so a freshly-added item
- * already points at the right filename the moment a photo is dropped in. */
-function slugify(name) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
 export default function SuperAdminMenu() {
   const { push } = useToast();
   const [menu, setMenu] = useState(null);
+  const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [toggleBusyId, setToggleBusyId] = useState(null); // per-row availability toggle animation
 
   useEffect(() => {
     (async () => setMenu(await dataStore.load("menu", "menu.json")))();
   }, []);
 
-  const { page, setPage, totalPages, pageItems: pagedMenu } = usePagination(menu || [], 9);
+  const filtered = (menu || []).filter((m) => m.name.toLowerCase().includes(query.toLowerCase()));
+  const { page, setPage, totalPages, pageItems: pagedMenu } = usePagination(filtered, 9);
 
   if (!menu) return <Loader full label="Loading menu..." />;
 
@@ -57,6 +55,7 @@ export default function SuperAdminMenu() {
     setForm(EMPTY);
     setModalOpen(true);
   }
+
   function openEdit(item) {
     setEditing(item);
     setForm({
@@ -72,16 +71,24 @@ export default function SuperAdminMenu() {
     setModalOpen(true);
   }
 
-  function onNameChange(name) {
-    setForm((f) => ({
-      ...f,
-      name,
-      // Only auto-fill the image path while creating and while the field
-      // still matches the auto-suggestion — don't clobber a manual edit.
-      image: !editing && (f.image === "" || f.image === `/assets/food/${slugify(f.name)}.svg`)
-        ? `/assets/food/${slugify(name)}.svg`
-        : f.image,
-    }));
+  // Lets an admin drop a real photo in for a dish instead of relying on the
+  // src/assets/food/<slug>.* naming convention — stored as a data-URL in
+  // this design/testing phase (no file-upload backend yet); a real backend
+  // would upload this to storage and save a URL instead.
+  function onPhotoChosen(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      push("Please choose an image file.", "error");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      push("Image is too large — please choose one under 2MB.", "error");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setForm((f) => ({ ...f, image: reader.result }));
+    reader.readAsDataURL(file);
   }
 
   async function save(e) {
@@ -91,11 +98,12 @@ export default function SuperAdminMenu() {
       push("Name and a valid price are required.", "error");
       return;
     }
+    setSaving(true);
     const payload = {
       name: sanitizeText(form.name, 100),
       category: form.category,
       price,
-      image: sanitizeText(form.image, 200) || "/assets/food/default.svg",
+      image: form.image || "", // blank -> DishImage falls back to the name-matched asset automatically
       description: sanitizeText(form.description, 400),
       calories: sanitizeNumber(form.calories, { min: 0, max: 5000 }) ?? undefined,
       spiceLevel: form.spiceLevel,
@@ -114,20 +122,25 @@ export default function SuperAdminMenu() {
       setMenu(next);
       push("Menu item added.", "success");
     }
+    setSaving(false);
     setModalOpen(false);
   }
 
   async function toggleAvailable(item) {
+    setToggleBusyId(item.id);
     const next = await dataStore.update("menu", (m) => m.id === item.id, {
       available: !item.available,
     });
     setMenu(next);
+    setToggleBusyId(null);
   }
 
   async function confirmDelete() {
+    setDeleteBusy(true);
     const next = await dataStore.remove("menu", (m) => m.id === deleteTarget);
     setMenu(next);
     push("Menu item deleted.", "success");
+    setDeleteBusy(false);
     setDeleteTarget(null);
   }
 
@@ -136,14 +149,16 @@ export default function SuperAdminMenu() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Menu Management</h1>
-          <p className="text-sm text-ink-400">Add, edit, activate, or remove menu items — photo, calories, and description included.</p>
+          <p className="text-sm text-ink-400">
+            Add, edit, activate, or remove menu items — photo, calories, and description included.
+          </p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-        >
-          <Plus size={16} /> Add Menu Item
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <SearchInput value={query} onChange={setQuery} placeholder="Search dish name..." />
+          <Button variant="primary" icon={Plus} onClick={openCreate}>
+            Add Menu Item
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -166,7 +181,8 @@ export default function SuperAdminMenu() {
               <div className="mt-3 flex items-center justify-between">
                 <button
                   onClick={() => toggleAvailable(m)}
-                  className={`flex items-center gap-1 text-xs font-semibold ${
+                  disabled={toggleBusyId === m.id}
+                  className={`flex items-center gap-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
                     m.available ? "text-emerald-600" : "text-ink-400"
                   }`}
                 >
@@ -174,20 +190,24 @@ export default function SuperAdminMenu() {
                   {m.available ? "Active" : "Inactive"}
                 </button>
                 <div className="flex gap-1">
-                  <button onClick={() => openEdit(m)} className="rounded-lg p-1.5 text-ink-500 hover:bg-ink-100">
+                  <Button variant="icon" onClick={() => openEdit(m)}>
                     <Edit2 size={14} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="icon"
+                    className="hover:text-brand-600 hover:bg-brand-50"
                     onClick={() => setDeleteTarget(m.id)}
-                    className="rounded-lg p-1.5 text-brand-600 hover:bg-brand-50"
                   >
                     <Trash2 size={14} />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
         ))}
+        {filtered.length === 0 && (
+          <p className="col-span-full py-10 text-center text-sm text-ink-400">No menu items found.</p>
+        )}
       </div>
       <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
@@ -196,7 +216,7 @@ export default function SuperAdminMenu() {
           <FormField label="Food Name" required>
             <input
               value={form.name}
-              onChange={(e) => onNameChange(e.target.value)}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </FormField>
@@ -206,10 +226,9 @@ export default function SuperAdminMenu() {
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
               className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             >
-              <option>Fixed Meal</option>
-              <option>Custom Menu</option>
-              <option>Beverage</option>
-              <option>Evening Snack</option>
+              {CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
             </select>
           </FormField>
           <FormField label="Unit Price (Tk)" required>
@@ -248,25 +267,37 @@ export default function SuperAdminMenu() {
               className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </FormField>
+
           <div className="sm:col-span-2">
-            <FormField
-              label="Image Path"
-              hint="File under public/assets/food/ — auto-suggested from the name, edit if you saved it under a different filename."
-            >
-              <input
-                value={form.image}
-                onChange={(e) => setForm((f) => ({ ...f, image: e.target.value }))}
-                placeholder="/assets/food/dish-name.jpg"
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-              />
-            </FormField>
-          </div>
-          {form.image && (
-            <div className="sm:col-span-2">
-              <p className="mb-1 text-xs font-medium text-ink-500">Preview</p>
-              <DishImage src={form.image} name={form.name} className="h-28 rounded-lg" rounded="rounded-lg" />
+            <label className="mb-1 block text-sm font-medium text-ink-700">Dish Photo</label>
+            <div className="flex items-center gap-3">
+              <div className="h-20 w-28 shrink-0 overflow-hidden rounded-lg border border-ink-100 bg-ink-50">
+                <DishImage src={form.image} name={form.name} className="h-20" rounded="" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="cursor-pointer">
+                  <span className="inline-flex items-center gap-2 rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-semibold text-ink-600 hover:border-brand-300 hover:text-brand-600">
+                    <ImageIcon size={13} /> Upload Photo
+                  </span>
+                  <input type="file" accept="image/*" className="hidden" onChange={onPhotoChosen} />
+                </label>
+                <p className="text-[11px] text-ink-400">
+                  JPG/PNG, under 2MB. Leave blank to auto-use a photo matching the dish name from
+                  the shared asset library.
+                </p>
+                {form.image && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, image: "" }))}
+                    className="w-fit text-[11px] font-semibold text-brand-600 hover:underline"
+                  >
+                    Remove uploaded photo
+                  </button>
+                )}
+              </div>
             </div>
-          )}
+          </div>
+
           <div className="sm:col-span-2">
             <FormField label="Description">
               <textarea
@@ -278,9 +309,9 @@ export default function SuperAdminMenu() {
             </FormField>
           </div>
           <div className="sm:col-span-2">
-            <button className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
+            <Button type="submit" variant="primary" fullWidth loading={saving}>
               {editing ? "Save Changes" : "Add Item"}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
@@ -288,8 +319,9 @@ export default function SuperAdminMenu() {
       <ConfirmDialog
         open={!!deleteTarget}
         title="Delete this menu item?"
-        message="This removes it from the ordering menu immediately."
+        message="This removes it from the ordering menu immediately, everywhere it's used (client ordering, manager New Order, weekly meal planner)."
         danger
+        busy={deleteBusy}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />

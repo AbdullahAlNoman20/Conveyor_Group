@@ -59,6 +59,22 @@ h4 {
     transform: translateX(-50%);
   }
 }
+
+@keyframes successPop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .conveyor-track {
   animation: conveyor-scroll 32s linear infinite;
 }

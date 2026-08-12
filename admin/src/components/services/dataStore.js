@@ -117,6 +117,14 @@ export const dataStore = {
 
     try {
       const { data } = await api.get(`/${file}`);
+      // A missing seed file can resolve as the dev server's SPA fallback
+      // (index.html) with a 200 status instead of a real 404 — that comes
+      // back as a string, not JSON, and would otherwise get cached as a
+      // collection, permanently breaking any [...collection] spread
+      // downstream and leaving dependent screens stuck on their loader.
+      if (typeof data === "string") {
+        throw new Error(`Seed file "${file}" did not return JSON`);
+      }
       writeLocal(key, data);
       return data;
     } catch (err) {
@@ -158,6 +166,9 @@ export const dataStore = {
   async reset(key, file) {
     try {
       const { data } = await api.get(`/${file}`);
+      if (typeof data === "string") {
+        throw new Error(`Seed file "${file}" did not return JSON`);
+      }
       writeLocal(key, data);
       return data;
     } catch (err) {
