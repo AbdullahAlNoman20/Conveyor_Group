@@ -8,6 +8,7 @@ import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
+import DishImage from "../../../../components/shared/DishImage";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -124,8 +125,9 @@ export default function PlaceOrder() {
               <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-ink-700">
                 <Lock size={14} /> Today's Fixed Meal ({todayName})
               </h2>
-              <div className="flex items-center justify-between rounded-lg bg-ink-50 px-4 py-3">
-                <span className="font-medium text-ink-800">{fixedMealName}</span>
+              <div className="flex items-center gap-3 rounded-lg bg-ink-50 px-4 py-3">
+                <DishImage name={fixedMealName} className="h-14 w-14 shrink-0 rounded-lg" rounded="rounded-lg" height={56} />
+                <span className="flex-1 font-medium text-ink-800">{fixedMealName}</span>
                 <span className="font-bold text-brand-600">Tk {fixedMealPrice}</span>
               </div>
               <p className="mt-2 text-xs text-ink-400">
@@ -147,13 +149,14 @@ export default function PlaceOrder() {
                     type="button"
                     key={m.id}
                     onClick={() => addItem(m)}
-                    className="flex items-center justify-between rounded-lg border border-ink-100 px-3 py-2 text-left text-sm hover:border-brand-300 hover:bg-brand-50"
+                    className="flex items-center gap-3 rounded-lg border border-ink-100 p-2 text-left text-sm hover:border-brand-300 hover:bg-brand-50"
                   >
-                    <span>
-                      <span className="block font-medium text-ink-800">{m.name}</span>
+                    <DishImage name={m.name} className="h-12 w-12 shrink-0 rounded-lg" rounded="rounded-lg" height={48} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-ink-800">{m.name}</span>
                       <span className="block text-xs text-ink-400">{m.category}</span>
                     </span>
-                    <span className="flex items-center gap-1 font-semibold text-brand-600">
+                    <span className="flex shrink-0 items-center gap-1 font-semibold text-brand-600">
                       <Plus size={14} /> Tk {m.price}
                     </span>
                   </button>

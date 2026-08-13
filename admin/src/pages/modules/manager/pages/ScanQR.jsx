@@ -27,6 +27,7 @@ export default function ScanQR() {
   const [simSearch, setSimSearch] = useState("");
   const [result, setResult] = useState(null); // { ok, message, client, guest }
   const [scannerInput, setScannerInput] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false); // click-to-open, never auto-starts
   const inputRef = useRef(null);
   const mobile = isMobileDevice() && hasCameraSupport();
 
@@ -40,6 +41,19 @@ export default function ScanQR() {
   useEffect(() => {
     if (!mobile) inputRef.current?.focus();
   }, [mobile]);
+
+  // ALL hooks (including useMemo below) must run on every render, before
+  // any early return — calling useMemo only after a conditional `return`
+  // changes the hook count between the "loading" and "loaded" renders and
+  // throws "Rendered more hooks than during the previous render."
+  const simResults = useMemo(() => {
+    const list = clients || [];
+    const q = simSearch.trim().toLowerCase();
+    if (!q) return list.slice(0, 8);
+    return list
+      .filter((c) => c.name.toLowerCase().includes(q) || c.employeeId.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [clients, simSearch]);
 
   if (!clients || !guests) return <Loader full label="Loading directory..." />;
 
@@ -75,14 +89,6 @@ export default function ScanQR() {
     setResult(guest ? evaluateGuest(guest) : { ok: false, message: "Invalid QR Code" });
   }
 
-  const simResults = useMemo(() => {
-    const q = simSearch.trim().toLowerCase();
-    if (!q) return clients.slice(0, 8);
-    return clients
-      .filter((c) => c.name.toLowerCase().includes(q) || c.employeeId.toLowerCase().includes(q))
-      .slice(0, 8);
-  }, [clients, simSearch]);
-
   function simulateScan(client) {
     setSelectedId(client.id);
     setResult(evaluateClient(client));
@@ -95,6 +101,20 @@ export default function ScanQR() {
     }
   }
 
+  // Camera is mounted only after an explicit tap — QRScannerCamera starts
+  // the device camera the moment it mounts, so gating the mount behind this
+  // handler is what makes "open camera on click" actually true instead of
+  // auto-opening as soon as the page loads.
+  function openCameraAndArm() {
+    setResult(null);
+    setCameraOpen(true);
+  }
+
+  function handleDecodedOnce(text) {
+    setCameraOpen(false); // one shot per tap, per SRS — re-tap "Scan" to scan again
+    handleDecoded(text);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -105,7 +125,18 @@ export default function ScanQR() {
       </div>
 
       {mobile ? (
-        <QRScannerCamera onScan={handleDecoded} />
+        cameraOpen ? (
+          <QRScannerCamera onScan={handleDecodedOnce} />
+        ) : (
+          <button
+            type="button"
+            onClick={openCameraAndArm}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink-200 bg-white py-10 text-ink-500 hover:border-brand-400 hover:text-brand-600"
+          >
+            <ScanLine size={28} />
+            <span className="text-sm font-semibold">Tap to Open Camera & Scan</span>
+          </button>
+        )
       ) : (
         <div className="space-y-4">
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
@@ -204,7 +235,9 @@ export default function ScanQR() {
             state={{ client: result.client }}
             className="mt-6 inline-flex rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
           >
-            Create Order for {result.client.name.split(" ")[0]}
+            {result.client.mealPlan === "Fixed Company Meal"
+              ? `Confirm Fixed Meal for ${result.client.name.split(" ")[0]}`
+              : `Create Order for ${result.client.name.split(" ")[0]}`}
           </Link>
         </div>
       )}

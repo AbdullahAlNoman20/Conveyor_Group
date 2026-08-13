@@ -9,6 +9,7 @@ import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
+import DishImage from "../../../../components/shared/DishImage";
 
 const ORDER_TYPES = ["Dine In", "Take Away", "Guest Order", "Corporate Guest"];
 const PRIORITIES = ["Normal", "High", "VIP", "Urgent"];
@@ -31,6 +32,7 @@ export default function NewOrder() {
   const [menu, setMenu] = useState(null);
   const [clients, setClients] = useState(null);
   const [guests, setGuests] = useState(null);
+  const [weeklyMenu, setWeeklyMenu] = useState(null);
 
   const [pickerOpen, setPickerOpen] = useState(!preloaded);
   const [search, setSearch] = useState("");
@@ -59,8 +61,20 @@ export default function NewOrder() {
       setMenu(await dataStore.load("menu", "menu.json"));
       setClients(await dataStore.load("clients", "clients.json"));
       setGuests(await dataStore.load("guests", "guests.json"));
+      setWeeklyMenu(await dataStore.load("weeklyMenu", "weekly-menu.json"));
     })();
   }, []);
+
+  const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  // A selected CLIENT (not guest, not manual entry) whose profile has
+  // "Fixed Company Meal" must get today's set meal locked in — the SRS
+  // forbids letting them pick anything else. Guests always choose freely.
+  const selectedClientRecord =
+    selected?.kind === "client" ? (clients || []).find((c) => c.id === selected.id) : null;
+  const isFixedMealClient = selectedClientRecord?.mealPlan === "Fixed Company Meal";
+  const todayName = DAY_NAMES[new Date().getDay()];
+  const fixedMealName = (weeklyMenu || []).find((d) => d.day === todayName)?.meal || "Today's Set Meal";
+  const fixedMealPrice = (menu || []).find((m) => m.name === fixedMealName)?.price ?? 0;
 
   const isTableRequired = orderType !== "Take Away";
 
@@ -108,6 +122,7 @@ export default function NewOrder() {
   }
 
   function addItem(menuItem) {
+    if (isFixedMealClient) return; // locked — fixed-meal clients can't add anything else
     setItems((list) => {
       const existing = list.find((i) => i.menuId === menuItem.id);
       if (existing) {
@@ -129,7 +144,10 @@ export default function NewOrder() {
     setItems((list) => list.filter((i) => i.menuId !== menuId));
   }
 
-  const subtotal = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const effectiveItems = isFixedMealClient
+    ? [{ menuId: "fixed", name: fixedMealName, qty: 1, unitPrice: fixedMealPrice }]
+    : items;
+  const subtotal = effectiveItems.reduce((s, i) => s + i.qty * i.unitPrice, 0);
   const discountAmount = Math.min(subtotal, Number(discount) || 0);
   const taxable = subtotal - discountAmount;
   const tax = Math.round(taxable * TAX_RATE);
@@ -140,7 +158,7 @@ export default function NewOrder() {
     const nextErrors = {};
     if (!selected) nextErrors.client = "Pick a client or guest, or use manual entry.";
     if (isTableRequired && !tableNumber) nextErrors.tableNumber = "Table number is required for this order type.";
-    if (items.length === 0) nextErrors.items = "Add at least one menu item.";
+    if (effectiveItems.length === 0) nextErrors.items = "Add at least one menu item.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -153,7 +171,7 @@ export default function NewOrder() {
       orderType: orderType.toLowerCase().replace(/\s+/g, "_"),
       priority: priority.toLowerCase(),
       specialInstructions: sanitizeText(instructions, 300),
-      items: items.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice })),
+      items: effectiveItems.map((i) => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice })),
       subtotal,
       discount: discountAmount,
       tax,
@@ -168,7 +186,7 @@ export default function NewOrder() {
     navigate("/app/manager");
   }
 
-  if (!menu || !clients || !guests) return <Loader full label="Loading menu..." />;
+  if (!menu || !clients || !guests || !weeklyMenu) return <Loader full label="Loading menu..." />;
 
   return (
     <div className="space-y-6">
@@ -335,57 +353,76 @@ export default function NewOrder() {
           <section className="rounded-xl border border-ink-100 bg-white p-5">
             <h2 className="mb-4 text-sm font-bold text-ink-700">Menu Selection</h2>
             {errors.items && <p className="mb-2 text-xs font-medium text-brand-600">{errors.items}</p>}
-            <div className="grid gap-2 sm:grid-cols-2">
-              {menu.map((m) => (
-                <button
-                  type="button"
-                  key={m.id}
-                  onClick={() => addItem(m)}
-                  className="flex items-center justify-between rounded-lg border border-ink-100 px-3 py-2 text-left text-sm hover:border-brand-300 hover:bg-brand-50"
-                >
-                  <span>
-                    <span className="block font-medium text-ink-800">{m.name}</span>
-                    <span className="block text-xs text-ink-400">{m.category}</span>
-                  </span>
-                  <span className="flex items-center gap-1 font-semibold text-brand-600">
-                    <Plus size={14} /> Tk {m.price}
-                  </span>
-                </button>
-              ))}
-            </div>
+
+            {isFixedMealClient ? (
+              <div className="flex items-center gap-3 rounded-lg bg-ink-50 px-4 py-3">
+                <DishImage name={fixedMealName} className="h-14 w-14 shrink-0 rounded-lg" rounded="rounded-lg" height={56} />
+                <div className="flex-1">
+                  <p className="font-medium text-ink-800">{fixedMealName}</p>
+                  <p className="text-xs text-ink-400">
+                    {selected.name.split(" ")[0]}'s Meal Plan is Fixed Company Meal — locked to today's set meal.
+                  </p>
+                </div>
+                <span className="font-bold text-brand-600">Tk {fixedMealPrice}</span>
+              </div>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {menu.map((m) => (
+                  <button
+                    type="button"
+                    key={m.id}
+                    onClick={() => addItem(m)}
+                    className="flex items-center gap-3 rounded-lg border border-ink-100 p-2 text-left text-sm hover:border-brand-300 hover:bg-brand-50"
+                  >
+                    <DishImage name={m.name} className="h-12 w-12 shrink-0 rounded-lg" rounded="rounded-lg" height={48} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-ink-800">{m.name}</span>
+                      <span className="block text-xs text-ink-400">{m.category}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1 font-semibold text-brand-600">
+                      <Plus size={14} /> Tk {m.price}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
         </div>
 
         <aside className="h-fit space-y-4 rounded-xl border border-ink-100 bg-white p-5">
           <h2 className="text-sm font-bold text-ink-700">Order Summary</h2>
           <div className="space-y-2">
-            {items.length === 0 && <p className="text-sm text-ink-400">No items added yet.</p>}
-            {items.map((i) => (
+            {effectiveItems.length === 0 && <p className="text-sm text-ink-400">No items added yet.</p>}
+            {effectiveItems.map((i) => (
               <div key={i.menuId} className="flex items-center justify-between gap-2 text-sm">
                 <span className="flex-1 truncate text-ink-700">{i.name}</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => updateQty(i.menuId, -1)}
-                    className="rounded bg-ink-100 p-1 hover:bg-ink-200"
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className="w-5 text-center">{i.qty}</span>
-                  <button
-                    type="button"
-                    onClick={() => updateQty(i.menuId, 1)}
-                    className="rounded bg-ink-100 p-1 hover:bg-ink-200"
-                  >
-                    <Plus size={12} />
-                  </button>
-                </div>
+                {!isFixedMealClient && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => updateQty(i.menuId, -1)}
+                      className="rounded bg-ink-100 p-1 hover:bg-ink-200"
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span className="w-5 text-center">{i.qty}</span>
+                    <button
+                      type="button"
+                      onClick={() => updateQty(i.menuId, 1)}
+                      className="rounded bg-ink-100 p-1 hover:bg-ink-200"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                )}
                 <span className="w-16 text-right font-semibold text-ink-900">
                   Tk {i.qty * i.unitPrice}
                 </span>
-                <button type="button" onClick={() => removeItem(i.menuId)} className="text-ink-300 hover:text-brand-600">
-                  <Trash2 size={14} />
-                </button>
+                {!isFixedMealClient && (
+                  <button type="button" onClick={() => removeItem(i.menuId)} className="text-ink-300 hover:text-brand-600">
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             ))}
           </div>
