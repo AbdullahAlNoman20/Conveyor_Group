@@ -17,7 +17,9 @@ export default function KitchenBoard() {
   const { nowServing, readyZone, upNext } = useMemo(() => {
     if (!orders) return { nowServing: null, readyZone: [], upNext: [] };
 
-    const active = orders.filter((o) => o.status !== "completed" && o.status !== "cancelled");
+    const active = orders.filter(
+      (o) => o.status !== "completed" && o.status !== "cancelled",
+    );
 
     const sorted = [...active].sort((a, b) => {
       const rank = (o) => PRIORITY_RANK[o.priority] ?? 3;
@@ -39,7 +41,11 @@ export default function KitchenBoard() {
   // when preparation actually started — not a simulated number.
   function etaLabel(order) {
     if (order.status === "ready") return "Ready now";
-    if (order.status !== "preparing" || !order.prepStartedAt || !order.prepMinutes) {
+    if (
+      order.status !== "preparing" ||
+      !order.prepStartedAt ||
+      !order.prepMinutes
+    ) {
       return order.status === "delayed" ? "Delayed" : "Waiting to start";
     }
     const elapsedMs = now - new Date(order.prepStartedAt);
@@ -49,7 +55,7 @@ export default function KitchenBoard() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-ink-950 text-white"> 
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-ink-950 text-white">
       <video
         className="absolute inset-0 h-full w-full object-cover"
         src="/videos/hero-bg.mp4"
@@ -65,35 +71,60 @@ export default function KitchenBoard() {
       <div className="relative flex-1 p-4 board:p-8">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-ink-800 pb-4">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="Conveyor Group" className="h-10 w-auto rounded bg-white p-1 board:h-14" />
+            <img
+              src={logo}
+              alt="Conveyor Group"
+              className="h-10 w-auto rounded bg-white p-1 board:h-14"
+            />
             <div>
-              <p className="text-lg font-bold board:text-2xl">Conveyor Group Restaurant</p>
-              <p className="text-xs text-ink-400 board:text-sm">Live Meal Collection Board</p>
+              <p className="text-lg font-bold board:text-2xl">
+                Conveyor Group Restaurant
+              </p>
+              <p className="text-xs text-ink-400 board:text-sm">
+                Live Meal Collection Board
+              </p>
             </div>
           </div>
           <div className="text-right">
             <p className="font-mono text-3xl font-bold text-brand-500 board:text-5xl">
-              {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              {now.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
             </p>
             <p className="text-xs text-ink-400 board:text-sm">
-              {now.toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+              {now.toLocaleDateString(undefined, {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
             </p>
           </div>
         </header>
 
-        {!orders && <p className="py-20 text-center text-ink-400">Loading live queue...</p>}
+        {!orders && (
+          <p className="py-20 text-center text-ink-400">
+            Loading live queue...
+          </p>
+        )}
 
         {orders && (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <section className="lg:col-span-1">
-              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-400">Now Serving</p>
+          <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:justify-items-center">
+            <section className="w-full max-w-md lg:col-span-1">
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-400">
+                Now Serving
+              </p>
               {nowServing ? (
                 <div className="rounded-2xl border-2 border-brand-500 bg-ink-900 p-6 text-center board:p-10">
                   <p className="font-mono text-5xl font-extrabold text-brand-500 board:text-7xl">
                     {nowServing.id.replace("ORD-", "T-")}
                   </p>
                   <p className="mt-2 text-lg text-ink-200 board:text-2xl">
-                    {nowServing.tableNumber ? `Table ${nowServing.tableNumber}` : "Take Away"}
+                    {nowServing.tableNumber
+                      ? `Table ${nowServing.tableNumber}`
+                      : "Take Away"}
                   </p>
                 </div>
               ) : (
@@ -103,7 +134,7 @@ export default function KitchenBoard() {
               )}
             </section>
 
-            <section>
+            <section className="w-full max-w-md">
               <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-400">
                 Ready for Collection
               </p>
@@ -124,14 +155,18 @@ export default function KitchenBoard() {
                     <span className="text-sm text-ink-200 board:text-base">
                       {o.tableNumber ? `Table ${o.tableNumber}` : "Take Away"}
                     </span>
-                    <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold">READY</span>
+                    <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold">
+                      READY
+                    </span>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section>
-              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-400">Up Next</p>
+            <section className="w-full max-w-md">
+  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-400">
+    Up Next
+  </p>
               <div className="space-y-2">
                 {upNext.length === 0 && (
                   <p className="rounded-xl border border-dashed border-ink-800 p-6 text-center text-sm text-ink-500">
@@ -154,7 +189,9 @@ export default function KitchenBoard() {
                         {o.priority}
                       </span>
                     )}
-                    <span className="text-sm font-semibold text-amber-400">{etaLabel(o)}</span>
+                    <span className="text-sm font-semibold text-amber-400">
+                      {etaLabel(o)}
+                    </span>
                   </div>
                 ))}
               </div>
