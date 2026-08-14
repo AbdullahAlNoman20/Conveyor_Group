@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/guest/pages/GuestPlaceOrder.jsx (FULL REWRITE — dish images + token modal, fixes prior ReferenceError)
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Minus, Send } from "lucide-react";
@@ -8,6 +9,8 @@ import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
+import DishImage from "../../../../components/shared/DishImage";
+import OrderTokenModal from "../../../../components/shared/OrderTokenModal";
 
 export default function GuestPlaceOrder() {
   const { user } = useAuth();
@@ -18,6 +21,7 @@ export default function GuestPlaceOrder() {
   const [collectionType, setCollectionType] = useState("dine_in");
   const [tableNumber, setTableNumber] = useState("");
   const [items, setItems] = useState([]);
+  const [confirmedOrder, setConfirmedOrder] = useState(null);
 
   useEffect(() => {
     (async () => setMenu(await dataStore.load("menu", "menu.json")))();
@@ -67,8 +71,16 @@ export default function GuestPlaceOrder() {
       createdAt: new Date().toISOString(),
     };
     await dataStore.insert("orders", order);
-    socket.emit(SOCKET_EVENTS.ORDER_SUBMITTED, { message: `Order ${order.id} submitted for approval.` });
+    socket.emit(SOCKET_EVENTS.ORDER_SUBMITTED, {
+      message: `Order ${order.id} submitted for approval.`,
+      recipientRoles: ["manager"],
+    });
     push("Order submitted — waiting for Manager approval.", "success");
+    setConfirmedOrder(order);
+  }
+
+  function closeTokenModal() {
+    setConfirmedOrder(null);
     navigate("/app/guest");
   }
 
@@ -83,19 +95,20 @@ export default function GuestPlaceOrder() {
         <div className="space-y-6 lg:col-span-2">
           <section className="rounded-xl border border-ink-100 bg-white p-5">
             <h2 className="mb-3 text-sm font-bold text-ink-700">Menu</h2>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {menu.map((m) => (
                 <button
                   type="button"
                   key={m.id}
                   onClick={() => addItem(m)}
-                  className="flex items-center justify-between rounded-lg border border-ink-100 px-3 py-2 text-left text-sm hover:border-brand-300 hover:bg-brand-50"
+                  className="flex items-center gap-3 rounded-lg border border-ink-100 p-2 text-left text-sm hover:border-brand-300 hover:bg-brand-50"
                 >
-                  <span>
-                    <span className="block font-medium text-ink-800">{m.name}</span>
+                  <DishImage name={m.name} className="h-12 w-12 shrink-0 rounded-lg" rounded="rounded-lg" height={48} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-ink-800">{m.name}</span>
                     <span className="block text-xs text-ink-400">{m.category}</span>
                   </span>
-                  <span className="flex items-center gap-1 font-semibold text-brand-600">
+                  <span className="flex shrink-0 items-center gap-1 font-semibold text-brand-600">
                     <Plus size={14} /> Tk {m.price}
                   </span>
                 </button>
@@ -129,7 +142,7 @@ export default function GuestPlaceOrder() {
           </section>
         </div>
 
-        <aside className="h-fit space-y-4 rounded-xl border border-ink-100 bg-white p-5">
+        <aside className="h-fit space-y-4 self-start rounded-xl border border-ink-100 bg-white p-5 lg:sticky lg:top-20">
           <h2 className="text-sm font-bold text-ink-700">Order Summary</h2>
           <div className="space-y-2">
             {items.map((i) => (
@@ -158,6 +171,8 @@ export default function GuestPlaceOrder() {
           </button>
         </aside>
       </form>
+
+      <OrderTokenModal open={!!confirmedOrder} order={confirmedOrder} onClose={closeTokenModal} />
     </div>
   );
 }

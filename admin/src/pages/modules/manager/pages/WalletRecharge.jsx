@@ -1,12 +1,13 @@
-// FILE: src/pages/modules/manager/pages/WalletRecharge.jsx  (MODIFIED, full rewrite — also fixes a stray "Tk )" label artifact from the earlier currency-symbol swap)
+// FILE: src/pages/modules/manager/pages/WalletRecharge.jsx (FULL REWRITE — today's total + stat)
 import { useEffect, useState } from "react";
-import { Wallet, Plus } from "lucide-react";
+import { Wallet, Plus, TrendingUp, Receipt } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { genId } from "../../../../components/utils/idGenerator";
 import { sanitizeNumber } from "../../../../components/utils/sanitize";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
+import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
@@ -29,6 +30,10 @@ export default function WalletRecharge() {
 
   if (!clients || !transactions) return <Loader full label="Loading wallet recharge..." />;
 
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const todaysRecharges = transactions.filter((t) => t.type === "Recharge" && t.date === todayISO);
+  const todayTotal = todaysRecharges.reduce((s, t) => s + t.amount, 0);
+
   async function submit(e) {
     e.preventDefault();
     const value = sanitizeNumber(amount, { min: 1, max: 100000 });
@@ -48,13 +53,14 @@ export default function WalletRecharge() {
       clientId,
       type: "Recharge",
       amount: value,
-      date: new Date().toISOString().slice(0, 10),
+      date: todayISO,
     };
     const nextTx = await dataStore.insert("walletTransactions", tx);
     setTransactions(nextTx);
 
     socket.emit(SOCKET_EVENTS.WALLET_RECHARGED, {
       message: `Wallet recharged with Tk ${value} for ${client.name}.`,
+      recipientNames: [client.name],
     });
     push(`Tk ${value} added to ${client.name}'s Meal Coin balance.`, "success");
     setAmount("");
@@ -67,6 +73,12 @@ export default function WalletRecharge() {
         <p className="text-sm text-ink-400">
           Client gives cash → Manager recharges Meal Coin → history saved automatically (SRS §18.4).
         </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <StatCard label="Recharged Today" value={`Tk ${todayTotal.toLocaleString()}`} Icon={TrendingUp} accent="emerald" />
+        <StatCard label="Recharges Today" value={todaysRecharges.length} Icon={Receipt} accent="brand" />
+        <StatCard label="Total Transactions" value={transactions.length} Icon={Wallet} accent="sky" />
       </div>
 
       <form onSubmit={submit} className="grid gap-4 rounded-xl border border-ink-100 bg-white p-5 sm:grid-cols-3">

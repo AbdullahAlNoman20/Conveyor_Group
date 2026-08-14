@@ -1,6 +1,7 @@
-// FILE: src/pages/modules/manager/pages/GuestRequests.jsx  (MODIFIED, full rewrite)
+// FILE: src/pages/modules/manager/pages/GuestRequests.jsx (FULL REWRITE — 1-day expiry + one-time guest ordering)
 import { useEffect, useState } from "react";
-import { CheckCircle2, XCircle, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { CheckCircle2, XCircle, Users, Clock, ShoppingCart } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { useToast } from "../../../../components/hooks/useToast";
@@ -8,8 +9,15 @@ import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+function isExpired(r) {
+  return r.status === "pending" && Date.now() - new Date(r.createdAt).getTime() > ONE_DAY_MS;
+}
+
 export default function GuestRequests() {
   const { push } = useToast();
+  const navigate = useNavigate();
   const [requests, setRequests] = useState(null);
 
   useEffect(() => {
@@ -25,6 +33,7 @@ export default function GuestRequests() {
     if (decision === "approved") {
       socket.emit(SOCKET_EVENTS.GUEST_REQUEST_APPROVED, {
         message: `Guest request for ${req.clientName} approved — guest QR generated.`,
+        recipientNames: [req.clientName],
       });
       push(`Approved. Guest QR generated for ${req.clientName}'s guests.`, "success");
     } else {
@@ -32,8 +41,15 @@ export default function GuestRequests() {
     }
   }
 
-  const pending = (requests || []).filter((r) => r.status === "pending");
-  const decided = (requests || []).filter((r) => r.status !== "pending");
+  async function orderForGuests(req) {
+    await dataStore.update("guestRequests", (r) => r.id === req.id, { guestOrdered: true });
+    navigate("/app/manager/new-order", {
+      state: { guest: { name: `${req.clientName}'s Guests`, department: `Billed to ${req.clientName}` } },
+    });
+  }
+
+  const pending = (requests || []).filter((r) => r.status === "pending" && !isExpired(r));
+  const decided = (requests || []).filter((r) => r.status !== "pending" || isExpired(r));
   const { page: pendingPage, setPage: setPendingPage, totalPages: pendingTotalPages, pageItems: pagedPending } = usePagination(pending, 5);
   const { page: decidedPage, setPage: setDecidedPage, totalPages: decidedTotalPages, pageItems: pagedDecided } = usePagination(decided, 8);
 
@@ -44,8 +60,9 @@ export default function GuestRequests() {
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Guest Requests</h1>
         <p className="text-sm text-ink-400">
-          Client-initiated guest requests (SRS §11) — approve to generate the Guest QR. All costs
-          are billed to the requesting client's own account.
+          Client-initiated guest requests (SRS §11) — approve to generate the Guest QR. Requests
+          auto-expire 1 day after submission if left undecided. Costs are billed to the requesting
+          client's own account, and food can only be ordered once per approved request.
         </p>
       </div>
 
@@ -96,15 +113,36 @@ export default function GuestRequests() {
       </div>
 
       <div className="rounded-xl border border-ink-100 bg-white p-5">
-        <h2 className="mb-3 text-sm font-bold text-ink-700">Decided</h2>
+        <h2 className="mb-3 text-sm font-bold text-ink-700">Decided / Expired</h2>
         <div className="space-y-2">
-          {pagedDecided.map((r) => (
-            <div key={r.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
-              <span className="font-medium text-ink-700">{r.clientName}</span>
-              <span className="text-ink-400">{r.guestCount} guest(s)</span>
-              <Badge tone={r.status === "approved" ? "active" : "cancelled"}>{r.status}</Badge>
-            </div>
-          ))}
+          {pagedDecided.map((r) => {
+            const expired = isExpired(r);
+            const canOrder = r.status === "approved" && !r.guestOrdered;
+            return (
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ink-50 px-3 py-2 text-sm">
+                <span className="font-medium text-ink-700">{r.clientName}</span>
+                <span className="text-ink-400">{r.guestCount} guest(s)</span>
+                {expired ? (
+                  <Badge tone="expired">
+                    <span className="flex items-center gap-1"><Clock size={11} /> expired</span>
+                  </Badge>
+                ) : (
+                  <Badge tone={r.status === "approved" ? "active" : "cancelled"}>{r.status}</Badge>
+                )}
+                {canOrder && (
+                  <button
+                    onClick={() => orderForGuests(r)}
+                    className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
+                  >
+                    <ShoppingCart size={12} /> Order for Guests
+                  </button>
+                )}
+                {r.status === "approved" && r.guestOrdered && (
+                  <span className="text-xs text-ink-300">Order already placed</span>
+                )}
+              </div>
+            );
+          })}
         </div>
         <Pagination page={decidedPage} totalPages={decidedTotalPages} onChange={setDecidedPage} />
       </div>

@@ -60,6 +60,10 @@ export default function ClientProfile() {
       push("Name cannot be empty.", "error");
       return;
     }
+    if (myPending) {
+      push("You already have a request pending approval.", "error");
+      return;
+    }
     if (name.trim() === me?.name && !photoPreview) {
       push("Change the name or choose a new photo before submitting.", "info");
       return;
@@ -136,8 +140,11 @@ export default function ClientProfile() {
           </div>
         </div>
 
-        <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
-          <Send size={16} /> Submit for Approval
+        <button
+          disabled={!!myPending}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Send size={16} /> {myPending ? "Request Submitted" : "Submit for Approval"}
         </button>
       </form>
     </div>

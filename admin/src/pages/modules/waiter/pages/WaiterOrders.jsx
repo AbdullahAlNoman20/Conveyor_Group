@@ -29,7 +29,10 @@ export default function WaiterOrders() {
 
   async function deliver(order) {
     await dataStore.update("orders", (o) => o.id === order.id, { status: "completed" });
-    socket.emit(SOCKET_EVENTS.FOOD_SERVED, { message: `Order ${order.id} served.` });
+    socket.emit(SOCKET_EVENTS.FOOD_SERVED, {
+      message: `Order ${order.id} served.`,
+      recipientNames: [order.clientName],
+    });
     push(`Order ${order.id} marked as delivered.`, "success");
   }
 

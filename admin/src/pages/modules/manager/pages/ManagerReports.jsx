@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { FileSpreadsheet, FileText } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { useToast } from "../../../../components/hooks/useToast";
+import { exportToExcel } from "../../../../components/utils/exportExcel";
+import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
 import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
 
@@ -24,8 +26,38 @@ export default function ManagerReports() {
   const clientOrders = orders.filter((o) => !o.clientName?.startsWith("Guest")).length;
   const guestOrders = orders.length - clientOrders;
 
-  function exportAs(format) {
-    push(`${format} export queued (mock).`, "info");
+  function downloadExcel() {
+    exportToExcel(
+      orders.map((o) => ({
+        "Order Number": o.id,
+        Customer: o.clientName,
+        "Amount (Tk)": o.amount,
+        Status: o.status,
+        Date: new Date(o.createdAt).toLocaleDateString(),
+      })),
+      `daily-report-${new Date().toISOString().slice(0, 10)}`
+    );
+    push("Excel report downloaded.", "success");
+  }
+
+  function downloadPDF() {
+    printOnLetterhead({
+      title: "Daily Report",
+      bodyHtml: `
+        <h2 style="margin:0 0 4px">Daily Report — ${new Date().toLocaleDateString()}</h2>
+        <div class="row"><span class="label">Daily Orders</span><span>${orders.length}</span></div>
+        <div class="row"><span class="label">Daily Revenue</span><span>Tk ${revenue.toLocaleString()}</span></div>
+        <div class="row"><span class="label">Daily Guests</span><span>${guests.length}</span></div>
+        <div class="row"><span class="label">Completed Orders</span><span>${completed}</span></div>
+        <table>
+          <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Amount</th></tr></thead>
+          <tbody>
+            ${orders.map((o) => `<tr><td>${o.id}</td><td>${o.clientName}</td><td>${o.status}</td><td>Tk ${o.amount}</td></tr>`).join("")}
+          </tbody>
+        </table>
+      `,
+    });
+    push("Use your browser's print dialog to Save as PDF.", "info");
   }
 
   return (
@@ -36,10 +68,10 @@ export default function ManagerReports() {
           <p className="text-sm text-ink-400">Restaurant-level snapshot for today (SRS §24.1).</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => exportAs("Excel")} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
+          <button onClick={downloadExcel} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
             <FileSpreadsheet size={14} /> Excel
           </button>
-          <button onClick={() => exportAs("PDF")} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
+          <button onClick={downloadPDF} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
             <FileText size={14} /> PDF
           </button>
         </div>

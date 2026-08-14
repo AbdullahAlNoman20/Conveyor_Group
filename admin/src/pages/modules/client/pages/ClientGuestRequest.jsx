@@ -61,7 +61,10 @@ export default function ClientGuestRequest() {
     };
     const next = await dataStore.insert("guestRequests", record);
     setRequests(next);
-    socket.emit(SOCKET_EVENTS.GUEST_REQUEST_SUBMITTED, { message: `Guest request submitted for ${guestCount} guest(s).` });
+    socket.emit(SOCKET_EVENTS.GUEST_REQUEST_SUBMITTED, {
+      message: `Guest request submitted for ${guestCount} guest(s) by ${user.name}.`,
+      recipientRoles: ["manager"],
+    });
     push("Guest request submitted — awaiting Manager approval.", "success");
     setGuestCount(1);
     setGuests([{ name: "", phone: "", organization: "" }]);

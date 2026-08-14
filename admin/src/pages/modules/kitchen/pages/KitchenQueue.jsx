@@ -20,14 +20,20 @@ export default function KitchenQueue() {
   const [customTime, setCustomTime] = useState("");
   const [delayModalOrder, setDelayModalOrder] = useState(null);
 
-  async function updateOrder(id, patch, event, message) {
+  async function updateOrder(id, patch, event, message, recipients = {}) {
     await dataStore.update("orders", (o) => o.id === id, patch);
-    if (event) socket.emit(event, { orderId: id, message });
+    if (event) socket.emit(event, { orderId: id, message, ...recipients });
     if (message) push(message, "success");
   }
 
   function accept(order) {
-    updateOrder(order.id, { status: "accepted" }, SOCKET_EVENTS.KITCHEN_ACCEPTED, `Order ${order.id} accepted.`);
+    updateOrder(
+      order.id,
+      { status: "accepted" },
+      SOCKET_EVENTS.KITCHEN_ACCEPTED,
+      `Order ${order.id} accepted.`,
+      { recipientNames: [order.clientName] }
+    );
   }
 
   function setPrepTime(minutes) {
@@ -36,18 +42,31 @@ export default function KitchenQueue() {
       prepModalOrder.id,
       { status: "preparing", prepMinutes: minutes, prepStartedAt: new Date().toISOString() },
       SOCKET_EVENTS.PREPARATION_STARTED,
-      `Cooking started — ${minutes} min for ${prepModalOrder.id}.`
+      `Cooking started — ${minutes} min for ${prepModalOrder.id}.`,
+      { recipientNames: [prepModalOrder.clientName] }
     );
     setPrepModalOrder(null);
     setCustomTime("");
   }
 
   function markReady(order) {
-    updateOrder(order.id, { status: "ready" }, SOCKET_EVENTS.FOOD_READY, `Order ${order.id} is ready for collection.`);
+    updateOrder(
+      order.id,
+      { status: "ready" },
+      SOCKET_EVENTS.FOOD_READY,
+      `Order ${order.id} is ready for collection.`,
+      { recipientNames: [order.clientName], recipientRoles: ["waiter"] }
+    );
   }
 
   function markCompleted(order) {
-    updateOrder(order.id, { status: "completed" }, SOCKET_EVENTS.ORDER_COMPLETED, `Order ${order.id} completed.`);
+    updateOrder(
+      order.id,
+      { status: "completed" },
+      SOCKET_EVENTS.ORDER_COMPLETED,
+      `Order ${order.id} completed.`,
+      { recipientNames: [order.clientName] }
+    );
   }
 
   function confirmDelay(reason) {
@@ -56,7 +75,8 @@ export default function KitchenQueue() {
       delayModalOrder.id,
       { status: "delayed", delayReason: reason },
       SOCKET_EVENTS.ORDER_DELAYED,
-      `Order ${delayModalOrder.id} marked delayed: ${reason}.`
+      `Order ${delayModalOrder.id} marked delayed: ${reason}.`,
+      { recipientNames: [delayModalOrder.clientName] }
     );
     setDelayModalOrder(null);
   }

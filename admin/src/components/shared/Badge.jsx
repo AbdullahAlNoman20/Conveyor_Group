@@ -8,6 +8,9 @@ const STATUS_STYLES = {
   delayed: "bg-brand-100 text-brand-700",
   cancelled: "bg-ink-200 text-ink-500 line-through",
   expired: "bg-ink-200 text-ink-500",
+  confirmed: "bg-sky-100 text-sky-700",
+  accepted: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-brand-100 text-brand-700",
 };
 
 export default function Badge({ children, tone, className = "" }) {

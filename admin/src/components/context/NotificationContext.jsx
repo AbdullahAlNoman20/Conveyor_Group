@@ -49,6 +49,19 @@ function resolveLink(event, role) {
   }
 }
 
+// The mock "socket" is a same-origin broadcast (no real backend), so every
+// open tab/role receives every emit. Each emit MUST now carry who it's for
+// via recipientRoles / recipientNames — this gate is what makes a
+// notification actually private to its intended recipient(s). `global:true`
+// is the only explicit opt-out for a true broadcast-to-everyone event.
+function isForCurrentUser(payload, user) {
+  if (!payload) return false;
+  if (payload.global) return true;
+  const roleMatch = payload.recipientRoles?.includes(user?.role);
+  const nameMatch = payload.recipientNames?.includes(user?.name);
+  return Boolean(roleMatch || nameMatch);
+}
+
 export function NotificationProvider({ children }) {
   const [items, setItems] = useState([]);
   const toastCtx = useContext(ToastContext);
@@ -64,6 +77,7 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     const unsubs = Object.entries(EVENT_COPY).map(([event, message]) =>
       socket.on(event, (payload) => {
+        if (!isForCurrentUser(payload, user)) return;
         const entry = {
           id: `${event}-${Date.now()}`,
           message: payload?.message || message,

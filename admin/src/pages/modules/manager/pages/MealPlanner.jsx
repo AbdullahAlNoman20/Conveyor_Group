@@ -1,12 +1,15 @@
+// FILE: src/pages/modules/manager/pages/MealPlanner.jsx (FULL REWRITE — dropdown from live menu, not free text)
 import { useEffect, useState } from "react";
 import { CalendarRange, Save, Copy } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
-import { sanitizeText } from "../../../../components/utils/sanitize";
 import { useToast } from "../../../../components/hooks/useToast";
+import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import Loader from "../../../../components/shared/Loader";
+import DishImage from "../../../../components/shared/DishImage";
 
 export default function MealPlanner() {
   const { push } = useToast();
+  const menu = useLiveCollection("menu", "menu.json");
   const [weekly, setWeekly] = useState(null);
   const [draft, setDraft] = useState(null);
 
@@ -18,16 +21,20 @@ export default function MealPlanner() {
     })();
   }, []);
 
-  if (!weekly || !draft) return <Loader full label="Loading weekly meal planner..." />;
+  if (!weekly || !draft || !menu) return <Loader full label="Loading weekly meal planner..." />;
 
-  function updateDay(day, value) {
-    setDraft((list) => list.map((d) => (d.day === day ? { ...d, meal: value } : d)));
+  // Only "Fixed Meal" category items are valid choices for the daily lunch —
+  // Beverages / Evening Snacks / Custom Menu items don't belong on this
+  // planner, per the SRS's Fixed Company Meal definition.
+  const fixedMealOptions = menu.filter((m) => m.category === "Fixed Meal" && m.available !== false);
+
+  function updateDay(day, mealName) {
+    setDraft((list) => list.map((d) => (d.day === day ? { ...d, meal: mealName } : d)));
   }
 
   async function save() {
-    const clean = draft.map((d) => ({ day: d.day, meal: sanitizeText(d.meal, 100) }));
-    await dataStore.save("weeklyMenu", clean);
-    setWeekly(clean);
+    await dataStore.save("weeklyMenu", draft);
+    setWeekly(draft);
     push("Weekly menu updated. Fixed Meal clients will see these choices automatically.", "success");
   }
 
@@ -71,25 +78,43 @@ export default function MealPlanner() {
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-100">
-            {draft.map((d) => (
-              <tr key={d.day}>
-                <td className="px-4 py-3 font-semibold text-ink-800">{d.day}</td>
-                <td className="px-4 py-3">
-                  <input
-                    value={d.meal}
-                    onChange={(e) => updateDay(d.day, e.target.value)}
-                    className="w-full max-w-md rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                  />
-                </td>
-              </tr>
-            ))}
+            {draft.map((d) => {
+              const selected = fixedMealOptions.find((m) => m.name === d.meal);
+              return (
+                <tr key={d.day}>
+                  <td className="px-4 py-3 font-semibold text-ink-800">{d.day}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex max-w-md items-center gap-3">
+                      <DishImage
+                        name={d.meal}
+                        className="h-10 w-10 shrink-0 rounded-lg"
+                        rounded="rounded-lg"
+                        height={40}
+                      />
+                      <select
+                        value={d.meal}
+                        onChange={(e) => updateDay(d.day, e.target.value)}
+                        className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                      >
+                        {!selected && d.meal && <option value={d.meal}>{d.meal} (not in menu)</option>}
+                        {fixedMealOptions.map((m) => (
+                          <option key={m.id} value={m.name}>
+                            {m.name} · Tk {m.price}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       <p className="text-xs text-ink-400">
         Business rule: a Fixed-Meal client may only order that day's designated food, maximum 1
-        meal per day (SRS §9.4).
+        lunch per day — Evening Snacks are exempt from this limit (SRS §9.4 / §14).
       </p>
     </div>
   );

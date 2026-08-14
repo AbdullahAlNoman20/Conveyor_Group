@@ -7,10 +7,13 @@ import { genId } from "../../../../components/utils/idGenerator";
 import { sanitizeText } from "../../../../components/utils/sanitize";
 import { validatePhone } from "../../../../components/utils/validators";
 import { useToast } from "../../../../components/hooks/useToast";
+import { FileSpreadsheet, Eye as EyeIcon, Mail } from "lucide-react";
 import FormField from "../../../../components/shared/FormField";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
+import Modal from "../../../../components/shared/Modal";
+import { exportToExcel } from "../../../../components/utils/exportExcel";
 
 const TABS = [
   { key: "temporary", label: "Temporary Guest" },
@@ -26,6 +29,7 @@ export default function GuestManagement() {
   const [tab, setTab] = useState("temporary");
   const [guests, setGuests] = useState(null);
   const [lastGenerated, setLastGenerated] = useState(null);
+  const [viewing, setViewing] = useState(null);
 
   useEffect(() => {
     (async () => setGuests(await dataStore.load("guests", "guests.json")))();
@@ -129,6 +133,27 @@ export default function GuestManagement() {
 
   if (!guests) return <Loader full label="Loading guests..." />;
 
+  function downloadGuestListExcel() {
+    exportToExcel(
+      guests.map((g) => ({
+        "Guest ID": g.id,
+        Name: g.name,
+        Type: g.type,
+        Mobile: g.mobile || "",
+        Organization: g.organization || g.company || "",
+        Table: g.tableNumber || "",
+        Status: g.status,
+        "Generated At": g.generatedAt ? new Date(g.generatedAt).toLocaleString() : "",
+      })),
+      "guest-list"
+    );
+    push("Guest list downloaded.", "success");
+  }
+
+  function emailQR(guest) {
+    push(`QR sent to ${guest.name} (mock — no email backend connected yet).`, "info");
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -148,6 +173,15 @@ export default function GuestManagement() {
             {t.label}
           </button>
         ))}
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={downloadGuestListExcel}
+          className="flex items-center gap-2 rounded-lg border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-700 hover:bg-ink-50"
+        >
+          <FileSpreadsheet size={16} /> Download Guest List
+        </button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -291,17 +325,27 @@ export default function GuestManagement() {
               <p className="mt-1 flex items-center justify-center gap-1 text-xs text-emerald-600">
                 <Clock size={12} /> Expires in {lastGenerated.validity}
               </p>
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/app/manager/new-order", {
-                    state: { guest: { name: lastGenerated.name, department: lastGenerated.organization } },
-                  })
-                }
-                className="mt-3 w-full rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
-              >
-                Create Order for {lastGenerated.name.split(" ")[0]}
-              </button>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/app/manager/new-order", {
+                      state: { guest: { name: lastGenerated.name, department: lastGenerated.organization } },
+                    })
+                  }
+                  className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                >
+                  Create Order
+                </button>
+                <button
+                  type="button"
+                  onClick={() => emailQR(lastGenerated)}
+                  className="flex items-center justify-center gap-1 rounded-lg border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                  title="Email QR to guest"
+                >
+                  <Mail size={13} />
+                </button>
+              </div>
             </div>
           )}
 
@@ -316,6 +360,14 @@ export default function GuestManagement() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge tone={g.status === "active" ? "active" : "cancelled"}>{g.status}</Badge>
+                      <button
+                        type="button"
+                        onClick={() => setViewing(g)}
+                        className="text-ink-400 hover:text-brand-600"
+                        title="View Details"
+                      >
+                        <EyeIcon size={14} />
+                      </button>
                       {g.status === "active" && (
                         <button
                           type="button"
@@ -337,6 +389,33 @@ export default function GuestManagement() {
           </div>
         </aside>
       </div>
+
+      <Modal open={!!viewing} onClose={() => setViewing(null)} title={viewing?.name || "Guest Details"} size="sm">
+        {viewing && (
+          <div className="space-y-2 text-sm">
+            <Row label="Guest ID" value={viewing.id} />
+            <Row label="Type" value={viewing.type} />
+            {viewing.mobile && <Row label="Mobile" value={viewing.mobile} />}
+            {(viewing.organization || viewing.company) && (
+              <Row label="Organization" value={viewing.organization || viewing.company} />
+            )}
+            {viewing.purpose && <Row label="Purpose" value={viewing.purpose} />}
+            {viewing.tableNumber && <Row label="Table" value={viewing.tableNumber} />}
+            {viewing.validity && <Row label="Validity" value={viewing.validity} />}
+            <Row label="Status" value={viewing.status} />
+            {viewing.generatedAt && <Row label="Generated" value={new Date(viewing.generatedAt).toLocaleString()} />}
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function Row({ label, value }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2">
+      <span className="text-ink-400">{label}</span>
+      <span className="font-medium capitalize text-ink-800">{value}</span>
     </div>
   );
 }

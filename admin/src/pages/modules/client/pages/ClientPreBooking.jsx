@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/client/pages/ClientPreBooking.jsx (FULL REWRITE — dish images, cancel only pre-accept)
 import { useState } from "react";
 import { CalendarClock, Plus, Lock } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
@@ -9,8 +10,9 @@ import FormField from "../../../../components/shared/FormField";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
+import DishImage from "../../../../components/shared/DishImage";
 
-const CUT_OFF_HOUR = 22; // 10:00 PM, per SRS 10.2
+const CUT_OFF_HOUR = 22;
 const MAX_DAYS_AHEAD = 7;
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -19,7 +21,6 @@ function isoDateNDaysFromNow(n) {
   d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 }
-
 function dayNameForISO(iso) {
   return DAY_NAMES[new Date(iso + "T00:00:00").getDay()];
 }
@@ -54,9 +55,6 @@ export default function ClientPreBooking() {
 
   const dayNameForSelectedDate = dayNameForISO(date);
   const fixedMealForDate = weeklyMenu.find((d) => d.day === dayNameForSelectedDate)?.meal;
-
-  // Today's/that day's available menu — for Custom Menu clients this is a
-  // proper multi-select dropdown instead of free text (per client request).
   const availableMenu = menu.filter((m) => m.available !== false);
 
   function toggleMeal(menuId) {
@@ -107,6 +105,7 @@ export default function ClientPreBooking() {
         <p className="text-sm text-ink-400">
           Book up to {MAX_DAYS_AHEAD} days ahead. Booking for the next day closes at 10:00 PM —
           {pastCutOff ? " that cut-off has passed, so tomorrow is no longer bookable." : " you're still before tonight's cut-off."}
+          {" "}You can cancel any time before the Manager accepts it — after that, it's locked in.
         </p>
       </div>
 
@@ -148,7 +147,8 @@ export default function ClientPreBooking() {
             <label className="mb-1 block text-sm font-medium text-ink-700">
               Meal for {dayNameForSelectedDate}
             </label>
-            <div className="flex items-center justify-between rounded-lg border border-ink-200 bg-ink-50 px-4 py-3">
+            <div className="flex items-center gap-3 rounded-lg border border-ink-200 bg-ink-50 px-4 py-3">
+              <DishImage name={fixedMealForDate} className="h-12 w-12 shrink-0 rounded-lg" rounded="rounded-lg" height={48} />
               <span className="flex items-center gap-2 font-medium text-ink-800">
                 <Lock size={14} className="text-ink-400" /> {fixedMealForDate || "No fixed meal set for this day"}
               </span>
@@ -163,26 +163,25 @@ export default function ClientPreBooking() {
             <label className="mb-1 block text-sm font-medium text-ink-700">
               Choose Meal(s) — {selectedMealIds.length} selected
             </label>
-            <div className="grid max-h-56 gap-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2 sm:grid-cols-2">
+            <div className="grid max-h-64 gap-1.5 overflow-y-auto rounded-lg border border-ink-200 p-2 sm:grid-cols-2">
               {availableMenu.map((m) => (
                 <label
                   key={m.id}
-                  className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2 py-2 text-sm transition-colors ${
                     selectedMealIds.includes(m.id)
                       ? "border-brand-400 bg-brand-50"
                       : "border-ink-100 hover:bg-ink-50"
                   }`}
                 >
-                  <span className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={selectedMealIds.includes(m.id)}
-                      onChange={() => toggleMeal(m.id)}
-                      className="h-4 w-4 accent-brand-600"
-                    />
-                    {m.name}
-                  </span>
-                  <span className="font-semibold text-ink-500">Tk {m.price}</span>
+                  <input
+                    type="checkbox"
+                    checked={selectedMealIds.includes(m.id)}
+                    onChange={() => toggleMeal(m.id)}
+                    className="h-4 w-4 shrink-0 accent-brand-600"
+                  />
+                  <DishImage name={m.name} className="h-9 w-9 shrink-0 rounded-md" rounded="rounded-md" height={36} />
+                  <span className="min-w-0 flex-1 truncate">{m.name}</span>
+                  <span className="shrink-0 font-semibold text-ink-500">Tk {m.price}</span>
                 </label>
               ))}
             </div>
@@ -215,6 +214,9 @@ export default function ClientPreBooking() {
                 >
                   Cancel
                 </button>
+              )}
+              {b.status === "accepted" && (
+                <span className="text-xs text-ink-300">Locked — accepted by Manager</span>
               )}
             </div>
           ))}

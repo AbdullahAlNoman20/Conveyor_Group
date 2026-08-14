@@ -10,6 +10,7 @@ import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import DishImage from "../../../../components/shared/DishImage";
+import OrderTokenModal from "../../../../components/shared/OrderTokenModal";
 
 const ORDER_TYPES = ["Dine In", "Take Away", "Guest Order", "Corporate Guest"];
 const PRIORITIES = ["Normal", "High", "VIP", "Urgent"];
@@ -55,6 +56,7 @@ export default function NewOrder() {
   const [discount, setDiscount] = useState(0);
   const [items, setItems] = useState([]);
   const [errors, setErrors] = useState({});
+  const [confirmedOrder, setConfirmedOrder] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -181,8 +183,17 @@ export default function NewOrder() {
     };
 
     await dataStore.insert("orders", order);
-    socket.emit(SOCKET_EVENTS.ORDER_SUBMITTED, { orderId: order.id, message: `Order ${order.id} submitted.` });
+    socket.emit(SOCKET_EVENTS.ORDER_SUBMITTED, {
+      orderId: order.id,
+      message: `Order ${order.id} submitted.`,
+      recipientRoles: ["kitchen_head"],
+    });
     push(`Order ${order.id} created and sent to the kitchen.`, "success");
+    setConfirmedOrder(order);
+  }
+
+  function closeTokenModal() {
+    setConfirmedOrder(null);
     navigate("/app/manager");
   }
 
@@ -366,20 +377,20 @@ export default function NewOrder() {
                 <span className="font-bold text-brand-600">Tk {fixedMealPrice}</span>
               </div>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {menu.map((m) => (
                   <button
                     type="button"
                     key={m.id}
                     onClick={() => addItem(m)}
-                    className="flex items-center gap-3 rounded-lg border border-ink-100 p-2 text-left text-sm hover:border-brand-300 hover:bg-brand-50"
+                    className="flex min-w-0 items-center gap-3 rounded-lg border border-ink-100 p-2.5 text-left text-sm transition-colors hover:border-brand-300 hover:bg-brand-50"
                   >
                     <DishImage name={m.name} className="h-12 w-12 shrink-0 rounded-lg" rounded="rounded-lg" height={48} />
-                    <span className="min-w-0 flex-1">
+                    <span className="min-w-0 flex-1 overflow-hidden">
                       <span className="block truncate font-medium text-ink-800">{m.name}</span>
-                      <span className="block text-xs text-ink-400">{m.category}</span>
+                      <span className="block truncate text-xs text-ink-400">{m.category}</span>
                     </span>
-                    <span className="flex shrink-0 items-center gap-1 font-semibold text-brand-600">
+                    <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold text-brand-600">
                       <Plus size={14} /> Tk {m.price}
                     </span>
                   </button>
@@ -389,7 +400,7 @@ export default function NewOrder() {
           </section>
         </div>
 
-        <aside className="h-fit space-y-4 rounded-xl border border-ink-100 bg-white p-5">
+        <aside className="h-fit space-y-4 self-start rounded-xl border border-ink-100 bg-white p-5 lg:sticky lg:top-20">
           <h2 className="text-sm font-bold text-ink-700">Order Summary</h2>
           <div className="space-y-2">
             {effectiveItems.length === 0 && <p className="text-sm text-ink-400">No items added yet.</p>}
@@ -454,6 +465,8 @@ export default function NewOrder() {
           </button>
         </aside>
       </form>
+
+      <OrderTokenModal open={!!confirmedOrder} order={confirmedOrder} onClose={closeTokenModal} />
     </div>
   );
 }

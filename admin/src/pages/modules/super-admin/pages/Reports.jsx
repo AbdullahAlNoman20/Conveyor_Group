@@ -46,10 +46,10 @@ export default function Reports() {
           <p className="text-sm text-ink-400">Daily, department, and food consumption reports (SRS §24).</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => exportAs("Excel")} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
+          <button onClick={downloadExcel} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
             <FileSpreadsheet size={14} /> Excel
           </button>
-          <button onClick={() => exportAs("PDF")} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
+          <button onClick={downloadPDF} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
             <FileText size={14} /> PDF
           </button>
           <button onClick={() => window.print()} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
