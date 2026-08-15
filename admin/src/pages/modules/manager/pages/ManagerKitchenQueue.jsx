@@ -24,9 +24,7 @@ export default function ManagerKitchenQueue() {
         <Eye size={20} className="text-ink-400" />
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Kitchen Queue (View Only)</h1>
-          <p className="text-sm text-ink-400">
-            Coordination view — order actions belong to the Kitchen Head (SRS §14).
-          </p>
+      
         </div>
       </div>
 

@@ -44,7 +44,7 @@ export default function FinancialDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Financial Dashboard</h1>
-        <p className="text-sm text-ink-400">Income vs expense across the whole cafeteria (SRS §22).</p>
+       
       </div>
 
       <DateRangeFilter

@@ -65,7 +65,7 @@ export default function ManagerReports() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Daily Reports</h1>
-          <p className="text-sm text-ink-400">Restaurant-level snapshot for today (SRS §24.1).</p>
+          
         </div>
         <div className="flex gap-2">
           <button onClick={downloadExcel} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">

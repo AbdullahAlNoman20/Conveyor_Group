@@ -79,9 +79,7 @@ export default function ClientGuestRequest() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Guest Request</h1>
-        <p className="text-sm text-ink-400">
-          Bringing your own guests to lunch? All costs will be added to your account (SRS §11).
-        </p>
+        
       </div>
 
       <form onSubmit={submit} className="space-y-4 rounded-xl border border-ink-100 bg-white p-5">

@@ -38,10 +38,7 @@ export default function ClientWallet() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Wallet & Salary Deduction</h1>
-        <p className="text-sm text-ink-400">
-          Guests cannot access this module — SRS §17.2 restricts wallet use to permanent clients only.
-        </p>
-      </div>
+              </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatCard label="Wallet Balance" value={`Tk ${me?.walletBalance ?? 0}`} Icon={Wallet} accent="emerald" />

@@ -30,7 +30,7 @@ export default function ClientInvoices() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Invoices</h1>
-        <p className="text-sm text-ink-400">One invoice is generated per order (SRS §19).</p>
+       
       </div>
 
       <div className="space-y-3">

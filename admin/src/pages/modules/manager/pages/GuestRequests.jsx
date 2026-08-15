@@ -59,11 +59,7 @@ export default function GuestRequests() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Guest Requests</h1>
-        <p className="text-sm text-ink-400">
-          Client-initiated guest requests (SRS §11) — approve to generate the Guest QR. Requests
-          auto-expire 1 day after submission if left undecided. Costs are billed to the requesting
-          client's own account, and food can only be ordered once per approved request.
-        </p>
+        
       </div>
 
       <div className="rounded-xl border border-ink-100 bg-white p-5">

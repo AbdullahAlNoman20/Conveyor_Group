@@ -22,7 +22,7 @@ export default function GuestInvoices() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Invoice History</h1>
-        <p className="text-sm text-ink-400">All invoices generated during your visit (SRS §19).</p>
+        
       </div>
 
       <div className="space-y-3">

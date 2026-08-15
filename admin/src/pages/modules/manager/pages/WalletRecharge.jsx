@@ -70,9 +70,7 @@ export default function WalletRecharge() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Wallet Recharge</h1>
-        <p className="text-sm text-ink-400">
-          Client gives cash → Manager recharges Meal Coin → history saved automatically (SRS §18.4).
-        </p>
+        
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">

@@ -27,10 +27,10 @@ export default function ManagerPreBookings() {
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState(null);
 
-  if (!bookings || !menu) return <Loader full label="Loading pre-bookings..." />;
-
-  const filtered = bookings.filter((b) => b.clientName.toLowerCase().includes(query.toLowerCase()));
+  const filtered = (bookings || []).filter((b) => b.clientName.toLowerCase().includes(query.toLowerCase()));
   const { page, setPage, totalPages, pageItems: pagedBookings } = usePagination(filtered, 10);
+
+  if (!bookings || !menu) return <Loader full label="Loading pre-bookings..." />;
 
   // Estimate: total plates and total Tk across every confirmed OR accepted
   // (not cancelled/rejected) booking, grouped by date — this is what the

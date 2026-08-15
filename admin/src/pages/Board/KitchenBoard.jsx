@@ -66,7 +66,7 @@ export default function KitchenBoard() {
         preload="auto"
         aria-hidden="true"
       />
-      <div className="absolute inset-0 bg-ink-950/95" />
+      <div className="absolute inset-0 bg-ink-950/85" />
 
       <div className="relative flex-1 p-4 board:p-8">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-ink-800 pb-4">

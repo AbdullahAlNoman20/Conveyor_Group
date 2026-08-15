@@ -38,12 +38,20 @@ export default function Reports() {
     push(`${format} export queued (mock — no backend export service connected yet).`, "info");
   }
 
+  function downloadExcel() {
+    exportAs("Excel");
+  }
+
+  function downloadPDF() {
+    exportAs("PDF");
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Reports & Analytics</h1>
-          <p className="text-sm text-ink-400">Daily, department, and food consumption reports (SRS §24).</p>
+         
         </div>
         <div className="flex gap-2">
           <button onClick={downloadExcel} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
