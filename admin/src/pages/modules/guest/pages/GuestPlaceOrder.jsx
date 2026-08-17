@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Minus, Send, ShoppingBag } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
-import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
+import { SOCKET_EVENTS } from "../../../../components/services/socket";
+import { notifyEvent } from "../../../../components/services/notifyEvent";
 import { genId } from "../../../../components/utils/idGenerator";
 import { playAlertSound } from "../../../../components/services/notify";
 import { useAuth } from "../../../../components/hooks/useAuth";
@@ -133,7 +134,7 @@ export default function GuestPlaceOrder() {
 
       playAlertSound();
 
-      socket.emit(SOCKET_EVENTS.ORDER_SUBMITTED, {
+      await notifyEvent(SOCKET_EVENTS.ORDER_SUBMITTED, {
         message: `Order ${order.id} submitted for approval.`,
         recipientRoles: ["manager"],
       });

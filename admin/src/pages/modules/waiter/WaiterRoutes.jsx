@@ -5,9 +5,9 @@ const WaiterOrders = lazy(() => import("./pages/WaiterOrders"));
 
 const WaiterRoutes = [
   { index: true, element: <WaiterDashboard /> },
-  { path: "ready", element: <WaiterOrders /> },
-  { path: "assigned", element: <WaiterOrders /> },
-  { path: "delivered", element: <WaiterOrders /> },
+  { path: "ready", element: <WaiterOrders view="ready" /> },
+  { path: "assigned", element: <WaiterOrders view="assigned" /> },
+  { path: "delivered", element: <WaiterOrders view="delivered" /> },
 ];
 
 export default WaiterRoutes;

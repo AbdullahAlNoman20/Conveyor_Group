@@ -1,16 +1,27 @@
-Manager সাইড (event emit করে):
+# ================= CORE NOTIFICATION SYSTEM =================
+src/components/services/socket.js
+src/components/context/NotificationContext.jsx
+src/components/services/notify.js
+src/components/hooks/useNotifications.js
+src/components/shared/NotificationBell.jsx
+src/components/utils/orderRecipient.js
 
+# ================= LAYOUT (বেল বসানো আছে কিনা যাচাই করতে) =================
+src/components/layout/DashboardLayout.jsx
+src/components/layout/Sidebar.jsx
+src/pages/modules/manager/layout/ManagerLayout.jsx
+src/pages/modules/guest/layout/GuestLayout.jsx
+src/pages/modules/kitchen/layout/KitchenLayout.jsx
+
+# ================= অর্ডার একশন যেখান থেকে ইভেন্ট emit হয় =================
+src/pages/modules/guest/pages/GuestPlaceOrder.jsx
+src/pages/modules/client/pages/PlaceOrder.jsx
 src/pages/modules/manager/pages/OrderApprovals.jsx
-src/pages/modules/manager/pages/ManagerKitchenQueue.jsx
-src/pages/modules/manager/pages/GuestRequests.jsx
-src/pages/modules/manager/pages/ManagerPreBookings.jsx
-src/pages/modules/manager/pages/WalletRecharge.jsx
-src/pages/modules/manager/pages/ScanQR.jsx
-src/pages/modules/manager/pages/NewOrder.jsx
+src/pages/modules/kitchen/pages/KitchenQueue.jsx
 
-Kitchen সাইড (event emit করে):
-8. src/pages/modules/kitchen/pages/KitchenQueue.jsx
-9. src/pages/modules/kitchen/pages/KitchenDashboard.jsx
+# ================= AUTH (user.role / user.name কীভাবে সেট হয় দেখতে) =================
+src/components/context/AuthContext.jsx
+src/components/hooks/useAuth.js
 
-অন্যান্য প্রয়োজনীয় ফাইল:
-10. src/components/hooks/useAuth.js (নিশ্চিত হতে user.id/name কীভাবে সেট হয় — যাতে recipientNames/clientId ম্যাচিং ভুল না হয়)
+# ================= ROOT / APP MOUNT =================
+src/main.jsx

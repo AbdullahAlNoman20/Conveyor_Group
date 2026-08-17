@@ -1,6 +1,6 @@
-// FILE: src/pages/modules/client/pages/ClientPreBooking.jsx
+// FILE: src/pages/modules/client/pages/ClientPreBooking.jsx (FULL REWRITE — pipeline for accepted bookings)
 import { useState } from "react";
-import { CalendarClock, Plus, Lock } from "lucide-react";
+import { CalendarClock, Plus, Lock, Clock } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { genId } from "../../../../components/utils/idGenerator";
@@ -10,25 +10,13 @@ import { useLiveCollection } from "../../../../components/hooks/useLiveCollectio
 import FormField from "../../../../components/shared/FormField";
 import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
-import Pagination, {
-  usePagination,
-} from "../../../../components/shared/Pagination";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import DishImage from "../../../../components/shared/DishImage";
-import OrderPipeline, {
-  orderStatusLabel,
-} from "../../../../components/shared/OrderPipeline";
+import OrderPipeline, { orderStatusLabel } from "../../../../components/shared/OrderPipeline";
 
 const CUT_OFF_HOUR = 22;
 const MAX_DAYS_AHEAD = 7;
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function isoDateNDaysFromNow(n) {
   const d = new Date();
@@ -46,8 +34,11 @@ export default function ClientPreBooking() {
   const clients = useLiveCollection("clients", "clients.json");
   const weeklyMenu = useLiveCollection("weeklyMenu", "weekly-menu.json");
   const menu = useLiveCollection("menu", "menu.json");
-  // Needed to find the kitchen order that ManagerPreBookings.accept() spins
-  // up (linked via order.preBookingId) so we can show its live pipeline.
+  // Once a Manager accepts a booking, ManagerPreBookings.jsx creates a
+  // linked `orders` record (order.preBookingId === booking.id) and sends
+  // it straight to the kitchen. We need that live order to render the
+  // pipeline here, so the same tracker the Manager/Kitchen update shows up
+  // on the Client's booking card, updating in real time.
   const orders = useLiveCollection("orders", "orders.json");
 
   const [date, setDate] = useState(isoDateNDaysFromNow(1));
@@ -55,15 +46,9 @@ export default function ClientPreBooking() {
   const [collectionType, setCollectionType] = useState("dine_in");
   const [tableNumber, setTableNumber] = useState("");
 
-  const mine = (bookings || []).filter(
-    (b) => b.clientId === user?.id || b.clientName === user?.name,
-  );
-  const {
-    page,
-    setPage,
-    totalPages,
-    pageItems: pagedMine,
-  } = usePagination(mine, 8);
+  const mine = (bookings || []).filter((b) => b.clientId === user?.id || b.clientName === user?.name);
+  const sortedMine = [...mine].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const { page, setPage, totalPages, pageItems: pagedMine } = usePagination(sortedMine, 8);
 
   if (!bookings || !clients || !weeklyMenu || !menu || !orders) {
     return <Loader full label="Loading your bookings..." />;
@@ -78,28 +63,16 @@ export default function ClientPreBooking() {
   const maxDate = isoDateNDaysFromNow(MAX_DAYS_AHEAD);
 
   const dayNameForSelectedDate = dayNameForISO(date);
-  const fixedMealForDate = weeklyMenu.find(
-    (d) => d.day === dayNameForSelectedDate,
-  )?.meal;
+  const fixedMealForDate = weeklyMenu.find((d) => d.day === dayNameForSelectedDate)?.meal;
   const availableMenu = menu.filter((m) => m.available !== false);
 
   function toggleMeal(menuId) {
-    setSelectedMealIds((list) =>
-      list.includes(menuId)
-        ? list.filter((id) => id !== menuId)
-        : [...list, menuId],
-    );
+    setSelectedMealIds((list) => (list.includes(menuId) ? list.filter((id) => id !== menuId) : [...list, menuId]));
   }
 
   const selectedMealNames = isFixed
     ? [fixedMealForDate]
-    : availableMenu
-        .filter((m) => selectedMealIds.includes(m.id))
-        .map((m) => m.name);
-
-  function linkedOrderFor(booking) {
-    return orders.find((o) => o.preBookingId === booking.id);
-  }
+    : availableMenu.filter((m) => selectedMealIds.includes(m.id)).map((m) => m.name);
 
   async function submitBooking(e) {
     e.preventDefault();
@@ -134,9 +107,7 @@ export default function ClientPreBooking() {
   }
 
   async function cancelBooking(id) {
-    await dataStore.update("preBookings", (b) => b.id === id, {
-      status: "cancelled",
-    });
+    await dataStore.update("preBookings", (b) => b.id === id, { status: "cancelled" });
     push("Booking cancelled.", "info");
   }
 
@@ -148,26 +119,19 @@ export default function ClientPreBooking() {
             <CalendarClock size={21} />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">
-              Meal Pre-Booking
-            </h1>
+            <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">Meal Pre-Booking</h1>
             <p className="mt-1 text-xs leading-5 text-ink-400 sm:text-sm">
-              Book up to {MAX_DAYS_AHEAD} days ahead. Booking for the next day
-              closes at 10:00 PM —
+              Book up to {MAX_DAYS_AHEAD} days ahead. Booking for the next day closes at 10:00 PM —
               {pastCutOff
                 ? " that cut-off has passed, so tomorrow is no longer bookable."
                 : " you're still before tonight's cut-off."}{" "}
-              You can cancel any time before the Manager accepts it — after
-              that, it's locked in and moves through the kitchen pipeline below.
+              You can cancel any time before the Manager accepts it — after that, it's locked in.
             </p>
           </div>
         </div>
       </div>
 
-      <form
-        onSubmit={submitBooking}
-        className="min-w-0 space-y-5 rounded-2xl border border-ink-100 bg-white p-4 shadow-sm sm:p-5"
-      >
+      <form onSubmit={submitBooking} className="min-w-0 space-y-5 rounded-2xl border border-ink-100 bg-white p-4 shadow-sm sm:p-5">
         <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FormField label="Date" required>
             <input
@@ -189,10 +153,7 @@ export default function ClientPreBooking() {
               <option value="take_away">Take Away</option>
             </select>
           </FormField>
-          <FormField
-            label="Table Number"
-            required={collectionType === "dine_in"}
-          >
+          <FormField label="Table Number" required={collectionType === "dine_in"}>
             <input
               type="number"
               disabled={collectionType !== "dine_in"}
@@ -205,17 +166,10 @@ export default function ClientPreBooking() {
 
         {isFixed ? (
           <div className="min-w-0">
-            <label className="mb-2 block text-sm font-semibold text-ink-700">
-              Meal for {dayNameForSelectedDate}
-            </label>
+            <label className="mb-2 block text-sm font-semibold text-ink-700">Meal for {dayNameForSelectedDate}</label>
             <div className="flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border border-ink-200 bg-ink-50 p-3 sm:p-4">
               <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white bg-white shadow-sm sm:h-20 sm:w-20">
-                <DishImage
-                  name={fixedMealForDate}
-                  className="h-full w-full object-cover"
-                  rounded="rounded-xl"
-                  height={80}
-                />
+                <DishImage name={fixedMealForDate} className="h-full w-full object-cover" rounded="rounded-xl" height={80} />
               </div>
               <div className="min-w-0 flex-1 overflow-hidden">
                 <div className="flex min-w-0 items-center gap-2">
@@ -228,17 +182,14 @@ export default function ClientPreBooking() {
               </div>
             </div>
             <p className="mt-2 text-xs leading-5 text-ink-400">
-              Your Meal Plan is Fixed Company Meal — the meal for the selected
-              day is set automatically by the Weekly Menu Planner and can't be
-              changed.
+              Your Meal Plan is Fixed Company Meal — the meal for the selected day is set automatically by the
+              Weekly Menu Planner and can't be changed.
             </p>
           </div>
         ) : (
           <div className="min-w-0">
             <div className="mb-2 flex min-w-0 flex-wrap items-center justify-between gap-2">
-              <label className="text-sm font-semibold text-ink-700">
-                Choose Meal(s)
-              </label>
+              <label className="text-sm font-semibold text-ink-700">Choose Meal(s)</label>
               <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-600">
                 {selectedMealIds.length} selected
               </span>
@@ -249,9 +200,7 @@ export default function ClientPreBooking() {
                   <label
                     key={m.id}
                     className={`flex min-w-0 w-full cursor-pointer items-center gap-3 overflow-hidden rounded-xl border p-2.5 transition-colors ${
-                      selectedMealIds.includes(m.id)
-                        ? "border-brand-400 bg-brand-50"
-                        : "border-ink-100 bg-white hover:bg-ink-50"
+                      selectedMealIds.includes(m.id) ? "border-brand-400 bg-brand-50" : "border-ink-100 bg-white hover:bg-ink-50"
                     }`}
                   >
                     <input
@@ -261,20 +210,11 @@ export default function ClientPreBooking() {
                       className="h-4 w-4 shrink-0 accent-brand-600"
                     />
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-ink-100 bg-ink-50">
-                      <DishImage
-                        name={m.name}
-                        className="h-full w-full object-cover"
-                        rounded="rounded-xl"
-                        height={48}
-                      />
+                      <DishImage name={m.name} className="h-full w-full object-cover" rounded="rounded-xl" height={48} />
                     </div>
                     <span className="min-w-0 flex-1 overflow-hidden">
-                      <span className="block truncate text-sm font-semibold text-ink-800">
-                        {m.name}
-                      </span>
-                      <span className="mt-0.5 block truncate text-xs text-ink-400">
-                        {m.category}
-                      </span>
+                      <span className="block truncate text-sm font-semibold text-ink-800">{m.name}</span>
+                      <span className="mt-0.5 block truncate text-xs text-ink-400">{m.category}</span>
                     </span>
                     <span className="shrink-0 whitespace-nowrap rounded-lg bg-ink-50 px-2 py-1.5 text-xs font-semibold text-ink-600">
                       Tk {m.price}
@@ -302,84 +242,69 @@ export default function ClientPreBooking() {
             <CalendarClock size={16} /> My Bookings
           </h2>
         </div>
-
         <div className="p-3 sm:p-4">
-          <div className="space-y-3">
+          <div className="space-y-4">
             {pagedMine.map((b) => {
-              const linkedOrder = linkedOrderFor(b);
+              // The linked live order (only exists after Manager acceptance).
+              const linkedOrder = orders.find((o) => o.preBookingId === b.id);
               return (
-                <div
-                  key={b.id}
-                  className="min-w-0 overflow-hidden rounded-xl border border-ink-100 bg-white"
-                >
+                <div key={b.id} className="min-w-0 overflow-hidden rounded-xl border border-ink-100 bg-white">
                   <div className="grid min-w-0 gap-3 p-3 sm:grid-cols-[120px_minmax(0,1fr)_120px_auto] sm:items-center sm:p-4">
                     <div className="min-w-0">
-                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400 sm:hidden">
-                        Date
-                      </p>
-                      <span className="font-semibold text-ink-800">
-                        {b.date}
-                      </span>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400 sm:hidden">Date</p>
+                      <span className="font-semibold text-ink-800">{b.date}</span>
                     </div>
                     <div className="min-w-0">
-                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400 sm:hidden">
-                        Meal
-                      </p>
-                      <span className="block truncate text-sm text-ink-600">
-                        {b.meal}
-                      </span>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400 sm:hidden">Meal</p>
+                      <span className="block truncate text-sm text-ink-600">{b.meal}</span>
                     </div>
                     <div className="min-w-0">
-                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400 sm:hidden">
-                        Collection
-                      </p>
-                      <span className="text-sm capitalize text-ink-500">
-                        {b.collectionType.replace("_", " ")}
-                      </span>
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400 sm:hidden">Collection</p>
+                      <span className="text-sm capitalize text-ink-500">{b.collectionType.replace("_", " ")}</span>
                     </div>
                     <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
                       <Badge tone={b.status}>{b.status}</Badge>
                       {b.status === "confirmed" && !pastCutOff && (
-                        <button
-                          onClick={() => cancelBooking(b.id)}
-                          className="shrink-0 text-xs font-semibold text-brand-600 hover:underline"
-                        >
+                        <button onClick={() => cancelBooking(b.id)} className="shrink-0 text-xs font-semibold text-brand-600 hover:underline">
                           Cancel
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {linkedOrder && (
-                    <div className="border-t border-ink-100 bg-ink-50/40 p-3 sm:p-4">
-                      <div className="mb-2 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-ink-600">
-                          Kitchen Order {linkedOrder.id}
-                        </span>
-                        <span className="text-ink-400">
-                          {orderStatusLabel(linkedOrder.status)}
-                        </span>
+                  {/* Pipeline area */}
+                  <div className="border-t border-ink-100 bg-ink-50/40 p-3 sm:p-4">
+                    {b.status === "confirmed" && (
+                      <p className="flex items-center gap-2 text-xs text-ink-500">
+                        <Clock size={13} /> Waiting for Manager approval.
+                      </p>
+                    )}
+                    {b.status === "rejected" && (
+                      <p className="text-xs font-medium text-brand-600">This booking was rejected by the Manager.</p>
+                    )}
+                    {b.status === "cancelled" && (
+                      <p className="text-xs text-ink-400">You cancelled this booking.</p>
+                    )}
+                    {b.status === "accepted" && linkedOrder && (
+                      <div>
+                        <div className="mb-2 flex items-center justify-between text-xs">
+                          <span className="font-semibold text-ink-700">{linkedOrder.id}</span>
+                          <span className="text-ink-400">{orderStatusLabel(linkedOrder.status)}</span>
+                        </div>
+                        <OrderPipeline status={linkedOrder.status} />
                       </div>
-                      <OrderPipeline status={linkedOrder.status} />
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })}
 
             {mine.length === 0 && (
-              <p className="rounded-xl border border-dashed border-ink-200 py-10 text-center text-sm text-ink-400">
-                No bookings yet.
-              </p>
+              <p className="rounded-xl border border-dashed border-ink-200 py-10 text-center text-sm text-ink-400">No bookings yet.</p>
             )}
           </div>
-
           <div className="mt-4">
-            <Pagination
-              page={page}
-              totalPages={totalPages}
-              onChange={setPage}
-            />
+            <Pagination page={page} totalPages={totalPages} onChange={setPage} />
           </div>
         </div>
       </div>

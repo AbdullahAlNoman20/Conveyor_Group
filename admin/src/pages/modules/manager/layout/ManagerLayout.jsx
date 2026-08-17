@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/manager/layout/ManagerLayout.jsx (MODIFIED — add Earnings nav link under Finance)
 import DashboardLayout from "../../../../components/layout/DashboardLayout";
 import {
   LayoutDashboard,
@@ -12,6 +13,7 @@ import {
   Receipt,
   BarChart3,
   Monitor,
+  TrendingUp,
 } from "lucide-react";
 
 const navGroups = [
@@ -48,6 +50,7 @@ const navGroups = [
     title: "Finance",
     items: [
       { to: "/app/manager/wallet-recharge", label: "Wallet Recharge", Icon: Wallet },
+      { to: "/app/manager/earnings", label: "Restaurant Earnings", Icon: TrendingUp }, // NEW
       { to: "/app/manager/purchase", label: "Purchase Voucher", Icon: Receipt },
     ],
   },

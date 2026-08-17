@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/manager/ManagerRoutes.jsx (MODIFIED — add Earnings route)
 import { lazy } from "react";
 
 const ManagerDashboard = lazy(() => import("./pages/ManagerDashboard"));
@@ -13,6 +14,7 @@ const ManagerPreBookings = lazy(() => import("./pages/ManagerPreBookings"));
 const ManagerReports = lazy(() => import("./pages/ManagerReports"));
 const OrderApprovals = lazy(() => import("./pages/OrderApprovals"));
 const ProfileRequests = lazy(() => import("./pages/ProfileRequests"));
+const Earnings = lazy(() => import("./pages/Earnings")); // NEW
 
 const ManagerRoutes = [
   { index: true, element: <ManagerDashboard /> },
@@ -26,6 +28,7 @@ const ManagerRoutes = [
   { path: "meal-planner", element: <MealPlanner /> },
   { path: "pre-bookings", element: <ManagerPreBookings /> },
   { path: "wallet-recharge", element: <WalletRecharge /> },
+  { path: "earnings", element: <Earnings /> }, // NEW
   { path: "purchase", element: <PurchaseVoucher /> },
   { path: "reports", element: <ManagerReports /> },
 ];

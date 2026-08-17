@@ -3,8 +3,28 @@ import { io } from "socket.io-client";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 
+const MOCK_CHANNEL = "cccms:socket";
+
 function createMockBus() {
   const listeners = new Map();
+  let channel = null;
+  try {
+    if ("BroadcastChannel" in window) channel = new BroadcastChannel(MOCK_CHANNEL);
+  } catch {
+    channel = null;
+  }
+
+  function dispatchLocal(event, payload) {
+    listeners.get(event)?.forEach((fn) => fn(payload));
+  }
+
+  if (channel) {
+    channel.onmessage = (e) => {
+      const { event, payload } = e.data || {};
+      if (event) dispatchLocal(event, payload);
+    };
+  }
+
   return {
     isMock: true,
     connected: true,
@@ -17,12 +37,19 @@ function createMockBus() {
       listeners.get(event)?.delete(fn);
     },
     emit(event, payload) {
-      setTimeout(() => {
-        listeners.get(event)?.forEach((fn) => fn(payload));
-      }, 0);
+      // Same-tab listeners.
+      setTimeout(() => dispatchLocal(event, payload), 0);
+      // Every other open tab/role — this was the missing piece.
+      try {
+        channel?.postMessage({ event, payload });
+      } catch {
+        // Structured-clone failure or channel unavailable — same-tab
+        // delivery above still works, fail silently for the rest.
+      }
     },
     disconnect() {
       listeners.clear();
+      channel?.close();
     },
   };
 }

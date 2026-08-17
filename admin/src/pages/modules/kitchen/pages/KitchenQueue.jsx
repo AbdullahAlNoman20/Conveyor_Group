@@ -4,6 +4,7 @@ import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { useToast } from "../../../../components/hooks/useToast";
 import { PipelineBadge } from "../../../../components/shared/OrderPipeline";
+import { orderRecipientName } from "../../../../components/utils/orderRecipient";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import Modal from "../../../../components/shared/Modal";
 import Loader from "../../../../components/shared/Loader";
@@ -22,7 +23,7 @@ export default function KitchenQueue() {
 
   async function updateOrder(id, patch, event, message, recipients = {}) {
     await dataStore.update("orders", (o) => o.id === id, patch);
-    if (event) socket.emit(event, { orderId: id, message, ...recipients });
+    if (event) await notifyEvent(event, { message, ...recipients });
     if (message) push(message, "success");
   }
 
@@ -32,7 +33,7 @@ export default function KitchenQueue() {
       { status: "accepted" },
       SOCKET_EVENTS.KITCHEN_ACCEPTED,
       `Order ${order.id} accepted.`,
-      { recipientNames: [order.clientName] }
+      { recipientNames: [orderRecipientName(order)] }
     );
   }
 
@@ -43,7 +44,7 @@ export default function KitchenQueue() {
       { status: "preparing", prepMinutes: minutes, prepStartedAt: new Date().toISOString() },
       SOCKET_EVENTS.PREPARATION_STARTED,
       `Cooking started — ${minutes} min for ${prepModalOrder.id}.`,
-      { recipientNames: [prepModalOrder.clientName] }
+      { recipientNames: [orderRecipientName(prepModalOrder)] }
     );
     setPrepModalOrder(null);
     setCustomTime("");
@@ -55,7 +56,7 @@ export default function KitchenQueue() {
       { status: "ready" },
       SOCKET_EVENTS.FOOD_READY,
       `Order ${order.id} is ready for collection.`,
-      { recipientNames: [order.clientName], recipientRoles: ["waiter"] }
+      { recipientNames: [orderRecipientName(order)], recipientRoles: ["waiter"] }
     );
   }
 
@@ -65,7 +66,7 @@ export default function KitchenQueue() {
       { status: "completed" },
       SOCKET_EVENTS.ORDER_COMPLETED,
       `Order ${order.id} completed.`,
-      { recipientNames: [order.clientName] }
+      { recipientNames: [orderRecipientName(order)] }
     );
   }
 
@@ -76,7 +77,7 @@ export default function KitchenQueue() {
       { status: "delayed", delayReason: reason },
       SOCKET_EVENTS.ORDER_DELAYED,
       `Order ${delayModalOrder.id} marked delayed: ${reason}.`,
-      { recipientNames: [delayModalOrder.clientName] }
+      { recipientNames: [orderRecipientName(delayModalOrder)] }
     );
     setDelayModalOrder(null);
   }

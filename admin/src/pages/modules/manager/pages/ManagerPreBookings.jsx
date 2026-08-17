@@ -4,6 +4,7 @@ import { CalendarClock, TrendingUp, CheckCircle2, XCircle } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { genId } from "../../../../components/utils/idGenerator";
+import { recordOrderEarning } from "../../../../components/services/earnings";
 import { useToast } from "../../../../components/hooks/useToast";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import Badge from "../../../../components/shared/Badge";
@@ -29,6 +30,7 @@ export default function ManagerPreBookings() {
   const { push } = useToast();
   const bookings = useLiveCollection("preBookings", "pre-bookings.json");
   const menu = useLiveCollection("menu", "menu.json");
+  const clients = useLiveCollection("clients", "clients.json");
   const [query, setQuery] = useState("");
   const [busyId, setBusyId] = useState(null);
 
@@ -42,7 +44,7 @@ export default function ManagerPreBookings() {
     pageItems: pagedBookings,
   } = usePagination(filtered, 10);
 
-  if (!bookings || !menu)
+  if (!bookings || !menu || !clients)
     return <Loader full label="Loading pre-bookings..." />;
 
   const estimateSource = bookings.filter(
@@ -89,6 +91,7 @@ export default function ManagerPreBookings() {
       createdAt: new Date().toISOString(),
     };
     await dataStore.insert("orders", order);
+    await recordOrderEarning(order, clients);
     await dataStore.update("preBookings", (b) => b.id === booking.id, {
       status: "accepted",
     });

@@ -1,4 +1,4 @@
-// FILE: src/pages/modules/manager/pages/WalletRecharge.jsx (FULL REWRITE — today's total + stat)
+// FILE: src/pages/modules/manager/pages/WalletRecharge.jsx (MODIFIED — tags recharges as an earning source)
 import { useEffect, useState } from "react";
 import { Wallet, Plus, TrendingUp, Receipt } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
@@ -54,6 +54,8 @@ export default function WalletRecharge() {
       type: "Recharge",
       amount: value,
       date: todayISO,
+      paymentMethod: "cash",
+      source: "recharge", // cash physically received — counts toward restaurant earning
     };
     const nextTx = await dataStore.insert("walletTransactions", tx);
     setTransactions(nextTx);
@@ -70,7 +72,6 @@ export default function WalletRecharge() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Wallet Recharge</h1>
-        
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -117,9 +118,7 @@ export default function WalletRecharge() {
         <div className="space-y-2">
           {pagedTx.map((t) => (
             <div key={t.id} className="flex items-center justify-between rounded-lg bg-ink-50 px-3 py-2 text-sm">
-              <span className="text-ink-700">
-                {clients.find((c) => c.id === t.clientId)?.name || t.clientId}
-              </span>
+              <span className="text-ink-700">{clients.find((c) => c.id === t.clientId)?.name || t.clientId}</span>
               <span className="text-ink-400">{t.type}</span>
               <span className="text-ink-400">{t.date}</span>
               <span className={`font-semibold ${t.amount >= 0 ? "text-emerald-600" : "text-brand-600"}`}>
