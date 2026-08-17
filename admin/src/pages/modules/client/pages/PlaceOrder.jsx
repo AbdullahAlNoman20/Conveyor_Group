@@ -1,5 +1,5 @@
-// FILE: src/pages/modules/client/pages/PlaceOrder.jsx (FULL REWRITE — snacks exempt from once-daily limit + token modal)
-import { useEffect, useMemo, useState } from "react";
+// FILE: src/pages/modules/client/pages/PlaceOrder.jsx 
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Minus, Send, Lock, Cookie } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
@@ -10,7 +10,6 @@ import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
 import DishImage from "../../../../components/shared/DishImage";
-import OrderTokenModal from "../../../../components/shared/OrderTokenModal";
 
 const DAY_NAMES = [
   "Sunday",
@@ -22,6 +21,7 @@ const DAY_NAMES = [
   "Saturday",
 ];
 const SNACK_CATEGORY = "Evening Snack";
+const VAT_RATE = 0.05; // SRS correction #2 — 5% VAT on every order summary
 
 export default function PlaceOrder() {
   const { user } = useAuth();
@@ -38,7 +38,7 @@ export default function PlaceOrder() {
   const [items, setItems] = useState([]);
   const [snackItems, setSnackItems] = useState([]);
   const [payFrom, setPayFrom] = useState("wallet");
-  const [confirmedOrder, setConfirmedOrder] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -63,7 +63,6 @@ export default function PlaceOrder() {
     (m) => m.category === SNACK_CATEGORY && m.available !== false,
   );
 
-  // Only the MAIN meal is limited to once a day — snacks are exempt (SRS §14).
   const alreadyOrderedToday = orders.some((o) => {
     const sameDay =
       new Date(o.createdAt).toDateString() === new Date().toDateString();
@@ -135,7 +134,9 @@ export default function PlaceOrder() {
         ]
     : items;
   const orderItems = [...mainItems, ...snackItems];
-  const total = orderItems.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const subtotal = orderItems.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const vat = Math.round(subtotal * VAT_RATE);
+  const grandTotal = subtotal + vat;
   const isSnackOnlySubmission = mainItems.length === 0 && snackItems.length > 0;
 
   async function submit(e) {
@@ -154,6 +155,7 @@ export default function PlaceOrder() {
       return;
     }
 
+    setSubmitting(true);
     const order = {
       id: genId("ORD"),
       clientName: user.name,
@@ -168,10 +170,10 @@ export default function PlaceOrder() {
         qty,
         unitPrice,
       })),
-      subtotal: total,
+      subtotal,
       discount: 0,
-      tax: 0,
-      amount: total,
+      tax: vat,
+      amount: grandTotal,
       paymentMethod: payFrom,
       status: "awaiting_manager",
       selfPlaced: true,
@@ -185,12 +187,8 @@ export default function PlaceOrder() {
       recipientRoles: ["manager"],
     });
     push("Order submitted — waiting for Manager approval.", "success");
-    setConfirmedOrder(order);
-  }
 
-  function closeTokenModal() {
-    setConfirmedOrder(null);
-    navigate("/app/client");
+    navigate(`/app/client/order-confirmation/${order.id}`);
   }
 
   return (
@@ -219,7 +217,6 @@ export default function PlaceOrder() {
                     height={64}
                   />
                 </div>
-
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <p className="truncate text-sm font-semibold text-ink-800">
                     {fixedMealName}
@@ -228,7 +225,6 @@ export default function PlaceOrder() {
                     Today's Fixed Meal
                   </p>
                 </div>
-
                 <span className="shrink-0 whitespace-nowrap rounded-lg bg-white px-2.5 py-1.5 text-sm font-bold text-brand-600 shadow-sm">
                   Tk {fixedMealPrice}
                 </span>
@@ -267,7 +263,6 @@ export default function PlaceOrder() {
                           height={56}
                         />
                       </div>
-
                       <span className="min-w-0 flex-1 overflow-hidden">
                         <span className="block truncate font-semibold text-ink-800">
                           {m.name}
@@ -276,10 +271,8 @@ export default function PlaceOrder() {
                           {m.category}
                         </span>
                       </span>
-
                       <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-brand-50 px-2 py-1.5 text-xs font-semibold text-brand-600">
-                        <Plus size={14} />
-                        Tk {m.price}
+                        <Plus size={14} /> Tk {m.price}
                       </span>
                     </button>
                   ))}
@@ -311,16 +304,13 @@ export default function PlaceOrder() {
                         height={56}
                       />
                     </div>
-
                     <span className="min-w-0 flex-1 overflow-hidden">
                       <span className="block truncate font-semibold text-ink-800">
                         {m.name}
                       </span>
                     </span>
-
                     <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-brand-50 px-2 py-1.5 text-xs font-semibold text-brand-600">
-                      <Plus size={14} />
-                      Tk {m.price}
+                      <Plus size={14} /> Tk {m.price}
                     </span>
                   </button>
                 ))}
@@ -418,25 +408,29 @@ export default function PlaceOrder() {
               <p className="text-sm text-ink-400">No items yet.</p>
             )}
           </div>
-          <div className="flex justify-between border-t border-ink-100 pt-3 text-base font-bold text-ink-900">
-            <span>Total</span>
-            <span>Tk {total}</span>
+          <div className="space-y-1 border-t border-ink-100 pt-3 text-sm">
+            <div className="flex justify-between text-ink-500">
+              <span>Subtotal</span>
+              <span>Tk {subtotal}</span>
+            </div>
+            <div className="flex justify-between text-ink-500">
+              <span>VAT (5%)</span>
+              <span>Tk {vat}</span>
+            </div>
+            <div className="flex justify-between border-t border-ink-100 pt-2 text-base font-bold text-ink-900">
+              <span>Total</span>
+              <span>Tk {grandTotal}</span>
+            </div>
           </div>
           <button
             type="submit"
-            disabled={orderItems.length === 0}
+            disabled={orderItems.length === 0 || submitting}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Send size={16} /> Submit Order
+            <Send size={16} /> {submitting ? "Submitting..." : "Submit Order"}
           </button>
         </aside>
       </form>
-
-      <OrderTokenModal
-        open={!!confirmedOrder}
-        order={confirmedOrder}
-        onClose={closeTokenModal}
-      />
     </div>
   );
 }

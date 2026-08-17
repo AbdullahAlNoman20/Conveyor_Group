@@ -1,25 +1,6 @@
 // FILE: src/components/shared/Button.jsx  (NEW)
 import { Loader2, Check } from "lucide-react";
 
-/**
- * The ONE button used everywhere in the app, so every action looks and
- * behaves identically (per client direction):
- *   - NO scale-up-on-hover, NO drop shadow, anywhere in the system.
- *   - Hover feedback instead = (1) a thin underline that sweeps in from the
- *     center, sitting at the bottom edge for solid buttons and the top edge
- *     for outline/ghost buttons, PLUS (2) a soft diagonal band of light
- *     ("shine") that sweeps left -> right across the button.
- *   - Pass `loading` while an async action is in flight (shows a spinner)
- *     and `success` right after it resolves (shows a brief checkmark pulse)
- *     instead of relying on a toast alone — this is the "transaction
- *     animation" every confirm/save action should use.
- *
- * Variants: primary | secondary | danger | ghost | icon
- * Usage:
- *   <Button variant="primary" icon={Plus} loading={saving} success={saved}>
- *     Save
- *   </Button>
- */
 export default function Button({
   as: Tag = "button",
   variant = "primary",

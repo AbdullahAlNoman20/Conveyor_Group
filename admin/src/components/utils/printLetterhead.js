@@ -1,8 +1,6 @@
-// FILE: src/components/utils/printLetterhead.js  (NEW)
+// FILE: src/components/utils/printLetterhead.js
 import logoUrl from "../../assets/logo.jpeg";
 
-/** Opens a new window with the restaurant's letterhead (logo + name) above
- * whatever `bodyHtml` is passed, then triggers print. */
 export function printOnLetterhead({ title, bodyHtml }) {
   const win = window.open("", "_blank", "width=800,height=1000");
   if (!win) return;
@@ -14,7 +12,9 @@ export function printOnLetterhead({ title, bodyHtml }) {
         <title>${title}</title>
         <style>
           * { box-sizing: border-box; }
-          body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #0d0d0e; padding: 32px; }
+          body { position: relative; font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #0d0d0e; padding: 32px; }
+          .watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-25deg); opacity: 0.06; width: 420px; pointer-events: none; z-index: 0; }
+          .content { position: relative; z-index: 1; }
           .letterhead { display: flex; align-items: center; gap: 12px; border-bottom: 3px solid #eb2a2d; padding-bottom: 16px; margin-bottom: 24px; }
           .letterhead img { height: 48px; }
           .letterhead .name { font-size: 20px; font-weight: 700; }
@@ -29,6 +29,8 @@ export function printOnLetterhead({ title, bodyHtml }) {
         </style>
       </head>
       <body>
+        <img class="watermark" src="${logoUrl}" alt="" />
+        <div class="content">
         <div class="letterhead">
           <img src="${logoUrl}" alt="Conveyor Group" />
           <div>
@@ -38,6 +40,7 @@ export function printOnLetterhead({ title, bodyHtml }) {
         </div>
         ${bodyHtml}
         <div class="footer">This is a system-generated document — Conveyor Group Restaurant CCCMS</div>
+        </div>
       </body>
     </html>
   `);

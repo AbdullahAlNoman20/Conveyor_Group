@@ -1,26 +1,29 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-/**
- * Client-side pagination for any array. Resets to page 1 whenever the
- * underlying list length changes (e.g. a new search filters it down).
- */
 export function usePagination(items, pageSize = 10) {
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const pageItems = useMemo(
     () => items.slice((safePage - 1) * pageSize, safePage * pageSize),
-    [items, safePage, pageSize]
+    [items, safePage, pageSize],
   );
   return { page: safePage, setPage, totalPages, pageItems, pageSize };
 }
 
-export default function Pagination({ page, totalPages, onChange, className = "" }) {
+export default function Pagination({
+  page,
+  totalPages,
+  onChange,
+  className = "",
+}) {
   if (totalPages <= 1) return null;
 
   return (
-    <div className={`flex items-center justify-between gap-3 pt-3 ${className}`}>
+    <div
+      className={`flex items-center justify-between gap-3 pt-3 ${className}`}
+    >
       <p className="text-xs text-ink-400">
         Page {page} of {totalPages}
       </p>

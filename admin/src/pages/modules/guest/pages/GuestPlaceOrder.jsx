@@ -5,12 +5,14 @@ import { Plus, Minus, Send, ShoppingBag } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { genId } from "../../../../components/utils/idGenerator";
+import { playAlertSound } from "../../../../components/services/notify";
 import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
 import DishImage from "../../../../components/shared/DishImage";
-import OrderTokenModal from "../../../../components/shared/OrderTokenModal";
+
+const VAT_RATE = 0.05;
 
 export default function GuestPlaceOrder() {
   const { user } = useAuth();
@@ -21,7 +23,7 @@ export default function GuestPlaceOrder() {
   const [collectionType, setCollectionType] = useState("dine_in");
   const [tableNumber, setTableNumber] = useState("");
   const [items, setItems] = useState([]);
-  const [confirmedOrder, setConfirmedOrder] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     (async () => setMenu(await dataStore.load("menu", "menu.json")))();
@@ -68,13 +70,17 @@ export default function GuestPlaceOrder() {
     );
   }
 
-  const total = items.reduce(
+  const subtotal = items.reduce(
     (s, i) => s + i.qty * i.unitPrice,
     0
   );
+  const vatAmount = Math.round(subtotal * VAT_RATE * 100) / 100;
+  const total = subtotal + vatAmount;
 
   async function submit(e) {
     e.preventDefault();
+
+    if (submitting) return;
 
     if (items.length === 0) {
       push("Add at least one item to your order.", "error");
@@ -86,13 +92,21 @@ export default function GuestPlaceOrder() {
       return;
     }
 
+    const parsedTable = Number(tableNumber);
+    if (
+      collectionType === "dine_in" &&
+      (!Number.isInteger(parsedTable) || parsedTable <= 0)
+    ) {
+      push("Enter a valid table number.", "error");
+      return;
+    }
+
+    setSubmitting(true);
+
     const order = {
       id: genId("ORD"),
       clientName: `Guest - ${user?.name || "Guest"}`,
-      tableNumber:
-        collectionType === "dine_in"
-          ? Number(tableNumber)
-          : null,
+      tableNumber: collectionType === "dine_in" ? parsedTable : null,
       orderType:
         collectionType === "dine_in"
           ? "guest_order"
@@ -100,12 +114,13 @@ export default function GuestPlaceOrder() {
       priority: "normal",
       items: items.map(({ name, qty, unitPrice }) => ({
         name,
-        qty,
-        unitPrice,
+        qty: Math.max(1, Number(qty) || 1),
+        unitPrice: Math.max(0, Number(unitPrice) || 0),
       })),
-      subtotal: total,
+      subtotal,
       discount: 0,
-      tax: 0,
+      tax: vatAmount,
+      vatRate: VAT_RATE,
       amount: total,
       paymentMethod: "cash",
       status: "awaiting_manager",
@@ -113,24 +128,23 @@ export default function GuestPlaceOrder() {
       createdAt: new Date().toISOString(),
     };
 
-    await dataStore.insert("orders", order);
+    try {
+      await dataStore.insert("orders", order);
 
-    socket.emit(SOCKET_EVENTS.ORDER_SUBMITTED, {
-      message: `Order ${order.id} submitted for approval.`,
-      recipientRoles: ["manager"],
-    });
+      playAlertSound();
 
-    push(
-      "Order submitted — waiting for Manager approval.",
-      "success"
-    );
+      socket.emit(SOCKET_EVENTS.ORDER_SUBMITTED, {
+        message: `Order ${order.id} submitted for approval.`,
+        recipientRoles: ["manager"],
+      });
 
-    setConfirmedOrder(order);
-  }
+      push("Order submitted — waiting for Manager approval.", "success");
 
-  function closeTokenModal() {
-    setConfirmedOrder(null);
-    navigate("/app/guest");
+      navigate(`/app/guest/orders/${order.id}`);
+    } catch {
+      push("Could not submit your order. Please try again.", "error");
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -349,35 +363,39 @@ export default function GuestPlaceOrder() {
               )}
             </div>
 
-            {/* TOTAL */}
-            <div className="mt-4 flex items-center justify-between gap-3 border-t border-ink-100 pt-4">
-              <span className="text-sm font-semibold text-ink-600">
-                Total
-              </span>
+            {/* SUBTOTAL / VAT / TOTAL */}
+            <div className="mt-4 space-y-1.5 border-t border-ink-100 pt-4">
+              <div className="flex items-center justify-between text-xs text-ink-500">
+                <span>Subtotal</span>
+                <span>Tk {subtotal}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-ink-500">
+                <span>VAT (5%)</span>
+                <span>Tk {vatAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-ink-100 pt-2">
+                <span className="text-sm font-semibold text-ink-600">
+                  Total
+                </span>
 
-              <span className="shrink-0 text-lg font-bold text-ink-900">
-                Tk {total}
-              </span>
+                <span className="shrink-0 text-lg font-bold text-ink-900">
+                  Tk {total.toFixed(2)}
+                </span>
+              </div>
             </div>
 
             {/* SUBMIT */}
             <button
               type="submit"
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+              disabled={submitting || items.length === 0}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Send size={16} />
-              Submit Order
+              {submitting ? "Submitting..." : "Submit Order"}
             </button>
           </div>
         </aside>
       </form>
-
-      {/* ORDER TOKEN MODAL */}
-      <OrderTokenModal
-        open={!!confirmedOrder}
-        order={confirmedOrder}
-        onClose={closeTokenModal}
-      />
     </div>
   );
 }

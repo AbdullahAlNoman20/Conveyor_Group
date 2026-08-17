@@ -1,3 +1,10 @@
 [
-  { "id": "N-01", "message": "Monthly statement for June is ready.", "event": "system", "link": null, "read": true, "createdAt": "2026-07-01T09:00:00Z" }
+  {
+    "id": "N-01",
+    "message": "Monthly statement for June is ready.",
+    "event": "system",
+    "link": null,
+    "read": true,
+    "createdAt": "2026-07-01T09:00:00Z"
+  }
 ]
