@@ -3,7 +3,14 @@ import { NavLink, Link } from "react-router-dom";
 import { X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import logo from "../../assets/logo.jpeg";
 
-export default function Sidebar({ navGroups, roleLabel, open, onClose, collapsed, onToggleCollapse }) {
+export default function Sidebar({
+  navGroups,
+  roleLabel,
+  open,
+  onClose,
+  collapsed,
+  onToggleCollapse,
+}) {
   return (
     <>
       {open && (
@@ -18,30 +25,50 @@ export default function Sidebar({ navGroups, roleLabel, open, onClose, collapsed
           open ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "w-20" : "w-72"}`}
       >
-        <div className={`flex items-center border-b border-ink-100 px-4 py-4 ${collapsed ? "justify-center" : "justify-between"}`}>
-          <Link to="/" className="flex items-center gap-2 overflow-hidden" title="Back to Home">
-            <img src={logo} alt="Conveyor Group" className="h-8 w-8 shrink-0 rounded object-cover" />
+        <div
+          className={`flex items-center border-b border-ink-100 px-4 py-4 ${collapsed ? "justify-center" : "justify-between"}`}
+        >
+          <Link
+            to="/"
+            className="flex items-center gap-2 overflow-hidden"
+            title="Back to Home"
+          >
+            <img
+              src={logo}
+              alt="Conveyor Group"
+              className="h-8 w-8 shrink-0 rounded object-cover"
+            />
             {!collapsed && (
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-ink-400">CCCMS</p>
-                <p className="truncate text-sm font-bold text-ink-900">{roleLabel}</p>
+                <p className="truncate text-sm font-bold text-ink-900">
+                  {roleLabel}
+                </p>
               </div>
             )}
           </Link>
           {!collapsed && (
-            <button onClick={onClose} className="lg:hidden" aria-label="Close menu">
+            <button
+              onClick={onClose}
+              className="ml-auto lg:hidden"
+              aria-label="Close menu"
+            >
               <X size={20} />
             </button>
           )}
         </div>
-
+          
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="hidden items-center justify-center gap-2 border-b border-ink-100 py-2 text-xs font-semibold text-ink-500 hover:bg-ink-50 lg:flex"
+          className={`hidden items-center ${collapsed ? "justify-center" : "justify-end pr-4"} gap-2 border-b border-ink-100 py-2 text-xs font-semibold text-ink-500 hover:bg-ink-50 lg:flex`}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+          {collapsed ? (
+            <PanelLeftOpen size={16} />
+          ) : (
+            <PanelLeftClose size={16} />
+          )}
         </button>
 
         <nav className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-3 py-4">
