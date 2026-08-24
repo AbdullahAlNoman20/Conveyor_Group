@@ -1,27 +1,22 @@
-# ================= CORE NOTIFICATION SYSTEM =================
-src/components/services/socket.js
-src/components/context/NotificationContext.jsx
-src/components/services/notify.js
-src/components/hooks/useNotifications.js
-src/components/shared/NotificationBell.jsx
-src/components/utils/orderRecipient.js
+# ================= QR SCAN ফিচার (মূল সন্দেহভাজন জায়গা) =================
+src/pages/modules/manager/pages/ScanQR.jsx
+src/components/shared/QRScannerCamera.jsx
 
-# ================= LAYOUT (বেল বসানো আছে কিনা যাচাই করতে) =================
-src/components/layout/DashboardLayout.jsx
-src/components/layout/Sidebar.jsx
-src/pages/modules/manager/layout/ManagerLayout.jsx
-src/pages/modules/guest/layout/GuestLayout.jsx
-src/pages/modules/kitchen/layout/KitchenLayout.jsx
+# ================= রাউট / এরর হ্যান্ডলিং =================
+src/Router.jsx  (আগেই দেয়া আছে — লাগবে না, তবে আপডেট থাকলে দিও)
+src/components/shared/RouteErrorBoundary.jsx
+src/components/shared/ErrorPage.jsx
 
-# ================= অর্ডার একশন যেখান থেকে ইভেন্ট emit হয় =================
-src/pages/modules/guest/pages/GuestPlaceOrder.jsx
-src/pages/modules/client/pages/PlaceOrder.jsx
-src/pages/modules/manager/pages/OrderApprovals.jsx
-src/pages/modules/kitchen/pages/KitchenQueue.jsx
+# ================= QR ভেরিফাই করার জন্য যেই ডেটা লাগবে =================
+public/data/tables.json
+public/data/clients.json  (আগেই দেয়া আছে — লাগবে না)
+public/data/guests.json  (আগেই দেয়া আছে — লাগবে না)
 
-# ================= AUTH (user.role / user.name কীভাবে সেট হয় দেখতে) =================
-src/components/context/AuthContext.jsx
-src/components/hooks/useAuth.js
+# ================= ORDER তৈরির রেফারেন্স (QR স্ক্যানের পর অর্ডার নেয় কিনা দেখতে) =================
+src/pages/modules/manager/pages/NewOrder.jsx
 
-# ================= ROOT / APP MOUNT =================
-src/main.jsx
+শুধু এই ৪টা ফাইল দিলেই যথেষ্ট হবে:
+1. src/pages/modules/manager/pages/ScanQR.jsx
+2. src/components/shared/QRScannerCamera.jsx
+3. public/data/tables.json
+4. src/pages/modules/manager/pages/NewOrder.jsx

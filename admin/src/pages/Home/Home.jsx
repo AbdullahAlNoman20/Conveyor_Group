@@ -85,7 +85,7 @@ export default function Home() {
         {/* Full-screen Background Video */}
         <video
           className="absolute inset-0 h-full w-full object-cover"
-          src="/videos/hero-bg.mp4"
+          src="/videos/hero_bg.webm" 
           autoPlay
           loop
           muted
@@ -152,7 +152,7 @@ export default function Home() {
                   />
 
                   <span className="rounded-md bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 lg:text-sm">
-                    ACTIVE
+                    Demo
                   </span>
                 </div>
 

@@ -58,7 +58,7 @@ export default function KitchenBoard() {
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-ink-950 text-white">
       <video
         className="absolute inset-0 h-full w-full object-cover"
-        src="/videos/hero-bg.mp4"
+        src="/videos/hero_bg.webm"
         autoPlay
         loop
         muted
@@ -164,9 +164,9 @@ export default function KitchenBoard() {
             </section>
 
             <section className="w-full max-w-md">
-  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-400">
-    Up Next
-  </p>
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-400">
+                Up Next
+              </p>
               <div className="space-y-2">
                 {upNext.length === 0 && (
                   <p className="rounded-xl border border-dashed border-ink-800 p-6 text-center text-sm text-ink-500">
