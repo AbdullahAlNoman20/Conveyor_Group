@@ -28,8 +28,10 @@ export default function ScanQR() {
   const [result, setResult] = useState(null); // { ok, message, client, guest }
   const [scannerInput, setScannerInput] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false); // click-to-open, never auto-starts
+  const [cameraFailed, setCameraFailed] = useState(false); // camera errored — fall back to search UI even on mobile
   const inputRef = useRef(null);
   const mobile = isMobileDevice() && hasCameraSupport();
+  const showFallbackSearch = !mobile || cameraFailed;
 
   useEffect(() => {
     (async () => {
@@ -39,8 +41,8 @@ export default function ScanQR() {
   }, []);
 
   useEffect(() => {
-    if (!mobile) inputRef.current?.focus();
-  }, [mobile]);
+    if (showFallbackSearch) inputRef.current?.focus();
+  }, [showFallbackSearch]);
 
   // ALL hooks (including useMemo below) must run on every render, before
   // any early return — calling useMemo only after a conditional `return`
@@ -115,6 +117,16 @@ export default function ScanQR() {
     handleDecoded(text);
   }
 
+  function handleCameraError() {
+    // Camera couldn't start (permissions, non-HTTPS, unsupported device,
+    // or the library itself failing) — never leave the manager stuck.
+    // Fall back to the same manual/simulate search used on desktop so an
+    // order can still be placed using the client/guest data already on
+    // this device (public/data JSON), with zero backend dependency.
+    setCameraOpen(false);
+    setCameraFailed(true);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -124,9 +136,9 @@ export default function ScanQR() {
         </p>
       </div>
 
-      {mobile ? (
+      {mobile && !cameraFailed ? (
         cameraOpen ? (
-          <QRScannerCamera onScan={handleDecodedOnce} />
+          <QRScannerCamera onScan={handleDecodedOnce} onError={handleCameraError} />
         ) : (
           <button
             type="button"
@@ -142,25 +154,27 @@ export default function ScanQR() {
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             <Monitor size={20} className="mt-0.5 shrink-0" />
             <p>
-              For scanning, please use a scanner or your handset. This screen doesn't have a
-              camera, but a connected USB/Bluetooth barcode scanner will work below — it types
-              the code automatically, just like a keyboard.
+              {cameraFailed
+                ? "Camera scanning isn't available right now on this device. Search and select a client or guest below instead — everything still works."
+                : "For scanning, please use a scanner or your handset. This screen doesn't have a camera, but a connected USB/Bluetooth barcode scanner will work below — it types the code automatically, just like a keyboard."}
             </p>
           </div>
 
-          <div className="rounded-xl border border-ink-100 bg-white p-6">
-            <label className="mb-1 flex items-center gap-2 text-sm font-medium text-ink-700">
-              <Keyboard size={15} /> Scanner Input
-            </label>
-            <input
-              ref={inputRef}
-              value={scannerInput}
-              onChange={(e) => setScannerInput(e.target.value)}
-              onKeyDown={onScannerInputKeyDown}
-              placeholder="Click here, then scan with a connected device..."
-              className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-            />
-          </div>
+          {!mobile && (
+            <div className="rounded-xl border border-ink-100 bg-white p-6">
+              <label className="mb-1 flex items-center gap-2 text-sm font-medium text-ink-700">
+                <Keyboard size={15} /> Scanner Input
+              </label>
+              <input
+                ref={inputRef}
+                value={scannerInput}
+                onChange={(e) => setScannerInput(e.target.value)}
+                onKeyDown={onScannerInputKeyDown}
+                placeholder="Click here, then scan with a connected device..."
+                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </div>
+          )}
 
           <div className="rounded-xl border border-dashed border-ink-200 bg-white p-6">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-400">
