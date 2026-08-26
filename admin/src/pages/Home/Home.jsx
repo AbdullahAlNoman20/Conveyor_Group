@@ -53,11 +53,13 @@ const DAY_NAMES = [
 export default function Home() {
   const [menu, setMenu] = useState([]);
   const [weeklyMenu, setWeeklyMenu] = useState([]);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     (async () => {
       setMenu(await dataStore.load("menu", "menu.json"));
       setWeeklyMenu(await dataStore.load("weeklyMenu", "weekly-menu.json"));
+      setSettings(await dataStore.load("settings", "settings.json"));
     })();
   }, []);
 
@@ -173,6 +175,36 @@ export default function Home() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Self-Order Station — scanned from a Client's own dashboard for an
+          instant fixed-meal order, no Manager/Kitchen approval needed. */}
+      <section className="bg-white py-16">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-8 px-4 text-center sm:px-6 md:flex-row md:text-left">
+          <div className="flex-1">
+            <span className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-brand-600">
+              <QrCode size={14} /> Self-Order Station
+            </span>
+            <h3 className="mt-3 text-xl font-bold text-ink-900 sm:text-2xl">
+              Skip the wait — scan and go
+            </h3>
+            <p className="mt-2 max-w-md text-sm text-ink-500">
+              Fixed-Meal employees: open your dashboard, tap "Scan to Order," and scan this
+              station code. Today's meal is confirmed instantly — no Manager or Kitchen approval,
+              straight to the Token Board.
+            </p>
+          </div>
+          <div className="shrink-0 rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
+            {settings ? (
+              <QRCodeSVG value={settings.selfOrderStationCode} size={150} level="M" />
+            ) : (
+              <div className="h-[150px] w-[150px] animate-pulse rounded-lg bg-ink-100" />
+            )}
+            <p className="mt-3 text-center text-xs font-semibold uppercase tracking-wide text-ink-400">
+              Station Code
+            </p>
           </div>
         </div>
       </section>

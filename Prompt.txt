@@ -1,22 +1,37 @@
-# ================= QR SCAN ফিচার (মূল সন্দেহভাজন জায়গা) =================
-src/pages/modules/manager/pages/ScanQR.jsx
-src/components/shared/QRScannerCamera.jsx
+আমার প্রয়োজনীয় ফাইল লিস্ট (Self-Registration ফিচারের জন্য):
 
-# ================= রাউট / এরর হ্যান্ডলিং =================
-src/Router.jsx  (আগেই দেয়া আছে — লাগবে না, তবে আপডেট থাকলে দিও)
-src/components/shared/RouteErrorBoundary.jsx
-src/components/shared/ErrorPage.jsx
+# ================= লগইন পেজ =================
+src/pages/Login/Login.jsx
 
-# ================= QR ভেরিফাই করার জন্য যেই ডেটা লাগবে =================
-public/data/tables.json
-public/data/clients.json  (আগেই দেয়া আছে — লাগবে না)
-public/data/guests.json  (আগেই দেয়া আছে — লাগবে না)
+# ================= সুপার এডমিন এর বর্তমান "Add Client" ফর্ম (যেটার লজিক পুনরায় ব্যবহার হবে) =================
+src/pages/modules/super-admin/pages/SuperAdminClients.jsx
 
-# ================= ORDER তৈরির রেফারেন্স (QR স্ক্যানের পর অর্ডার নেয় কিনা দেখতে) =================
-src/pages/modules/manager/pages/NewOrder.jsx
+# ================= Registration সংক্রান্ত ইতিমধ্যে থাকা ইউটিলস/ডেটা (দেখলাম Tree-তে আছে) =================
+src/components/utils/registrationForm.js
+public/data/registration-emails.json
+public/data/profile-requests.json  (একই প্যাটার্নের অন্য approval flow — রেফারেন্স হিসেবে লাগবে)
+src/pages/modules/manager/pages/ProfileRequests.jsx  (রেফারেন্স — একই ধরনের approve/reject UI প্যাটার্ন)
 
-শুধু এই ৪টা ফাইল দিলেই যথেষ্ট হবে:
-1. src/pages/modules/manager/pages/ScanQR.jsx
-2. src/components/shared/QRScannerCamera.jsx
-3. public/data/tables.json
-4. src/pages/modules/manager/pages/NewOrder.jsx
+# ================= EMAIL PREVIEW (accept করলে ইমেইল পাঠানোর বর্তমান মেকানিজম) =================
+src/components/shared/EmailPreviewModal.jsx
+
+# ================= ROUTER (নতুন পাবলিক রুট /register যোগ করতে হবে) =================
+src/Router.jsx (আগেই দেয়া আছে — লাগবে না)
+
+# ================= SUPER ADMIN LAYOUT/ROUTES (নতুন "Account Requests" পেজ যোগ করতে) =================
+src/pages/modules/super-admin/layout/SuperAdminLayout.jsx
+src/pages/modules/super-admin/SuperAdminRoutes.jsx
+
+# ================= FILE UPLOAD (সাপোর্টিং ডকুমেন্ট আপলোডের জন্য বর্তমানে কোনো কম্পোনেন্ট আছে কিনা দেখতে) =================
+(যদি থাকে) src/components/shared/FileUpload.jsx বা এই জাতীয় কিছু — না থাকলে জানিও, নতুন বানিয়ে দিব
+
+শুধু এই ফাইলগুলো দাও:
+1. src/pages/Login/Login.jsx
+2. src/pages/modules/super-admin/pages/SuperAdminClients.jsx
+3. src/components/utils/registrationForm.js
+4. public/data/registration-emails.json
+5. public/data/profile-requests.json
+6. src/pages/modules/manager/pages/ProfileRequests.jsx
+7. src/components/shared/EmailPreviewModal.jsx
+8. src/pages/modules/super-admin/layout/SuperAdminLayout.jsx
+9. src/pages/modules/super-admin/SuperAdminRoutes.jsx

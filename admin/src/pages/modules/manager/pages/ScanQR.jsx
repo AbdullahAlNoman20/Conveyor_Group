@@ -6,7 +6,10 @@ import {
 import { Link } from "react-router-dom";
 import { dataStore } from "../../../../components/services/dataStore";
 import { isMobileDevice, hasCameraSupport } from "../../../../components/utils/device";
+import { createInstantFixedMealOrder } from "../../../../components/services/selfOrder";
+import { useToast } from "../../../../components/hooks/useToast";
 import QRScannerCamera from "../../../../components/shared/QRScannerCamera";
+import OrderTokenModal from "../../../../components/shared/OrderTokenModal";
 import Loader from "../../../../components/shared/Loader";
 
 /**
@@ -21,14 +24,19 @@ import Loader from "../../../../components/shared/Loader";
  *    for testing without any hardware.
  */
 export default function ScanQR() {
+  const { push } = useToast();
   const [clients, setClients] = useState(null);
   const [guests, setGuests] = useState(null);
+  const [menu, setMenu] = useState(null);
+  const [weeklyMenu, setWeeklyMenu] = useState(null);
   const [selectedId, setSelectedId] = useState("");
   const [simSearch, setSimSearch] = useState("");
   const [result, setResult] = useState(null); // { ok, message, client, guest }
   const [scannerInput, setScannerInput] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false); // click-to-open, never auto-starts
   const [cameraFailed, setCameraFailed] = useState(false); // camera errored — fall back to search UI even on mobile
+  const [placingInstant, setPlacingInstant] = useState(false);
+  const [instantOrder, setInstantOrder] = useState(null);
   const inputRef = useRef(null);
   const mobile = isMobileDevice() && hasCameraSupport();
   const showFallbackSearch = !mobile || cameraFailed;
@@ -37,6 +45,8 @@ export default function ScanQR() {
     (async () => {
       setClients(await dataStore.load("clients", "clients.json"));
       setGuests(await dataStore.load("guests", "guests.json"));
+      setMenu(await dataStore.load("menu", "menu.json"));
+      setWeeklyMenu(await dataStore.load("weeklyMenu", "weekly-menu.json"));
     })();
   }, []);
 
@@ -57,7 +67,35 @@ export default function ScanQR() {
       .slice(0, 8);
   }, [clients, simSearch]);
 
-  if (!clients || !guests) return <Loader full label="Loading directory..." />;
+  if (!clients || !guests || !menu || !weeklyMenu) return <Loader full label="Loading directory..." />;
+
+  // Fixed-meal clients scanned by the Manager skip menu selection AND both
+  // approval steps entirely — this creates the order right here and sends
+  // it straight to the Token Board, same shared logic as the client's own
+  // Self-Order Station scan.
+  async function placeInstantOrder(client) {
+    setPlacingInstant(true);
+    try {
+      const order = await createInstantFixedMealOrder({
+        client,
+        clients,
+        weeklyMenu,
+        menu,
+        source: "manager_scan",
+      });
+      push(`Order ${order.id} confirmed — sent straight to the kitchen board.`, "success");
+      setInstantOrder(order);
+      setResult(null);
+    } catch (err) {
+      push(err?.message || "Couldn't place the order. Please try again.", "error");
+    } finally {
+      setPlacingInstant(false);
+    }
+  }
+
+  function closeInstantModal() {
+    setInstantOrder(null);
+  }
 
   function evaluateClient(client, scannedToken) {
     if (!client) return { ok: false, message: "Invalid QR Code" };
@@ -244,15 +282,26 @@ export default function ScanQR() {
             <InfoRow icon={Clock} label="Last Order Date" value="2026-07-27" />
             <InfoRow icon={CheckCircle2} label="Account Status" value={result.client.status} />
           </div>
-          <Link
-            to="/app/manager/new-order"
-            state={{ client: result.client }}
-            className="mt-6 inline-flex rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
-          >
-            {result.client.mealPlan === "Fixed Company Meal"
-              ? `Confirm Fixed Meal for ${result.client.name.split(" ")[0]}`
-              : `Create Order for ${result.client.name.split(" ")[0]}`}
-          </Link>
+          {result.client.mealPlan === "Fixed Company Meal" ? (
+            <button
+              type="button"
+              disabled={placingInstant}
+              onClick={() => placeInstantOrder(result.client)}
+              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {placingInstant
+                ? "Placing order..."
+                : `Confirm Fixed Meal for ${result.client.name.split(" ")[0]} — Instant Order`}
+            </button>
+          ) : (
+            <Link
+              to="/app/manager/new-order"
+              state={{ client: result.client }}
+              className="mt-6 inline-flex rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+            >
+              {`Create Order for ${result.client.name.split(" ")[0]}`}
+            </Link>
+          )}
         </div>
       )}
 
@@ -276,6 +325,8 @@ export default function ScanQR() {
           </Link>
         </div>
       )}
+
+      <OrderTokenModal open={!!instantOrder} order={instantOrder} onClose={closeInstantModal} />
     </div>
   );
 }

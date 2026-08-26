@@ -75,4 +75,5 @@ export const SOCKET_EVENTS = {
   WALLET_RECHARGED: "wallet:recharged",
   BOOKING_SUBMITTED: "booking:submitted",
   ACCOUNT_REQUEST_SUBMITTED: "account_request:submitted",
+  INSTANT_ORDER_CREATED: "order:instant_created",
 };

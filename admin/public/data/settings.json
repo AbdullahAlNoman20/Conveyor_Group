@@ -4,5 +4,6 @@
   "taxRate": 5,
   "emailNotifications": true,
   "smsNotifications": false,
-  "displayNameOnBoard": "token_only"
+  "displayNameOnBoard": "token_only",
+  "selfOrderStationCode": "CONVEYOR-SELF-ORDER-STATION-01"
 }
