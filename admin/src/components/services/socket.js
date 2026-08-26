@@ -73,5 +73,6 @@ export const SOCKET_EVENTS = {
   GUEST_REQUEST_SUBMITTED: "guest_request:submitted",
   GUEST_REQUEST_APPROVED: "guest_request:approved",
   WALLET_RECHARGED: "wallet:recharged",
-  BOOKING_SUBMITTED: "booking:submitted", 
+  BOOKING_SUBMITTED: "booking:submitted",
+  ACCOUNT_REQUEST_SUBMITTED: "account_request:submitted",
 };

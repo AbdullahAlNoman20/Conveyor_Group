@@ -149,6 +149,13 @@ export default function Login() {
               <LogIn size={16} /> {submitting ? "Signing in..." : "Sign In"}
             </button>
           </form>
+
+          <p className="mt-4 text-center text-sm text-ink-500">
+            Don't have an account?{" "}
+            <Link to="/register" className="font-semibold text-brand-600 hover:text-brand-700">
+              Register Now
+            </Link>
+          </p>
         </div>
 
         <div className="rounded-2xl border-2 border-dashed border-amber-400/60 bg-white/95 p-6 shadow-2xl">

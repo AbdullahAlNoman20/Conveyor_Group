@@ -22,6 +22,7 @@ const EVENT_COPY = {
   [SOCKET_EVENTS.GUEST_REQUEST_APPROVED]: "Your guest request was approved.",
   [SOCKET_EVENTS.WALLET_RECHARGED]: "Your wallet has been recharged.",
   [SOCKET_EVENTS.BOOKING_SUBMITTED]: "A new meal pre-booking needs your approval.",
+  [SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED]: "A new account request needs your review.",
 };
 
 const ORDER_EVENT_LINKS = {
@@ -58,7 +59,11 @@ function resolveLink(event, role) {
     case SOCKET_EVENTS.WALLET_RECHARGED:
       return role === "client" ? "/app/client/wallet" : "/app/manager/wallet-recharge";
     case SOCKET_EVENTS.BOOKING_SUBMITTED:
-      return role === "manager" ? "/app/manager/pre-bookings" : "/app/client/pre-booking";
+      return role === "manager"
+        ? "/app/manager/pre-bookings"
+        : "/app/client/pre-booking";
+    case SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED:
+      return role === "super_admin" ? "/app/super-admin/account-requests" : "/";
     default:
       return null;
   }

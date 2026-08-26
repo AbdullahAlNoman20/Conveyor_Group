@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   HardDriveDownload,
   Archive,
+  UserPlus,
 } from "lucide-react";
 
 const navGroups = [
@@ -29,6 +30,7 @@ const navGroups = [
       { to: "/app/super-admin/managers", label: "Managers", Icon: UserCog },
       { to: "/app/super-admin/kitchen-staff", label: "Kitchen Staff", Icon: ChefHat },
       { to: "/app/super-admin/registration-archive", label: "Registration Archive", Icon: Archive },
+      { to: "/app/super-admin/account-requests", label: "Account Requests", Icon: UserPlus },
     ],
   },
   {

@@ -14,6 +14,7 @@ const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 const PurchaseVoucher = lazy(() => import("../manager/pages/PurchaseVoucher"));
 const SystemBackup = lazy(() => import("./pages/SystemBackup"));
 const RegistrationArchive = lazy(() => import("./pages/RegistrationArchive"));
+const AccountRequests = lazy(() => import("./pages/AccountRequests"));
 
 const SuperAdminRoutes = [
   { index: true, element: <SuperAdminDashboard /> },
@@ -56,6 +57,7 @@ const SuperAdminRoutes = [
   { path: "audit", element: <AuditLogs /> },
   { path: "system-backup", element: <SystemBackup /> },
   { path: "registration-archive", element: <RegistrationArchive /> },
+  { path: "account-requests", element: <AccountRequests /> },
 ];
 
 export default SuperAdminRoutes;
