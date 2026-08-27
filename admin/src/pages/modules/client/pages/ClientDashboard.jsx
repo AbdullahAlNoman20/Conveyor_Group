@@ -68,6 +68,7 @@ export default function ClientDashboard() {
       const order = await createInstantFixedMealOrder({
         client: me,
         clients,
+        orders,
         weeklyMenu,
         menu,
         source: "self_scan",

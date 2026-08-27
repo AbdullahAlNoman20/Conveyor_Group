@@ -29,6 +29,7 @@ export default function ScanQR() {
   const [guests, setGuests] = useState(null);
   const [menu, setMenu] = useState(null);
   const [weeklyMenu, setWeeklyMenu] = useState(null);
+  const [orders, setOrders] = useState(null);
   const [selectedId, setSelectedId] = useState("");
   const [simSearch, setSimSearch] = useState("");
   const [result, setResult] = useState(null); // { ok, message, client, guest }
@@ -47,6 +48,7 @@ export default function ScanQR() {
       setGuests(await dataStore.load("guests", "guests.json"));
       setMenu(await dataStore.load("menu", "menu.json"));
       setWeeklyMenu(await dataStore.load("weeklyMenu", "weekly-menu.json"));
+      setOrders(await dataStore.load("orders", "orders.json"));
     })();
   }, []);
 
@@ -67,7 +69,7 @@ export default function ScanQR() {
       .slice(0, 8);
   }, [clients, simSearch]);
 
-  if (!clients || !guests || !menu || !weeklyMenu) return <Loader full label="Loading directory..." />;
+  if (!clients || !guests || !menu || !weeklyMenu || !orders) return <Loader full label="Loading directory..." />;
 
   // Fixed-meal clients scanned by the Manager skip menu selection AND both
   // approval steps entirely — this creates the order right here and sends
@@ -79,6 +81,7 @@ export default function ScanQR() {
       const order = await createInstantFixedMealOrder({
         client,
         clients,
+        orders,
         weeklyMenu,
         menu,
         source: "manager_scan",

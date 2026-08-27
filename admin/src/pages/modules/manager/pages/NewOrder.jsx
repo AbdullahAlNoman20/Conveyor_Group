@@ -488,35 +488,54 @@ export default function NewOrder() {
                 </span>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {menu.map((m) => (
-                  <button
-                    type="button"
-                    key={m.id}
-                    onClick={() => addItem(m)}
-                    className="flex min-w-0 w-full items-center gap-3 overflow-hidden rounded-xl border border-ink-100 bg-white p-3 text-left text-sm transition hover:border-brand-300 hover:bg-brand-50"
-                  >
-                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-ink-50">
-                      <DishImage
-                        name={m.name}
-                        className="h-full w-full object-cover"
-                        rounded="rounded-xl"
-                        height={56}
-                      />
-                    </div>
-                    <span className="min-w-0 flex-1 overflow-hidden">
-                      <span className="block truncate font-semibold text-ink-800">
-                        {m.name}
-                      </span>
-                      <span className="block truncate text-xs text-ink-400">
-                        {m.category}
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-brand-50 px-2 py-1.5 text-xs font-semibold text-brand-600">
-                      <Plus size={14} /> Tk {m.price}
-                    </span>
-                  </button>
-                ))}
+              <div>
+                <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                  Only Fixed Meal items can be ordered right now — the rest of the menu is Coming Soon.
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {menu.map((m) => {
+                    const available = m.category === "Fixed Meal";
+                    return (
+                      <button
+                        type="button"
+                        key={m.id}
+                        disabled={!available}
+                        onClick={() => available && addItem(m)}
+                        className={`relative flex min-w-0 w-full items-center gap-3 overflow-hidden rounded-xl border p-3 text-left text-sm transition ${
+                          available
+                            ? "border-ink-100 bg-white hover:border-brand-300 hover:bg-brand-50"
+                            : "cursor-not-allowed border-ink-100 bg-ink-50 opacity-60"
+                        }`}
+                      >
+                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-ink-50">
+                          <DishImage
+                            name={m.name}
+                            className="h-full w-full object-cover"
+                            rounded="rounded-xl"
+                            height={56}
+                          />
+                        </div>
+                        <span className="min-w-0 flex-1 overflow-hidden">
+                          <span className="block truncate font-semibold text-ink-800">
+                            {m.name}
+                          </span>
+                          <span className="block truncate text-xs text-ink-400">
+                            {m.category}
+                          </span>
+                        </span>
+                        {available ? (
+                          <span className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-brand-50 px-2 py-1.5 text-xs font-semibold text-brand-600">
+                            <Plus size={14} /> Tk {m.price}
+                          </span>
+                        ) : (
+                          <span className="shrink-0 whitespace-nowrap rounded-lg bg-ink-200 px-2 py-1.5 text-[10px] font-bold uppercase text-ink-500">
+                            Coming Soon
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </section>

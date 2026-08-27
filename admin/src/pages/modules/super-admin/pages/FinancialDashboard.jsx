@@ -1,7 +1,8 @@
 // FILE: src/pages/modules/super-admin/pages/FinancialDashboard.jsx  (MODIFIED, full rewrite)
-import { TrendingUp, TrendingDown, DollarSign, PiggyBank } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, PiggyBank, Users, Download } from "lucide-react";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import DateRangeFilter, { useDateRangeFilter } from "../../../../components/shared/DateRangeFilter";
+import { exportToExcel } from "../../../../components/utils/exportExcel";
 import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
 
@@ -40,6 +41,33 @@ export default function FinancialDashboard() {
     return acc;
   }, {});
 
+  // Per-client salary-deduction summary for this date range — what HR
+  // needs to actually run payroll: who ate, how many days, how much total.
+  const clientSummaryMap = {};
+  ordersInRange
+    .filter((o) => !["cancelled", "rejected"].includes(o.status))
+    .forEach((o) => {
+      const key = o.clientName;
+      if (!clientSummaryMap[key]) clientSummaryMap[key] = { name: key, days: new Set(), total: 0 };
+      clientSummaryMap[key].days.add(new Date(o.createdAt).toDateString());
+      clientSummaryMap[key].total += o.amount;
+    });
+  const clientSummary = Object.values(clientSummaryMap)
+    .map((c) => ({ name: c.name, daysEaten: c.days.size, total: c.total }))
+    .sort((a, b) => b.total - a.total);
+  const totalDiners = clientSummary.length;
+
+  function downloadPayrollSummary() {
+    exportToExcel(
+      clientSummary.map((c) => ({
+        "Employee Name": c.name,
+        "Days Eaten": c.daysEaten,
+        "Total Amount (Tk)": c.total,
+      })),
+      `salary-deduction-summary-${range.from.toISOString().slice(0, 10)}_to_${range.to.toISOString().slice(0, 10)}`
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -58,6 +86,7 @@ export default function FinancialDashboard() {
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard label="Total Diners" value={totalDiners} Icon={Users} accent="sky" />
         <StatCard label="Total Income" value={`Tk ${totalIncome.toLocaleString()}`} Icon={TrendingUp} accent="emerald" />
         <StatCard label="Total Expense" value={`Tk ${totalExpense.toLocaleString()}`} Icon={TrendingDown} accent="brand" />
         <StatCard
@@ -66,7 +95,6 @@ export default function FinancialDashboard() {
           Icon={DollarSign}
           accent={profit >= 0 ? "emerald" : "brand"}
         />
-        <StatCard label="Wallet Recharges" value={`Tk ${walletRecharge.toLocaleString()}`} Icon={PiggyBank} accent="sky" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -90,6 +118,43 @@ export default function FinancialDashboard() {
               <p className="text-ink-400">No expenses recorded in this range.</p>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-ink-100 bg-white p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-ink-700">Client Salary Deduction Summary</h2>
+          <button
+            onClick={downloadPayrollSummary}
+            className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50"
+          >
+            <Download size={14} /> Download for HR (Excel)
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs uppercase text-ink-400">
+              <tr>
+                <th className="py-2">Employee</th>
+                <th className="py-2">Days Eaten</th>
+                <th className="py-2 text-right">Total (Tk)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-100">
+              {clientSummary.map((c) => (
+                <tr key={c.name}>
+                  <td className="py-2 font-medium text-ink-800">{c.name}</td>
+                  <td className="py-2 text-ink-500">{c.daysEaten}</td>
+                  <td className="py-2 text-right font-semibold text-ink-900">Tk {c.total.toLocaleString()}</td>
+                </tr>
+              ))}
+              {clientSummary.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="py-8 text-center text-ink-400">No orders in this range.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -15,6 +15,7 @@ import Nav from "../../components/Nav";
 import Footer from "../../components/Footer";
 import { DishImage } from "../../components/shared/DishImage";
 import { dataStore } from "../../components/services/dataStore";
+import { getMealLimitStatus } from "../../components/services/mealLimit";
 import logo from "../../assets/logo.jpeg";
 
 const STEPS = [
@@ -54,14 +55,27 @@ export default function Home() {
   const [menu, setMenu] = useState([]);
   const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [mealStatus, setMealStatus] = useState(null);
 
   useEffect(() => {
     (async () => {
       setMenu(await dataStore.load("menu", "menu.json"));
       setWeeklyMenu(await dataStore.load("weeklyMenu", "weekly-menu.json"));
       setSettings(await dataStore.load("settings", "settings.json"));
+      setMealStatus(await getMealLimitStatus());
     })();
+    // Refresh the counter periodically so it stays live on a screen left
+    // open at the counter, without needing a full page reload.
+    const t = setInterval(
+      async () => setMealStatus(await getMealLimitStatus()),
+      15000,
+    );
+    return () => clearInterval(t);
   }, []);
+
+  const mealsRemaining = mealStatus
+    ? Math.max(0, mealStatus.dailyLimit - mealStatus.served)
+    : null;
 
   const todayName = DAY_NAMES[new Date().getDay()];
   const lunchItems = menu.filter(
@@ -325,42 +339,79 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Self-Order Station — scanned from a Client's own dashboard for an
-          instant fixed-meal order, no Manager/Kitchen approval needed. */}
-      <section className="bg-gray-100 py-16">
-        <div className="mx-auto flex max-w-7xl flex-col items-center gap-8 px-4 text-center sm:px-6 md:flex-row md:text-left">
-          <div className="flex-1">
-            <span className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-brand-600">
-              <QrCode size={14} /> Self-Order Station
-            </span>
-            <h3 className="mt-3 text-xl font-bold text-ink-900 sm:text-2xl">
-              Skip the wait — scan and go
-            </h3>
-            <p className="mt-2 max-w-md text-sm text-ink-500">
-              Fixed-Meal employees: open your dashboard, tap "Scan to Order,"
-              and scan this station code. Today's meal is confirmed instantly —
-              no Manager or Kitchen approval, straight to the Token Board.
-            </p>
-          </div>
-          <div className="shrink-0 rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
-            {settings ? (
-              <QRCodeSVG
-                value={settings.selfOrderStationCode}
-                size={150}
-                level="M"
-              />
-            ) : (
-              <div className="h-[150px] w-[150px] animate-pulse rounded-lg bg-ink-100" />
-            )}
-            <p className="mt-3 text-center text-xs font-semibold uppercase tracking-wide text-ink-400">
-              Station Code
-            </p>
+      {/* Self-Order Station */}
+      <section className="bg-gray-50 py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+            <div className="grid items-center md:grid-cols-3">
+              {/* LEFT — Self Order Information */}
+              <div className="px-6 py-10 sm:px-10 md:px-8 lg:px-12">
+                <div className="mb-5 inline-flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                    <QrCode size={24} />
+                  </div>
+
+                  <div>
+                    <p className="text-lg font-extrabold tracking-tight text-ink-900">
+                      Self-Order Station
+                    </p>
+
+                    <div className="mt-1 h-1 w-16 rounded-full bg-brand-500" />
+                  </div>
+                </div>
+
+                <h3 className="text-2xl font-extrabold leading-tight text-ink-900 sm:text-3xl">
+                  Skip the wait — scan and go
+                </h3>
+
+                <p className="mt-4 max-w-lg text-sm leading-7 text-ink-500 sm:text-base">
+                  Fixed-Meal employees: open your dashboard, tap "Scan to
+                  Order," and scan this station code. Today's meal is confirmed
+                  instantly — no Manager or Kitchen approval, straight to the
+                  Token Board.
+                </p>
+              </div>
+
+              {/* MIDDLE — Meals Remaining */}
+              <div className="border-t border-gray-200 px-6 py-10 sm:px-10 md:border-l md:border-t-0 md:px-8 lg:px-12">
+                <div className="flex min-h-[220px] flex-col items-center justify-center rounded-3xl border border-brand-100 bg-brand-50/40 px-6 text-center">
+                  <p className="text-7xl font-black leading-none tracking-tight text-brand-600 sm:text-8xl">
+                    {mealsRemaining ?? 300}
+                  </p>
+
+                  <div className="mt-7 h-px w-40 bg-brand-300" />
+
+                  <p className="mt-5 text-base font-bold text-ink-900 sm:text-lg">
+                    of{" "}
+                    <span className="text-brand-600">
+                      {mealStatus?.dailyLimit ?? 300}
+                    </span>{" "}
+                    meals left today
+                  </p>
+                </div>
+              </div>
+
+              {/* RIGHT — QR Code */}
+              <div className="flex items-center justify-center border-t border-gray-200 px-6 py-10 sm:px-10 md:border-l md:border-t-0 md:px-8 lg:px-12">
+                <div className="flex h-[210px] w-[210px] items-center justify-center rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:h-[230px] sm:w-[230px]">
+                  {settings ? (
+                    <QRCodeSVG
+                      value={settings.selfOrderStationCode}
+                      size={175}
+                      level="M"
+                    />
+                  ) : (
+                    <div className="h-[175px] w-[175px] animate-pulse rounded-xl bg-gray-100" />
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Live board teaser */}
-      <section className="bg-white py-16">
+      <section className="bg-gray-100 py-16">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-4 text-center sm:px-6 md:flex-row md:text-left">
           <Monitor size={48} className="shrink-0 text-brand-600" />
           <div className="flex-1">
@@ -446,14 +497,23 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-7xl px-4 pb-10 text-center sm:px-6">
-        <p className="text-sm text-ink-400">
-          Sign in to place an order —{" "}
-          <Link to="/login" className="font-semibold text-brand-600">
+      <div className="mx-auto max-w-7xl px-4 py-10 text-center sm:px-6">
+        <div className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50/60 px-5 py-2.5 shadow-sm">
+          <span className="text-sm text-ink-500">
+            Sign in to place an order
+          </span>
+
+          <span className="text-ink-300">—</span>
+
+          <Link
+            to="/login"
+            className="text-sm font-bold text-brand-600 transition-colors duration-200 hover:text-brand-700"
+          >
             it takes a second
           </Link>
-          .
-        </p>
+
+          <span className="text-brand-400">→</span>
+        </div>
       </div>
 
       <Footer />

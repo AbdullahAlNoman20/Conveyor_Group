@@ -1,34 +1,48 @@
-আমার প্রয়োজনীয় ফাইল লিস্ট (Self-Order QR + Manager Instant-Order ফিচারের জন্য):
+আমার প্রয়োজনীয় ফাইল লিস্ট (এই বড় আপডেটের জন্য — কয়েকটি ভাগে):
 
-# ================= HOME PAGে static QR বসানোর জন্য =================
-src/pages/Home/Home.jsx
+# ================= ১. একদিনে একবার অর্ডার চেক (Daily Limit) =================
+src/components/services/selfOrder.js (আগেই দেয়া আছে — লাগবে না)
+src/pages/modules/manager/pages/ScanQR.jsx (আগেই দেয়া আছে — লাগবে না)
+src/pages/modules/client/pages/ClientDashboard.jsx (আগেই দেয়া আছে — লাগবে না)
 
-# ================= ক্লায়েন্ট প্রোফাইল/ড্যাশবোর্ড (স্ক্যান বাটন কোথায় বসবে) =================
-src/pages/modules/client/pages/ClientDashboard.jsx
-src/pages/modules/client/pages/ClientProfile.jsx
-src/pages/modules/client/pages/ClientQRCard.jsx  (এখানে qrcode.react কিভাবে ব্যবহার হচ্ছে দেখতে)
-src/pages/modules/client/ClientRoutes.jsx
-src/pages/modules/client/layout/ClientLayout.jsx
+# ================= ২. স্যালারি থেকে কাটা + প্রতিদিন/মাসিক সামারি =================
+src/components/services/earnings.js (আগেই দেয়া আছে — লাগবে না)
+src/pages/modules/client/pages/ClientWallet.jsx
+src/pages/modules/client/pages/ClientStatement.jsx
+src/pages/modules/manager/pages/ManagerReports.jsx
+src/pages/modules/super-admin/pages/FinancialDashboard.jsx
+src/pages/modules/super-admin/pages/SuperAdminDashboard.jsx
+src/components/utils/exportExcel.js (আগেই দেয়া আছে — লাগবে না)
+public/data/wallet-transactions.json
 
-# ================= ম্যানেজার এর QR স্ক্যান রেজাল্ট থেকে ইনস্ট্যান্ট অর্ডার করার জন্য =================
-src/pages/modules/manager/pages/ScanQR.jsx  (আগের latest ভার্সন আছে, লাগবে না)
-src/pages/modules/manager/pages/NewOrder.jsx (আগের latest ভার্সন আছে, লাগবে না)
+# ================= ৩. ডেইলি ৩০০ জনের খাবার লিমিট কাউন্টার =================
+src/pages/Home/Home.jsx (আগেই দেয়া আছে — লাগবে না)
+public/data/settings.json (আগেই দেয়া আছে — লাগবে না)
 
-# ================= হেল্পার/সার্ভিস (রেফারেন্স হিসেবে লাগবে) =================
-src/components/utils/device.js
-src/components/services/earnings.js
-public/data/settings.json
+# ================= ৪. লাইভ টোকেন বোর্ড (প্রোফাইল পিকচার + নাম) =================
+src/pages/Board/KitchenBoard.jsx
+src/components/shared/AvatarImage.jsx
+public/data/clients.json (আগেই দেয়া আছে — লাগবে না)
+s
+# ================= ৫. ওয়েটার এর "Ready Orders" (self-order সরাসরি Ready-তে আসার কথা) =================
+src/pages/modules/waiter/pages/WaiterOrders.jsx (আগেই দেয়া আছে — লাগবে না)
 
-শুধু এই ফাইলগুলো দিলেই যথেষ্ট:
-1. src/pages/Home/Home.jsx
-2. src/pages/modules/client/pages/ClientDashboard.jsx
-3. src/pages/modules/client/pages/ClientQRCard.jsx
-4. src/pages/modules/client/ClientRoutes.jsx
-5. src/pages/modules/client/layout/ClientLayout.jsx
-6. src/components/utils/device.js
-7. src/components/services/earnings.js
-8. public/data/settings.json
+শুধু এই ফাইলগুলো দিলেই যথেষ্ট হবে (নতুন যা যা চাওয়া হয়নি সেগুলো বাদ):
 
-(ClientProfile.jsx না দিলেও চলবে যদি স্ক্যান বাটন ড্যাশবোর্ডে বসাই — কিন্তু তুমি চাইলে দিতে পারো)
+1. src/pages/modules/client/pages/ClientWallet.jsx
+2. src/pages/modules/client/pages/ClientStatement.jsx
+3. src/pages/modules/manager/pages/ManagerReports.jsx
+4. src/pages/modules/super-admin/pages/FinancialDashboard.jsx
+5. src/pages/modules/super-admin/pages/SuperAdminDashboard.jsx
+6. public/data/wallet-transactions.json
+7. src/pages/Board/KitchenBoard.jsx (আগে দেয়া ছিল, কিন্তু নতুন কিছু আপডেট থাকলে আবার দাও — না থাকলে বলো, পুরনোটাই ব্যবহার করবো)
+8. src/components/shared/AvatarImage.jsx
 
-আর ধন্যবাদ জানানোর জন্য কৃতজ্ঞতা! স্ক্যানিং সিস্টেমের error-handling (try/catch + fallback UI) যেভাবে করা হয়েছে সেটা এখন থেকে সবসময় এই প্যাটার্নেই থাকবে, নতুন কোনো ফিচারেও একই সতর্কতা বজায় রাখব যাতে ক্র্যাশ না হয়।
+এই কাজটা বড়, তাই আমি ধাপে ধাপে করবো:
+- **ধাপ ১:** Daily-once order limit + Manager/Client উভয় জায়গায় চেক
+- **ধাপ ২:** পেমেন্ট মেথড সবসময় "salary" (wallet বাদ)
+- **ধাপ ৩:** 300-limit কাউন্টার (Home page + স্টেশন QR সেকশনে ডিজাইন)
+- **ধাপ ৪:** Token Board-এ প্রোফাইল পিকচার+নাম, self-order সরাসরি Ready
+- **ধাপ ৫:** Manager/Super Admin এর জন্য প্রতিদিন কতজন খেলো + কে কবে কত টাকার খেলো + মাসিক সামারি ডাউনলোড (Excel)
+
+ফাইলগুলো দাও, তারপর একে একে সবগুলো সমাধান দিচ্ছি।

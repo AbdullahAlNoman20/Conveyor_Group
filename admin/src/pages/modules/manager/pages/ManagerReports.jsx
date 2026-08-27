@@ -26,6 +26,13 @@ export default function ManagerReports() {
   const clientOrders = orders.filter((o) => !o.clientName?.startsWith("Guest")).length;
   const guestOrders = orders.length - clientOrders;
 
+  const todayStr = new Date().toDateString();
+  const todaysOrders = orders.filter((o) => new Date(o.createdAt).toDateString() === todayStr);
+  const dinersToday = [...new Set(todaysOrders.map((o) => o.clientName))];
+  const salaryTotalToday = todaysOrders
+    .filter((o) => o.paymentMethod === "salary")
+    .reduce((s, o) => s + o.amount, 0);
+
   function downloadExcel() {
     exportToExcel(
       orders.map((o) => ({
@@ -78,10 +85,41 @@ export default function ManagerReports() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Daily Orders" value={orders.length} accent="ink" />
-        <StatCard label="Daily Revenue" value={`Tk ${revenue.toLocaleString()}`} accent="brand" />
-        <StatCard label="Daily Guests" value={guests.length} accent="amber" />
+        <StatCard label="Diners Today" value={dinersToday.length} accent="brand" />
+        <StatCard label="Salary Deducted Today" value={`Tk ${salaryTotalToday.toLocaleString()}`} accent="amber" />
+        <StatCard label="Daily Revenue" value={`Tk ${revenue.toLocaleString()}`} accent="ink" />
         <StatCard label="Completed" value={completed} accent="emerald" />
+      </div>
+
+      <div className="rounded-xl border border-ink-100 bg-white p-5">
+        <h2 className="mb-3 text-sm font-bold text-ink-700">Who Ate Today ({dinersToday.length})</h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs uppercase text-ink-400">
+              <tr>
+                <th className="py-2">Name</th>
+                <th className="py-2">Time</th>
+                <th className="py-2">Paid Via</th>
+                <th className="py-2 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-100">
+              {todaysOrders.map((o) => (
+                <tr key={o.id}>
+                  <td className="py-2 font-medium text-ink-800">{o.clientName}</td>
+                  <td className="py-2 text-ink-500">{new Date(o.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                  <td className="py-2 text-ink-500 capitalize">{o.paymentMethod || "-"}</td>
+                  <td className="py-2 text-right font-semibold text-ink-900">Tk {o.amount}</td>
+                </tr>
+              ))}
+              {todaysOrders.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-ink-400">No orders yet today.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="rounded-xl border border-ink-100 bg-white p-5">

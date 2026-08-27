@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLiveCollection } from "../../components/hooks/useLiveCollection";
+import AvatarImage from "../../components/shared/AvatarImage";
 import Footer from "../../components/Footer";
 import logo from "../../assets/logo.jpeg";
+
+function displayName(order) {
+  return (order.clientName || "").replace(/^Guest - /, "");
+}
 
 const PRIORITY_RANK = { urgent: 0, vip: 1, high: 2, normal: 3 };
 
@@ -117,9 +122,10 @@ export default function KitchenBoard() {
                 Now Serving
               </p>
               {nowServing ? (
-                <div className="rounded-2xl border-2 border-brand-500 bg-ink-900 p-6 text-center board:p-10">
-                  <p className="font-mono text-5xl font-extrabold text-brand-500 board:text-7xl">
-                    {nowServing.id.replace("ORD-", "T-")}
+                <div className="flex flex-col items-center rounded-2xl border-2 border-brand-500 bg-ink-900 p-6 text-center board:p-10">
+                  <AvatarImage name={displayName(nowServing)} size={72} className="border-2 border-brand-500 board:h-24 board:w-24" />
+                  <p className="mt-3 text-2xl font-extrabold text-white board:text-4xl">
+                    {displayName(nowServing)}
                   </p>
                   <p className="mt-2 text-lg text-ink-200 board:text-2xl">
                     {nowServing.tableNumber
@@ -147,15 +153,16 @@ export default function KitchenBoard() {
                 {readyZone.map((o) => (
                   <div
                     key={o.id}
-                    className="flex items-center justify-between rounded-xl border border-emerald-600 bg-emerald-600/20 px-4 py-3 board:py-4"
+                    className="flex items-center gap-3 rounded-xl border border-emerald-600 bg-emerald-600/20 px-4 py-3 board:py-4"
                   >
-                    <span className="font-mono text-xl font-bold text-emerald-400 board:text-2xl">
-                      {o.id.replace("ORD-", "T-")}
+                    <AvatarImage name={displayName(o)} size={36} className="shrink-0 border border-emerald-500 board:h-11 board:w-11" />
+                    <span className="min-w-0 flex-1 truncate text-lg font-bold text-emerald-100 board:text-xl">
+                      {displayName(o)}
                     </span>
-                    <span className="text-sm text-ink-200 board:text-base">
+                    <span className="hidden text-sm text-ink-200 sm:inline board:text-base">
                       {o.tableNumber ? `Table ${o.tableNumber}` : "Take Away"}
                     </span>
-                    <span className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold">
+                    <span className="shrink-0 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold">
                       READY
                     </span>
                   </div>
@@ -176,12 +183,13 @@ export default function KitchenBoard() {
                 {upNext.map((o) => (
                   <div
                     key={o.id}
-                    className="flex items-center justify-between rounded-xl bg-ink-900 px-4 py-3 board:py-4"
+                    className="flex items-center gap-3 rounded-xl bg-ink-900 px-4 py-3 board:py-4"
                   >
-                    <span className="font-mono text-lg font-bold text-white board:text-xl">
-                      {o.id.replace("ORD-", "T-")}
+                    <AvatarImage name={displayName(o)} size={32} className="shrink-0 board:h-10 board:w-10" />
+                    <span className="min-w-0 flex-1 truncate text-base font-bold text-white board:text-lg">
+                      {displayName(o)}
                     </span>
-                    <span className="text-sm text-ink-400">
+                    <span className="hidden text-sm text-ink-400 sm:inline">
                       {o.tableNumber ? `Table ${o.tableNumber}` : "Take Away"}
                     </span>
                     {o.priority !== "normal" && (

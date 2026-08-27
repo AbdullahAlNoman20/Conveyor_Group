@@ -17,6 +17,7 @@ import { SOCKET_EVENTS } from "./socket";
 import { notifyEvent } from "./notifyEvent";
 import { recordOrderEarning } from "./earnings";
 import { orderRecipientName } from "../utils/orderRecipient";
+import { consumeMealSlot } from "./mealLimit";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -33,13 +34,30 @@ export function todaysFixedMeal(weeklyMenu, menu) {
  * Throws if the client isn't on the Fixed Company Meal plan — callers
  * should check that before calling, this is a safety net.
  */
-export async function createInstantFixedMealOrder({ client, clients, weeklyMenu, menu, source }) {
+export async function createInstantFixedMealOrder({ client, clients, orders, weeklyMenu, menu, source }) {
   if (client.mealPlan !== "Fixed Company Meal") {
     throw new Error("Instant ordering is only available for Fixed Company Meal clients.");
   }
 
+  // Once-per-day check — applies regardless of HOW the meal was ordered
+  // earlier today (self-scan, manager-scan, or manual), so nobody can
+  // double-collect by mixing entry points.
+  const todayStr = new Date().toDateString();
+  const alreadyOrderedToday = (orders || []).some((o) => {
+    const sameDay = new Date(o.createdAt).toDateString() === todayStr;
+    return sameDay && o.clientName === client.name && !["cancelled", "rejected"].includes(o.status);
+  });
+  if (alreadyOrderedToday) {
+    throw new Error(
+      `${client.name.split(" ")[0]} has already collected today's meal — only one meal per day is allowed.`
+    );
+  }
+
   const { name: mealName, price: mealPrice } = todaysFixedMeal(weeklyMenu, menu);
   const isComplimentary = client.mealBenefit === "Complimentary";
+
+  // Reserve one of today's 300 prepared meals — throws if none are left.
+  await consumeMealSlot();
 
   const order = {
     id: genId("ORD"),
@@ -58,7 +76,10 @@ export async function createInstantFixedMealOrder({ client, clients, weeklyMenu,
     discount: 0,
     tax: 0,
     amount: mealPrice,
-    paymentMethod: isComplimentary ? "complimentary" : "wallet",
+    // Instant/self-order meals are always billed to salary (wallet stays
+    // available separately for manual orders where the person explicitly
+    // chooses "Pay From: Wallet").
+    paymentMethod: isComplimentary ? "complimentary" : "salary",
     // Skips awaiting_manager / pending / accepted / preparing on purpose —
     // the fixed meal is already prepared, so this goes straight to the
     // Token Board as ready for collection.
