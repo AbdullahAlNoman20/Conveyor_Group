@@ -87,7 +87,7 @@ export default function Home() {
         {/* Full-screen Background Video */}
         <video
           className="absolute inset-0 h-full w-full object-cover"
-          src="/videos/hero_bg.webm" 
+          src="/videos/hero_bg.webm"
           autoPlay
           loop
           muted
@@ -179,154 +179,123 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Self-Order Station — scanned from a Client's own dashboard for an
-          instant fixed-meal order, no Manager/Kitchen approval needed. */}
-      <section className="bg-white py-16">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-8 px-4 text-center sm:px-6 md:flex-row md:text-left">
-          <div className="flex-1">
-            <span className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-brand-600">
-              <QrCode size={14} /> Self-Order Station
-            </span>
-            <h3 className="mt-3 text-xl font-bold text-ink-900 sm:text-2xl">
-              Skip the wait — scan and go
-            </h3>
-            <p className="mt-2 max-w-md text-sm text-ink-500">
-              Fixed-Meal employees: open your dashboard, tap "Scan to Order," and scan this
-              station code. Today's meal is confirmed instantly — no Manager or Kitchen approval,
-              straight to the Token Board.
-            </p>
-          </div>
-          <div className="shrink-0 rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
-            {settings ? (
-              <QRCodeSVG value={settings.selfOrderStationCode} size={150} level="M" />
-            ) : (
-              <div className="h-[150px] w-[150px] animate-pulse rounded-lg bg-ink-100" />
-            )}
-            <p className="mt-3 text-center text-xs font-semibold uppercase tracking-wide text-ink-400">
-              Station Code
-            </p>
+      {/* Signature section: the week's fixed meals, literally riding a conveyor belt */}
+      <section id="weekly-meals" className="overflow-hidden bg-ink-50 py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <h2 className="text-2xl font-bold text-ink-900">
+            This Week, On the Belt
+          </h2>
+
+          <p className="mt-1 text-sm text-ink-400">
+            Fixed-Meal employees get the day's dish automatically — watch the
+            belt roll continuously.
+          </p>
+        </div>
+
+        {/* Infinite Conveyor */}
+        <div className="relative mt-10 w-full overflow-hidden">
+          <div className="conveyor-track flex w-max gap-8">
+            {/* FIRST SET */}
+            {beltItems.map((d, i) => {
+              const isToday = d.day === todayName;
+              const id = menuIdForDish(d.meal);
+              const Wrapper = id ? Link : "div";
+
+              return (
+                <Wrapper
+                  key={`first-${d.day}-${i}`}
+                  to={id ? `/menu/${id}` : undefined}
+                  className="flex w-32 shrink-0 flex-col items-center text-center"
+                >
+                  <div
+                    className={`overflow-hidden rounded-full border-4 bg-white shadow-md transition-transform hover:-translate-y-1 ${
+                      isToday ? "border-brand-500" : "border-white"
+                    }`}
+                  >
+                    <DishImage
+                      name={d.meal}
+                      className="h-24 w-24 object-cover"
+                      rounded=""
+                    />
+                  </div>
+
+                  <p
+                    className={`mt-2 text-[11px] font-bold uppercase tracking-wide ${
+                      isToday ? "text-brand-600" : "text-ink-400"
+                    }`}
+                  >
+                    {d.day} {isToday && "· Today"}
+                  </p>
+
+                  <p className="text-xs font-semibold leading-tight text-ink-800">
+                    {d.meal}
+                  </p>
+                </Wrapper>
+              );
+            })}
+
+            {/* SECOND IDENTICAL SET */}
+            {beltItems.map((d, i) => {
+              const isToday = d.day === todayName;
+              const id = menuIdForDish(d.meal);
+              const Wrapper = id ? Link : "div";
+
+              return (
+                <Wrapper
+                  key={`second-${d.day}-${i}`}
+                  to={id ? `/menu/${id}` : undefined}
+                  className="flex w-32 shrink-0 flex-col items-center text-center"
+                >
+                  <div
+                    className={`overflow-hidden rounded-full border-4 bg-white shadow-md transition-transform hover:-translate-y-1 ${
+                      isToday ? "border-brand-500" : "border-white"
+                    }`}
+                  >
+                    <DishImage
+                      name={d.meal}
+                      className="h-24 w-24 object-cover"
+                      rounded=""
+                    />
+                  </div>
+
+                  <p
+                    className={`mt-2 text-[11px] font-bold uppercase tracking-wide ${
+                      isToday ? "text-brand-600" : "text-ink-400"
+                    }`}
+                  >
+                    {d.day} {isToday && "· Today"}
+                  </p>
+
+                  <p className="text-xs font-semibold leading-tight text-ink-800">
+                    {d.meal}
+                  </p>
+                </Wrapper>
+              );
+            })}
+
+            {/* LOADING PLACEHOLDERS */}
+            {weeklyMenu.length === 0 &&
+              Array.from({ length: 14 }).map((_, i) => (
+                <div
+                  key={`loading-${i}`}
+                  className="h-32 w-32 shrink-0 animate-pulse rounded-full bg-ink-200"
+                />
+              ))}
           </div>
         </div>
-      </section>
 
-      {/* Signature section: the week's fixed meals, literally riding a conveyor belt */}
-<section id="weekly-meals" className="overflow-hidden bg-ink-50 py-16">
-  <div className="mx-auto max-w-7xl px-4 sm:px-6">
-    <h2 className="text-2xl font-bold text-ink-900">
-      This Week, On the Belt
-    </h2>
-
-    <p className="mt-1 text-sm text-ink-400">
-      Fixed-Meal employees get the day's dish automatically — watch the belt
-      roll continuously.
-    </p>
-  </div>
-
-  {/* Infinite Conveyor */}
-  <div className="relative mt-10 w-full overflow-hidden">
-    <div className="conveyor-track flex w-max gap-8">
-
-      {/* FIRST SET */}
-      {beltItems.map((d, i) => {
-        const isToday = d.day === todayName;
-        const id = menuIdForDish(d.meal);
-        const Wrapper = id ? Link : "div";
-
-        return (
-          <Wrapper
-            key={`first-${d.day}-${i}`}
-            to={id ? `/menu/${id}` : undefined}
-            className="flex w-32 shrink-0 flex-col items-center text-center"
-          >
-            <div
-              className={`overflow-hidden rounded-full border-4 bg-white shadow-md transition-transform hover:-translate-y-1 ${
-                isToday ? "border-brand-500" : "border-white"
-              }`}
-            >
-              <DishImage
-                name={d.meal}
-                className="h-24 w-24 object-cover"
-                rounded=""
-              />
-            </div>
-
-            <p
-              className={`mt-2 text-[11px] font-bold uppercase tracking-wide ${
-                isToday ? "text-brand-600" : "text-ink-400"
-              }`}
-            >
-              {d.day} {isToday && "· Today"}
-            </p>
-
-            <p className="text-xs font-semibold leading-tight text-ink-800">
-              {d.meal}
-            </p>
-          </Wrapper>
-        );
-      })}
-
-      {/* SECOND IDENTICAL SET */}
-      {beltItems.map((d, i) => {
-        const isToday = d.day === todayName;
-        const id = menuIdForDish(d.meal);
-        const Wrapper = id ? Link : "div";
-
-        return (
-          <Wrapper
-            key={`second-${d.day}-${i}`}
-            to={id ? `/menu/${id}` : undefined}
-            className="flex w-32 shrink-0 flex-col items-center text-center"
-          >
-            <div
-              className={`overflow-hidden rounded-full border-4 bg-white shadow-md transition-transform hover:-translate-y-1 ${
-                isToday ? "border-brand-500" : "border-white"
-              }`}
-            >
-              <DishImage
-                name={d.meal}
-                className="h-24 w-24 object-cover"
-                rounded=""
-              />
-            </div>
-
-            <p
-              className={`mt-2 text-[11px] font-bold uppercase tracking-wide ${
-                isToday ? "text-brand-600" : "text-ink-400"
-              }`}
-            >
-              {d.day} {isToday && "· Today"}
-            </p>
-
-            <p className="text-xs font-semibold leading-tight text-ink-800">
-              {d.meal}
-            </p>
-          </Wrapper>
-        );
-      })}
-
-      {/* LOADING PLACEHOLDERS */}
-      {weeklyMenu.length === 0 &&
-        Array.from({ length: 14 }).map((_, i) => (
+        {/* Conveyor Belt Line */}
+        <div className="relative mt-4 h-3 w-full bg-ink-200">
           <div
-            key={`loading-${i}`}
-            className="h-32 w-32 shrink-0 animate-pulse rounded-full bg-ink-200"
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(135deg, #eb2a2d 0, #eb2a2d 14px, transparent 14px, transparent 28px)",
+              opacity: 0.5,
+            }}
           />
-        ))}
-    </div>
-  </div>
-
-  {/* Conveyor Belt Line */}
-  <div className="relative mt-4 h-3 w-full bg-ink-200">
-    <div
-      className="absolute inset-0"
-      style={{
-        backgroundImage:
-          "repeating-linear-gradient(135deg, #eb2a2d 0, #eb2a2d 14px, transparent 14px, transparent 28px)",
-        opacity: 0.5,
-      }}
-    />
-  </div>
-</section>
+        </div>
+      </section>
 
       {/* How it works */}
       <section id="how-it-works" className="py-16">
@@ -356,8 +325,42 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Self-Order Station — scanned from a Client's own dashboard for an
+          instant fixed-meal order, no Manager/Kitchen approval needed. */}
+      <section className="bg-gray-100 py-16">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-8 px-4 text-center sm:px-6 md:flex-row md:text-left">
+          <div className="flex-1">
+            <span className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-brand-600">
+              <QrCode size={14} /> Self-Order Station
+            </span>
+            <h3 className="mt-3 text-xl font-bold text-ink-900 sm:text-2xl">
+              Skip the wait — scan and go
+            </h3>
+            <p className="mt-2 max-w-md text-sm text-ink-500">
+              Fixed-Meal employees: open your dashboard, tap "Scan to Order,"
+              and scan this station code. Today's meal is confirmed instantly —
+              no Manager or Kitchen approval, straight to the Token Board.
+            </p>
+          </div>
+          <div className="shrink-0 rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
+            {settings ? (
+              <QRCodeSVG
+                value={settings.selfOrderStationCode}
+                size={150}
+                level="M"
+              />
+            ) : (
+              <div className="h-[150px] w-[150px] animate-pulse rounded-lg bg-ink-100" />
+            )}
+            <p className="mt-3 text-center text-xs font-semibold uppercase tracking-wide text-ink-400">
+              Station Code
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Live board teaser */}
-      <section className="bg-ink-50 py-16">
+      <section className="bg-white py-16">
         <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-4 text-center sm:px-6 md:flex-row md:text-left">
           <Monitor size={48} className="shrink-0 text-brand-600" />
           <div className="flex-1">
