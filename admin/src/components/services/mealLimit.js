@@ -25,3 +25,15 @@ export async function consumeMealSlot() {
   await dataStore.save(KEY, next);
   return next;
 }
+
+/**
+ * Frees one previously-consumed slot — used when a fixed-meal order that
+ * had already reserved a slot gets rejected/cancelled, so the meal goes
+ * back into today's available count. Never drops below 0.
+ */
+export async function releaseMealSlot() {
+  const status = await getMealLimitStatus();
+  const next = { ...status, served: Math.max(0, status.served - 1) };
+  await dataStore.save(KEY, next);
+  return next;
+}

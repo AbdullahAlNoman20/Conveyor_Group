@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Minus, Send, Lock, Cookie } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { SOCKET_EVENTS } from "../../../../components/services/socket";
+import { consumeMealSlot } from "../../../../components/services/mealLimit";
 import { notifyEvent } from "../../../../components/services/notifyEvent";
 import { genId } from "../../../../components/utils/idGenerator";
 import { useAuth } from "../../../../components/hooks/useAuth";
@@ -156,6 +157,20 @@ export default function PlaceOrder() {
       return;
     }
 
+    // Only reserve one of today's 300 prepared meals when this submission
+    // actually includes today's fixed meal — a snack-only add-on (client
+    // already collected their fixed meal earlier today) must NOT consume
+    // another slot.
+    const consumesFixedMealSlot = isFixed && !alreadyOrderedToday;
+    if (consumesFixedMealSlot) {
+      try {
+        await consumeMealSlot();
+      } catch (err) {
+        push(err.message, "error");
+        return;
+      }
+    }
+
     setSubmitting(true);
     const order = {
       id: genId("ORD"),
@@ -179,6 +194,9 @@ export default function PlaceOrder() {
       status: "awaiting_manager",
       selfPlaced: true,
       snackOnly: isSnackOnlySubmission,
+      // Lets OrderApprovals know whether rejecting this order should give
+      // back one of today's 300 prepared-meal slots.
+      consumedMealSlot: consumesFixedMealSlot,
       createdAt: new Date().toISOString(),
     };
 

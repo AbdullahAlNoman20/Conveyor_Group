@@ -64,13 +64,31 @@ export default function Home() {
       setSettings(await dataStore.load("settings", "settings.json"));
       setMealStatus(await getMealLimitStatus());
     })();
-    // Refresh the counter periodically so it stays live on a screen left
-    // open at the counter, without needing a full page reload.
+
+    // Fallback poll — keeps things fresh even if a subscribe event is ever
+    // missed (e.g. this tab was backgrounded when it fired).
     const t = setInterval(
       async () => setMealStatus(await getMealLimitStatus()),
       15000,
     );
-    return () => clearInterval(t);
+
+    // True real-time updates: the Self-Order station code (settings) and
+    // the meals-remaining counter (mealLimit) both broadcast the instant
+    // they're written elsewhere — same tab via a custom event, other
+    // tabs/devices via the "storage" event — so this screen doesn't have
+    // to wait for the 15s poll above.
+    const unsubSettings = dataStore.subscribe("settings", async () => {
+      setSettings(await dataStore.load("settings", "settings.json"));
+    });
+    const unsubMealLimit = dataStore.subscribe("mealLimit", async () => {
+      setMealStatus(await getMealLimitStatus());
+    });
+
+    return () => {
+      clearInterval(t);
+      unsubSettings();
+      unsubMealLimit();
+    };
   }, []);
 
   const mealsRemaining = mealStatus

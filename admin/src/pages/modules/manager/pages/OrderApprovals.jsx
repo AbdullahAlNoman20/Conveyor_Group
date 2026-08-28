@@ -3,6 +3,7 @@ import { CheckCircle2, XCircle, ClipboardList } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { recordOrderEarning } from "../../../../components/services/earnings";
+import { releaseMealSlot } from "../../../../components/services/mealLimit";
 import { useToast } from "../../../../components/hooks/useToast";
 import { orderStatusLabel } from "../../../../components/shared/OrderPipeline";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
@@ -41,6 +42,14 @@ export default function OrderApprovals() {
 
   async function reject(order) {
     await dataStore.update("orders", (o) => o.id === order.id, { status: "rejected" });
+
+    // This order had reserved one of today's 300 prepared meals when the
+    // Client submitted it — since it's being rejected, that meal was never
+    // actually served, so give the slot back.
+    if (order.consumedMealSlot) {
+      await releaseMealSlot();
+    }
+
     socket.emit(SOCKET_EVENTS.ORDER_REJECTED, {
       message: `Your order ${order.id} was rejected by the Manager.`,
       recipientNames: [order.clientName],

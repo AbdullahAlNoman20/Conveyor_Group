@@ -14,6 +14,7 @@ import { dataStore } from "../../../../components/services/dataStore";
 import { socket, SOCKET_EVENTS } from "../../../../components/services/socket";
 import { genId } from "../../../../components/utils/idGenerator";
 import { sanitizeText } from "../../../../components/utils/sanitize";
+import { consumeMealSlot } from "../../../../components/services/mealLimit";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
@@ -221,6 +222,18 @@ export default function NewOrder() {
       nextErrors.items = "Add at least one menu item.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
+
+    // Selected client is on Fixed Company Meal → this order is today's
+    // fixed meal, so it must reserve one of today's 300 prepared meals,
+    // exactly like the Self-Order Station / Manager-QR-scan path does.
+    if (isFixedMealClient) {
+      try {
+        await consumeMealSlot();
+      } catch (err) {
+        setErrors({ items: err.message });
+        return;
+      }
+    }
 
     const order = {
       id: genId("ORD"),
