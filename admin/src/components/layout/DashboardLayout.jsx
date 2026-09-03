@@ -60,7 +60,7 @@ export default function DashboardLayout({ navGroups, roleLabel }) {
           <div className="flex items-center gap-3">
             <NotificationBell />
             <div className="hidden items-center gap-2 sm:flex">
-              <AvatarImage name={user?.name} size={32} />
+              <AvatarImage name={user?.name} photo={user?.photo} size={32} />
               <div className="leading-tight">
                 <p className="text-sm font-semibold text-ink-900">{user?.name}</p>
                 <span

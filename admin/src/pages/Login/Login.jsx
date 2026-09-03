@@ -169,7 +169,7 @@ export default function Login() {
                   className="flex w-full items-center justify-between gap-3 rounded-lg border border-ink-100 px-3 py-2.5 text-left transition hover:border-brand-300 hover:bg-brand-50"
                 >
                   <span className="flex items-center gap-2">
-                    <AvatarImage name={u.name} size={32} />
+                    <AvatarImage name={u.name} photo={u.photo} size={32} />
                     <span>
                       <span className="block text-sm font-medium text-ink-900">{u.name}</span>
                       <span className="block text-xs text-ink-400">{ROLE_LABELS[u.role]}</span>

@@ -12,26 +12,36 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+    useEffect(() => {
     (async () => {
       try {
         const raw = localStorage.getItem(SESSION_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          // Guards against stale sessions from removed roles (e.g. an old
-          // "kitchen_head" test login) silently bouncing the user back to
-          // "/" instead of ever reaching their dashboard.
-          if (parsed?.role && VALID_ROLES.includes(parsed.role)) {
-            setUser(parsed);
-          } else {
-            localStorage.removeItem(SESSION_KEY);
-          }
-        }
+        if (raw) setUser(JSON.parse(raw));
       } finally {
         setLoading(false);
       }
     })();
   }, []);
+
+  // Keep the in-memory session's photo (and other display fields) in sync
+  // with the `users` collection — a profile-photo change elsewhere in this
+  // tab, or a same-tab dataStore write, should reflect in the Navbar avatar
+  // immediately without forcing a logout/login.
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = dataStore.subscribe("users", async () => {
+      const users = await dataStore.load("users", "users.json");
+      const fresh = users.find((u) => u.id === user.id);
+      if (fresh) {
+        const session = { ...fresh };
+        delete session.password;
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        setUser(session);
+      }
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   async function login(email, password) {
     const users = await dataStore.load("users", "users.json");

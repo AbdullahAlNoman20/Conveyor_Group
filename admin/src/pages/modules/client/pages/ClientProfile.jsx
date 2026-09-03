@@ -3,6 +3,7 @@ import { Camera, Send } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { sanitizeText } from "../../../../components/utils/sanitize";
 import { useAuth } from "../../../../components/hooks/useAuth";
+import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
@@ -15,16 +16,10 @@ export default function ClientProfile() {
   const { push } = useToast();
   const fileRef = useRef(null);
 
-  const [clients, setClients] = useState(null);
+  const clients = useLiveCollection("clients", "clients.json");
   const [name, setName] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      setClients(await dataStore.load("clients", "clients.json"));
-    })();
-  }, []);
 
   useEffect(() => {
     if (user?.name) setName(user.name);
@@ -63,11 +58,15 @@ export default function ClientProfile() {
     const patch = { name: sanitizeText(name, 100) };
     if (photoPreview) patch.photo = photoPreview;
 
-    const next = await dataStore.update("clients", (c) => c.id === me.id, patch);
-    setClients(next);
+    await dataStore.update("clients", (c) => c.id === me.id, patch);
+    // Keep the linked login account (what Navbar/AuthContext reads) in
+    // sync too, so the photo shows up instantly in the Navbar avatar,
+    // Token Board, Manager/Super Admin views — everywhere — without
+    // requiring a re-login.
+    if (me.userId) await dataStore.update("users", (u) => u.id === me.userId, patch);
     setSaving(false);
     setPhotoPreview(null);
-    push("Profile updated.", "success");
+    push("Profile updated — synced everywhere instantly.", "success");
   }
 
   return (

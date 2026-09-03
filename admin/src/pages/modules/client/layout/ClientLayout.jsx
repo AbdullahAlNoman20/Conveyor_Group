@@ -1,10 +1,24 @@
 import DashboardLayout from "../../../../components/layout/DashboardLayout";
-import { LayoutDashboard, QrCode, History, FileText, Wallet, UserCog, ShoppingCart } from "lucide-react";
+
+import {
+  LayoutDashboard,
+  QrCode,
+  FileText,
+  UserCog,
+  ShoppingCart,
+} from "lucide-react";
 
 const navGroups = [
   {
     title: "Overview",
-    items: [{ to: "/app/client", label: "Dashboard", Icon: LayoutDashboard, end: true }],
+    items: [
+      {
+        to: "/app/client",
+        label: "Dashboard",
+        Icon: LayoutDashboard,
+        end: true,
+      },
+    ],
   },
   {
     title: "My Profile",
@@ -16,15 +30,22 @@ const navGroups = [
   {
     title: "Meals",
     items: [
-      { to: "/app/client/place-order", label: "Place Order", Icon: ShoppingCart },
-      { to: "/app/client/orders", label: "Order History", Icon: History },
+      {
+        to: "/app/client/place-order",
+        label: "Place Order",
+        Icon: ShoppingCart,
+      },
     ],
   },
   {
     title: "Billing",
     items: [
-      { to: "/app/client/statement", label: "Monthly Statement", Icon: FileText },
-      { to: "/app/client/wallet", label: "Salary Deduction", Icon: Wallet },
+      {
+        to: "/app/client/statement",
+        label: "Monthly Statement",
+        Icon: FileText,
+      },
+      
     ],
   },
 ];

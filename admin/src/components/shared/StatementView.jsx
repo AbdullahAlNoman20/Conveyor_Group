@@ -1,83 +1,60 @@
-// FILE: src/pages/modules/client/pages/ClientStatement.jsx (FULL REWRITE — year nav fixed + period persists via sessionStorage)
+// FILE: src/components/shared/StatementView.jsx (NEW — the exact same statement view, reusable for Client/Manager/Super Admin)
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Download,
-  FileText,
-  Eye,
-  ChevronLeft,
-  ChevronRight,
-  Calendar,
-  Wallet,
-  Utensils,
-  RotateCcw,
-} from "lucide-react";
-import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
-import { useAuth } from "../../../../components/hooks/useAuth";
-import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
-import { exportToExcel } from "../../../../components/utils/exportExcel";
-import StatCard from "../../../../components/shared/StatCard";
-import Badge from "../../../../components/shared/Badge";
-import Loader from "../../../../components/shared/Loader";
-import Modal from "../../../../components/shared/Modal";
-import Pagination, { usePagination } from "../../../../components/shared/Pagination";
+import { ChevronLeft, ChevronRight, Calendar, Download, Eye, FileText, RotateCcw, Utensils, Wallet } from "lucide-react";
+import { printOnLetterhead } from "../utils/printLetterhead";
+import { exportToExcel } from "../utils/exportExcel";
+import StatCard from "./StatCard";
+import Badge from "./Badge";
+import Modal from "./Modal";
+import Pagination, { usePagination } from "./Pagination";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
 
-// Persisted for the tab's session only — cleared when the browser/tab
-// closes (a reasonable stand-in for "until I log out"), but survives
-// normal in-app navigation (e.g. opening an order's detail page and
-// coming back), which is what was broken before.
-const PERIOD_KEY = "cccms:statement-period";
-
-function readSavedPeriod() {
-  try {
-    const raw = sessionStorage.getItem(PERIOD_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (typeof parsed?.year === "number" && typeof parsed?.month === "number") return parsed;
-  } catch {}
-  return null;
-}
-
-function savePeriod(year, month) {
-  try {
-    sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ year, month }));
-  } catch {}
-}
-
-export default function ClientStatement() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const clients = useLiveCollection("clients", "clients.json");
-  const orders = useLiveCollection("orders", "orders.json");
-
+/**
+ * Renders exactly the same Monthly Statement UI/logic that
+ * ClientStatement.jsx uses for the logged-in client — but takes the
+ * target client + their orders as props, so Manager/Super Admin can view
+ * ANY client's statement in the identical shape (SRS correction #5:
+ * "যা যা যেভাবে যেভাবে দেখা যাচ্ছে... সেম ভাবে এটা দেখতে পারবে").
+ *
+ * `onViewOrder(orderId)` lets the caller decide where the eye-icon should
+ * navigate (Client goes to its own /app/client/orders/:id; Manager/Super
+ * Admin will want their own equivalent detail route).
+ * `periodStorageKey` scopes the sessionStorage period-memory per viewer
+ * context, so a Manager browsing Client A's statement doesn't clobber
+ * their own place in Client B's statement.
+ */
+export default function StatementView({ client, orders, onViewOrder, periodStorageKey }) {
   const now = new Date();
+
+  function readSavedPeriod() {
+    try {
+      const raw = sessionStorage.getItem(periodStorageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.year === "number" && typeof parsed?.month === "number") return parsed;
+    } catch {}
+    return null;
+  }
+
   const saved = readSavedPeriod();
   const [year, setYear] = useState(saved?.year ?? now.getFullYear());
-  const [month, setMonth] = useState(saved?.month ?? now.getMonth()); // 0-indexed
+  const [month, setMonth] = useState(saved?.month ?? now.getMonth());
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Whenever the selected period changes, remember it — this is what makes
-  // it survive a trip to OrderDetail.jsx and back.
   useEffect(() => {
-    savePeriod(year, month);
-  }, [year, month]);
-
-  const safeClients = clients || [];
-  const safeOrders = orders || [];
-
-  const me = safeClients.find((c) => c.name === user?.name) || safeClients[0];
+    try {
+      sessionStorage.setItem(periodStorageKey, JSON.stringify({ year, month }));
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month, periodStorageKey]);
 
   const myOrders = useMemo(
-    () =>
-      safeOrders.filter(
-        (o) => (o.clientId === user?.id || o.clientName === user?.name) && !["cancelled", "rejected"].includes(o.status)
-      ),
-    [safeOrders, user?.id, user?.name]
+    () => (orders || []).filter((o) => !["cancelled", "rejected"].includes(o.status)),
+    [orders]
   );
 
   const monthsWithData = useMemo(() => {
@@ -89,11 +66,6 @@ export default function ClientStatement() {
     return set;
   }, [myOrders]);
 
-  // FIX: year navigation used to be limited to years that already had
-  // orders (plus the current year), which made it impossible to even open
-  // an empty past year to confirm there was nothing there. Now it's a
-  // fixed, generous window (5 years back, 1 year forward) — independent of
-  // whether any order data exists for that year.
   const MIN_YEAR = now.getFullYear() - 5;
   const MAX_YEAR = now.getFullYear() + 1;
 
@@ -106,7 +78,6 @@ export default function ClientStatement() {
   );
 
   const sorted = useMemo(() => [...monthOrders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), [monthOrders]);
-
   const totalAmount = useMemo(() => monthOrders.reduce((s, o) => s + Number(o.amount || 0), 0), [monthOrders]);
   const daysEaten = useMemo(() => new Set(monthOrders.map((o) => new Date(o.createdAt).toDateString())).size, [monthOrders]);
 
@@ -114,10 +85,6 @@ export default function ClientStatement() {
 
   const monthLabel = `${MONTH_NAMES[month]} ${year}`;
   const isCurrentPeriod = year === now.getFullYear() && month === now.getMonth();
-
-  if (!clients || !orders) {
-    return <Loader full label="Loading your statement..." />;
-  }
 
   function downloadExcel() {
     exportToExcel(
@@ -129,7 +96,7 @@ export default function ClientStatement() {
         "Amount (Tk)": o.amount,
         Status: o.status,
       })),
-      `${user?.name || "statement"}-${year}-${String(month + 1).padStart(2, "0")}`
+      `${client?.name || "statement"}-${year}-${String(month + 1).padStart(2, "0")}`
     );
   }
 
@@ -138,7 +105,7 @@ export default function ClientStatement() {
       title: `Monthly Statement — ${monthLabel}`,
       bodyHtml: `
         <h2 style="margin:0 0 4px">Monthly Statement — ${monthLabel}</h2>
-        <p style="color:#595959;font-size:13px;margin:0 0 20px">${me?.name} · ${me?.employeeId || ""}</p>
+        <p style="color:#595959;font-size:13px;margin:0 0 20px">${client?.name || ""} · ${client?.employeeId || ""}</p>
         <table>
           <thead><tr><th>Date</th><th>Order</th><th>Items</th><th>Amount</th></tr></thead>
           <tbody>
@@ -163,7 +130,6 @@ export default function ClientStatement() {
     setPage(1);
     setPickerOpen(false);
   }
-
   function jumpToCurrentMonth() {
     setYear(now.getFullYear());
     setMonth(now.getMonth());
@@ -174,8 +140,8 @@ export default function ClientStatement() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Monthly Statement</h1>
-          <p className="text-sm text-ink-400">All your meals and salary deductions in one place, for {me?.name}.</p>
+          <h2 className="text-lg font-bold text-ink-900">Monthly Statement</h2>
+          <p className="text-sm text-ink-400">All meals and salary deductions for {client?.name}.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={printStatement} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
@@ -204,14 +170,11 @@ export default function ClientStatement() {
           </span>
           <span className="text-xs font-semibold text-brand-600">Change</span>
         </button>
-        {/* Quick way back to "now" — the period otherwise stays exactly as
-            picked, per the requested behaviour. */}
         {!isCurrentPeriod && (
           <button
             type="button"
             onClick={jumpToCurrentMonth}
-            className="flex items-center gap-1 rounded-xl text-red-700 px-3 py-2 text-xs font-semibold text-ink-600 hover:bg-ink-50"
-            title="Jump back to the current month"
+            className="flex items-center gap-1 rounded-xl border border-ink-200 bg-white px-3 py-2 text-xs font-semibold text-ink-600 hover:bg-ink-50"
           >
             <RotateCcw size={13} /> Current Month
           </button>
@@ -221,19 +184,11 @@ export default function ClientStatement() {
       <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} title="Select Period" size="sm">
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <button
-              onClick={() => setYear((y) => Math.max(MIN_YEAR, y - 1))}
-              disabled={year <= MIN_YEAR}
-              className="rounded-lg p-2 text-ink-500 hover:bg-ink-100 disabled:opacity-30"
-            >
+            <button onClick={() => setYear((y) => Math.max(MIN_YEAR, y - 1))} disabled={year <= MIN_YEAR} className="rounded-lg p-2 text-ink-500 hover:bg-ink-100 disabled:opacity-30">
               <ChevronLeft size={18} />
             </button>
             <span className="text-lg font-bold text-ink-900">{year}</span>
-            <button
-              onClick={() => setYear((y) => Math.min(MAX_YEAR, y + 1))}
-              disabled={year >= MAX_YEAR}
-              className="rounded-lg p-2 text-ink-500 hover:bg-ink-100 disabled:opacity-30"
-            >
+            <button onClick={() => setYear((y) => Math.min(MAX_YEAR, y + 1))} disabled={year >= MAX_YEAR} className="rounded-lg p-2 text-ink-500 hover:bg-ink-100 disabled:opacity-30">
               <ChevronRight size={18} />
             </button>
           </div>
@@ -246,11 +201,7 @@ export default function ClientStatement() {
                   key={m}
                   onClick={() => pickMonth(idx)}
                   className={`rounded-lg border px-2 py-2.5 text-xs font-semibold transition-colors ${
-                    isSelected
-                      ? "border-brand-500 bg-brand-50 text-brand-700"
-                      : hasData
-                        ? "border-ink-200 text-ink-700 hover:border-brand-300"
-                        : "border-ink-100 text-ink-400 hover:border-brand-200"
+                    isSelected ? "border-brand-500 bg-brand-50 text-brand-700" : hasData ? "border-ink-200 text-ink-700 hover:border-brand-300" : "border-ink-100 text-ink-400 hover:border-brand-200"
                   }`}
                 >
                   {m.slice(0, 3)}
@@ -258,9 +209,6 @@ export default function ClientStatement() {
               );
             })}
           </div>
-          <p className="mt-3 text-center text-[11px] text-ink-400">
-            Any month can be opened, even ones with no orders yet — data-filled months are shown in bold.
-          </p>
         </div>
       </Modal>
 
@@ -272,9 +220,8 @@ export default function ClientStatement() {
       </div>
 
       <div className="rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
-        <h2 className="mb-3 text-sm font-bold text-ink-700">{monthLabel} — Order & Deduction Details</h2>
-
-        <div className="hidden overflow-x-auto sm:block">
+        <h3 className="mb-3 text-sm font-bold text-ink-700">{monthLabel} — Order & Deduction Details</h3>
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase text-ink-400">
               <tr>
@@ -297,9 +244,11 @@ export default function ClientStatement() {
                   </td>
                   <td className="py-2 text-right font-semibold text-brand-600">-Tk {o.amount}</td>
                   <td className="py-2 text-right">
-                    <button onClick={() => navigate(`/app/client/orders/${o.id}`)} className="rounded-lg p-1.5 text-ink-500 hover:bg-ink-100">
-                      <Eye size={14} />
-                    </button>
+                    {onViewOrder && (
+                      <button onClick={() => onViewOrder(o.id)} className="rounded-lg p-1.5 text-ink-500 hover:bg-ink-100">
+                        <Eye size={14} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -311,30 +260,6 @@ export default function ClientStatement() {
             </tbody>
           </table>
         </div>
-
-        <div className="space-y-3 sm:hidden">
-          {pagedOrders.map((o) => (
-            <button
-              key={o.id}
-              onClick={() => navigate(`/app/client/orders/${o.id}`)}
-              className="flex w-full items-center justify-between gap-3 rounded-xl border border-ink-100 bg-ink-50/60 p-3 text-left"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold text-ink-900">{o.id}</p>
-                  <Badge tone={o.status}>{o.status}</Badge>
-                </div>
-                <p className="mt-1 truncate text-xs text-ink-400">{o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}</p>
-                <p className="mt-1 text-xs text-ink-400">{new Date(o.createdAt).toLocaleDateString()}</p>
-              </div>
-              <p className="shrink-0 font-bold text-brand-600">-Tk {o.amount}</p>
-            </button>
-          ))}
-          {monthOrders.length === 0 && (
-            <p className="rounded-xl border border-dashed border-ink-200 p-8 text-center text-sm text-ink-400">No orders in {monthLabel}.</p>
-          )}
-        </div>
-
         <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-1 pt-3" />
       </div>
     </div>

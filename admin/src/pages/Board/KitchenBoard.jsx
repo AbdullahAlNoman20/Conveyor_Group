@@ -8,10 +8,17 @@ function displayName(order) {
   return (order.clientName || "").replace(/^Guest - /, "");
 }
 
-const PRIORITY_RANK = { urgent: 0, vip: 1, high: 2, normal: 3 };
+// Orders only carry the client's name — look up their actual uploaded
+// photo from the clients collection so the Token Board shows the real
+// profile picture instead of the generated placeholder.
+function photoFor(order, clients) {
+  const match = (clients || []).find((c) => c.name === order.clientName);
+  return match?.photo || "";
+}
 
 export default function KitchenBoard() {
   const orders = useLiveCollection("orders", "orders.json");
+  const clients = useLiveCollection("clients", "clients.json");
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -32,23 +39,6 @@ export default function KitchenBoard() {
       upNext: active.slice(10, 15),
     };
   }, [orders]);
-
-  // Real countdown, driven by the actual prep time the Kitchen Head set and
-  // when preparation actually started — not a simulated number.
-  function etaLabel(order) {
-    if (order.status === "ready") return "Ready now";
-    if (
-      order.status !== "preparing" ||
-      !order.prepStartedAt ||
-      !order.prepMinutes
-    ) {
-      return order.status === "delayed" ? "Delayed" : "Waiting to start";
-    }
-    const elapsedMs = now - new Date(order.prepStartedAt);
-    const remainingMin = Math.ceil(order.prepMinutes - elapsedMs / 60000);
-    if (remainingMin <= 0) return "Ready any moment";
-    return `~${remainingMin} min`;
-  }
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-ink-950 text-white">
@@ -82,7 +72,7 @@ export default function KitchenBoard() {
             </div>
           </div>
           <div className="text-right">
-            <p className="font-mono text-3xl font-bold text-brand-500 board:text-5xl">
+            <p className="font-mono text-2xl font-bold text-brand-500 sm:text-3xl board:text-5xl">
               {now.toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -123,7 +113,12 @@ export default function KitchenBoard() {
                     key={o.id}
                     className="flex items-center gap-3 rounded-2xl border-2 border-brand-500 bg-ink-900 p-4 board:p-6"
                   >
-                    <AvatarImage name={displayName(o)} size={56} className="shrink-0 border-2 border-brand-500 board:h-16 board:w-16" />
+                    <AvatarImage
+                      name={displayName(o)}
+                      photo={photoFor(o, clients)}
+                      size={56}
+                      className="shrink-0 border-2 border-brand-500 board:h-16 board:w-16"
+                    />
                     <span className="min-w-0 flex-1 truncate text-xl font-extrabold text-white board:text-2xl">
                       {displayName(o)}
                     </span>
@@ -147,7 +142,12 @@ export default function KitchenBoard() {
                     key={o.id}
                     className="flex items-center gap-3 rounded-xl border border-emerald-600 bg-emerald-600/20 px-4 py-3 board:py-4"
                   >
-                    <AvatarImage name={displayName(o)} size={36} className="shrink-0 border border-emerald-500 board:h-11 board:w-11" />
+                    <AvatarImage
+                      name={displayName(o)}
+                      photo={photoFor(o, clients)}
+                      size={36}
+                      className="shrink-0 border border-emerald-500 board:h-11 board:w-11"
+                    />
                     <span className="min-w-0 flex-1 truncate text-lg font-bold text-emerald-100 board:text-xl">
                       {displayName(o)}
                     </span>
@@ -177,7 +177,12 @@ export default function KitchenBoard() {
                     key={o.id}
                     className="flex items-center gap-3 rounded-xl bg-ink-900 px-4 py-3 board:py-4"
                   >
-                    <AvatarImage name={displayName(o)} size={32} className="shrink-0 board:h-10 board:w-10" />
+                    <AvatarImage
+                      name={displayName(o)}
+                      photo={photoFor(o, clients)}
+                      size={32}
+                      className="shrink-0 board:h-10 board:w-10"
+                    />
                     <span className="min-w-0 flex-1 truncate text-base font-bold text-white board:text-lg">
                       {displayName(o)}
                     </span>

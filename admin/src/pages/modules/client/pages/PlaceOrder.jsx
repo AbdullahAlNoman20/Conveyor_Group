@@ -1,4 +1,4 @@
-// FILE: src/pages/modules/client/pages/PlaceOrder.jsx 
+// FILE: src/pages/modules/client/pages/PlaceOrder.jsx (MODIFIED — mobile-responsive fixes only, logic unchanged)
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Minus, Send, Lock, Cookie } from "lucide-react";
@@ -22,7 +22,7 @@ const DAY_NAMES = [
   "Saturday",
 ];
 const SNACK_CATEGORY = "Evening Snack";
-const VAT_RATE = 0.05; // SRS correction #2 — 5% VAT on every order summary
+const VAT_RATE = 0.05;
 
 export default function PlaceOrder() {
   const { user } = useAuth();
@@ -152,10 +152,6 @@ export default function PlaceOrder() {
       return;
     }
 
-    // Only reserve one of today's 300 prepared meals when this submission
-    // actually includes today's fixed meal — a snack-only add-on (client
-    // already collected their fixed meal earlier today) must NOT consume
-    // another slot.
     const consumesFixedMealSlot = isFixed && !alreadyOrderedToday;
     if (consumesFixedMealSlot) {
       try {
@@ -189,8 +185,6 @@ export default function PlaceOrder() {
       status: "awaiting_manager",
       selfPlaced: true,
       snackOnly: isSnackOnlySubmission,
-      // Lets OrderApprovals know whether rejecting this order should give
-      // back one of today's 300 prepared-meal slots.
       consumedMealSlot: consumesFixedMealSlot,
       createdAt: new Date().toISOString(),
     };
@@ -201,29 +195,37 @@ export default function PlaceOrder() {
       recipientRoles: ["manager"],
     });
     push("Order submitted — waiting for Manager approval.", "success");
-
     navigate(`/app/client/order-confirmation/${order.id}`);
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-ink-900">Place Order</h1>
+        <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">
+          Place Order
+        </h1>
         <p className="text-sm text-ink-400">
           Order instantly — no need to wait for a Manager to scan you in. It
           still goes through Manager approval before reaching the kitchen.
         </p>
       </div>
 
-      <form onSubmit={submit} className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      {/* Below lg this is a plain single-column stack; the cart summary
+          moves to the BOTTOM on mobile (order-last) so the menu is what
+          the user sees and scrolls through first, matching normal mobile
+          ordering-app conventions instead of showing an empty cart first. */}
+      <form
+        onSubmit={submit}
+        className="flex flex-col gap-5 lg:grid lg:grid-cols-3 lg:gap-6"
+      >
+        <div className="space-y-5 sm:space-y-6 lg:col-span-2">
           {isFixed ? (
-            <section className="rounded-xl border border-ink-100 bg-white p-5">
+            <section className="rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-ink-700">
                 <Lock size={14} /> Today's Fixed Meal ({todayName})
               </h2>
               <div className="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl bg-ink-50 p-3">
-                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white shadow-sm">
+                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-white shadow-sm sm:h-16 sm:w-16">
                   <DishImage
                     name={fixedMealName}
                     className="h-full w-full object-cover"
@@ -239,7 +241,7 @@ export default function PlaceOrder() {
                     Today's Fixed Meal
                   </p>
                 </div>
-                <span className="shrink-0 whitespace-nowrap rounded-lg bg-white px-2.5 py-1.5 text-sm font-bold text-brand-600 shadow-sm">
+                <span className="shrink-0 whitespace-nowrap rounded-lg bg-white px-2 py-1.5 text-xs font-bold text-brand-600 shadow-sm sm:px-2.5 sm:text-sm">
                   Tk {fixedMealPrice}
                 </span>
               </div>
@@ -255,12 +257,13 @@ export default function PlaceOrder() {
               )}
             </section>
           ) : (
-            <section className="rounded-xl border border-ink-100 bg-white p-5">
+            <section className="rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
               <h2 className="mb-3 text-sm font-bold text-ink-700">
                 Choose from the Menu
               </h2>
               <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-                Only Fixed Meal items can be ordered right now — the rest of the menu is Coming Soon.
+                Only Fixed Meal items can be ordered right now — the rest of the
+                menu is Coming Soon.
               </p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {menu
@@ -312,9 +315,9 @@ export default function PlaceOrder() {
           )}
 
           {snackMenu.length > 0 && (
-            <section className="rounded-xl border border-ink-100 bg-white p-5 opacity-60">
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-ink-700">
-                <Cookie size={14} /> Evening Snacks{" "}
+            <section className="rounded-xl border border-ink-100 bg-white p-4 opacity-60 sm:p-5">
+              <h2 className="mb-3 flex flex-wrap items-center gap-2 text-sm font-bold text-ink-700">
+                <Cookie size={14} /> Evening Snacks
                 <span className="rounded bg-ink-200 px-2 py-0.5 text-[10px] font-bold uppercase text-ink-500">
                   Coming Soon
                 </span>
@@ -346,26 +349,31 @@ export default function PlaceOrder() {
               </div>
             </section>
           )}
-
-         
         </div>
 
-        <aside className="h-fit space-y-4 self-start rounded-xl border border-ink-100 bg-white p-5 lg:sticky lg:top-20">
+        {/* Cart summary — order-first on desktop layout (lg:col grid puts
+            it naturally on the right); on mobile it's a normal block that
+            now sits AFTER the menu (no lg:order override needed since the
+            markup order already matches: menu first, summary second). */}
+        <aside className="w-full h-fit space-y-4 self-start rounded-xl border border-ink-100 bg-white p-4 sm:p-5 lg:sticky lg:top-20">
           <h2 className="text-sm font-bold text-ink-700">Order Summary</h2>
+
           <div className="space-y-2">
             {orderItems.map((i) => {
               const isSnack = snackItems.some((s) => s.menuId === i.menuId);
               const locked = isFixed && i.menuId === "fixed";
+
               return (
                 <div
                   key={i.menuId}
-                  className="flex min-w-0 items-center justify-between gap-2 text-sm"
+                  className="flex w-full min-w-0 items-center justify-between gap-2 text-sm"
                 >
                   <span className="min-w-0 flex-1 truncate text-ink-700">
                     {i.name}
                   </span>
+
                   {!locked && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
                         onClick={() =>
@@ -373,11 +381,13 @@ export default function PlaceOrder() {
                             ? updateSnackQty(i.menuId, -1)
                             : updateQty(i.menuId, -1)
                         }
-                        className="rounded bg-ink-100 p-1 hover:bg-ink-200"
+                        className="flex h-7 w-7 items-center justify-center rounded bg-ink-100 hover:bg-ink-200"
                       >
                         <Minus size={12} />
                       </button>
+
                       <span className="w-5 text-center">{i.qty}</span>
+
                       <button
                         type="button"
                         onClick={() =>
@@ -385,42 +395,49 @@ export default function PlaceOrder() {
                             ? updateSnackQty(i.menuId, 1)
                             : updateQty(i.menuId, 1)
                         }
-                        className="rounded bg-ink-100 p-1 hover:bg-ink-200"
+                        className="flex h-7 w-7 items-center justify-center rounded bg-ink-100 hover:bg-ink-200"
                       >
                         <Plus size={12} />
                       </button>
                     </div>
                   )}
-                  <span className="w-14 text-right font-semibold text-ink-900">
+
+                  <span className="w-14 shrink-0 text-right font-semibold text-ink-900">
                     Tk {i.qty * i.unitPrice}
                   </span>
                 </div>
               );
             })}
+
             {orderItems.length === 0 && (
               <p className="text-sm text-ink-400">No items yet.</p>
             )}
           </div>
+
           <div className="space-y-1 border-t border-ink-100 pt-3 text-sm">
             <div className="flex justify-between text-ink-500">
               <span>Subtotal</span>
               <span>Tk {subtotal}</span>
             </div>
+
             <div className="flex justify-between text-ink-500">
               <span>VAT (5%)</span>
               <span>Tk {vat}</span>
             </div>
+
             <div className="flex justify-between border-t border-ink-100 pt-2 text-base font-bold text-ink-900">
               <span>Total</span>
               <span>Tk {grandTotal}</span>
             </div>
           </div>
+
           <button
             type="submit"
             disabled={orderItems.length === 0 || submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-3 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 sm:py-2.5"
           >
-            <Send size={16} /> {submitting ? "Submitting..." : "Submit Order"}
+            <Send size={16} />
+            {submitting ? "Submitting..." : "Submit Order"}
           </button>
         </aside>
       </form>
