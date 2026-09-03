@@ -1,3 +1,4 @@
+// FULL CODE — src/pages/modules/super-admin/pages/ClientStatements.jsx (NEW)
 import { useState } from "react";
 import { Search, Users } from "lucide-react";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
@@ -32,7 +33,6 @@ export default function ClientStatements() {
 
   return (
     <div className="w-full min-w-0 space-y-4 overflow-x-hidden sm:space-y-6">
-      {/* Page Header */}
       <div className="min-w-0">
         <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">
           Client Statements
@@ -45,9 +45,7 @@ export default function ClientStatements() {
       </div>
 
       {!selected ? (
-        /* Client Picker */
         <div className="min-w-0 overflow-hidden rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
-          {/* Search */}
           <div className="relative mb-3">
             <Search
               size={16}
@@ -62,7 +60,6 @@ export default function ClientStatements() {
             />
           </div>
 
-          {/* Client List */}
           <div className="space-y-1">
             {filtered.map((c) => (
               <button
@@ -70,7 +67,6 @@ export default function ClientStatements() {
                 onClick={() => setSelectedId(c.id)}
                 className="flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors hover:bg-ink-50"
               >
-                {/* Client Icon + Name */}
                 <span className="flex min-w-0 flex-1 items-center gap-2">
                   <Users
                     size={14}
@@ -82,7 +78,6 @@ export default function ClientStatements() {
                   </span>
                 </span>
 
-                {/* Employee Details */}
                 <span className="hidden max-w-[45%] shrink-0 truncate text-xs text-ink-400 sm:block">
                   {c.employeeId} · {c.department}
                 </span>
@@ -97,7 +92,6 @@ export default function ClientStatements() {
           </div>
         </div>
       ) : (
-        /* Selected Client Statement */
         <div className="min-w-0">
           <button
             onClick={() => setSelectedId(null)}
@@ -110,10 +104,7 @@ export default function ClientStatements() {
             <StatementView
               client={selected}
               orders={selectedOrders}
-              periodStorageKey={`cccms:manager-statement-period:${selected.id}`}
-              // Manager doesn't have a client-facing order-detail route to
-              // link to yet — omit onViewOrder for now (no eye-icon click
-              // action) rather than link somewhere wrong.
+              periodStorageKey={`cccms:super-admin-statement-period:${selected.id}`}
             />
           </div>
         </div>

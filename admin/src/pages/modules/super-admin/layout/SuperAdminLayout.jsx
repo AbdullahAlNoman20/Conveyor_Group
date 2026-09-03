@@ -8,6 +8,7 @@ import {
   UserPlus,
   Archive,
   HardDriveDownload,
+  FileText,
 } from "lucide-react";
 
 const navGroups = [
@@ -32,6 +33,7 @@ const navGroups = [
     title: "Finance & Data",
     items: [
       { to: "/app/super-admin/financial-dashboard", label: "Who Ate / Salary Summary", Icon: Wallet },
+      { to: "/app/super-admin/client-statements", label: "Client Statements", Icon: FileText },
       { to: "/app/super-admin/system-backup", label: "System Backup", Icon: HardDriveDownload },
     ],
   },

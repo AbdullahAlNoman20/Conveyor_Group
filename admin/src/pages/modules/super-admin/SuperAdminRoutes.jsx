@@ -5,7 +5,6 @@ const SuperAdminClients = lazy(() => import("./pages/SuperAdminClients"));
 const SuperAdminMenu = lazy(() => import("./pages/SuperAdminMenu"));
 const MenuItemForm = lazy(() => import("./pages/MenuItemForm"));
 const StaffManagement = lazy(() => import("./pages/StaffManagement"));
-const StaffForm = lazy(() => import("./pages/StaffForm"));
 const StaffProfileView = lazy(() => import("./pages/StaffProfileView"));
 const FinancialDashboard = lazy(() => import("./pages/FinancialDashboard"));
 const AccountRequests = lazy(() => import("./pages/AccountRequests"));
@@ -15,6 +14,7 @@ const CreateClient = lazy(() => import("./pages/CreateClient"));
 const WelcomeEmailPage = lazy(() => import("./pages/WelcomeEmailPage"));
 const RecycleBin = lazy(() => import("./pages/RecycleBin"));
 const SystemBackup = lazy(() => import("./pages/SystemBackup"));
+const ClientStatements = lazy(() => import("./pages/ClientStatements"));
 
 const SuperAdminRoutes = [
   { index: true, element: <SuperAdminDashboard /> },
@@ -25,6 +25,7 @@ const SuperAdminRoutes = [
   { path: "account-requests/:id", element: <AccountRequestDetail /> },
   { path: "recycle-bin", element: <RecycleBin /> },
   { path: "system-backup", element: <SystemBackup /> },
+  { path: "client-statements", element: <ClientStatements /> },
   {
     path: "managers",
     element: (
@@ -54,7 +55,6 @@ const SuperAdminRoutes = [
       />
     ),
   },
-  { path: "staff/new", element: <StaffForm /> },
   { path: "staff/:id", element: <StaffProfileView /> },
   { path: "menu", element: <SuperAdminMenu /> },
   { path: "menu/new", element: <MenuItemForm /> },

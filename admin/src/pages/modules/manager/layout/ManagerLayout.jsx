@@ -1,3 +1,4 @@
+// FILE: src/pages/modules/manager/layout/ManagerLayout.jsx (FIXED — missing FileText import added)
 import DashboardLayout from "../../../../components/layout/DashboardLayout";
 import {
   LayoutDashboard,
@@ -5,18 +6,14 @@ import {
   CalendarRange,
   BarChart3,
   Monitor,
+  FileText, // FIX: was used below but never imported — crashed the whole module
 } from "lucide-react";
 
 const navGroups = [
   {
     title: "Overview",
     items: [
-      {
-        to: "/app/manager",
-        label: "Dashboard",
-        Icon: LayoutDashboard,
-        end: true,
-      },
+      { to: "/app/manager", label: "Dashboard", Icon: LayoutDashboard, end: true },
     ],
   },
   {
@@ -29,26 +26,14 @@ const navGroups = [
   {
     title: "Meal Planning",
     items: [
-      {
-        to: "/app/manager/meal-planner",
-        label: "Weekly Menu Planner",
-        Icon: CalendarRange,
-      },
+      { to: "/app/manager/meal-planner", label: "Weekly Menu Planner", Icon: CalendarRange },
     ],
   },
   {
     title: "Reports",
     items: [
-      {
-        to: "/app/manager/reports",
-        label: "Who Ate Today / This Month",
-        Icon: BarChart3,
-      },
-      {
-        to: "/app/manager/client-statements",
-        label: "Client Statements",
-        Icon: FileText,
-      },
+      { to: "/app/manager/reports", label: "Who Ate Today / This Month", Icon: BarChart3 },
+      { to: "/app/manager/client-statements", label: "Client Statements", Icon: FileText },
     ],
   },
 ];
