@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { UserCog, Camera, Send } from "lucide-react";
+import { Camera, Send } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
-import { genId } from "../../../../components/utils/idGenerator";
 import { sanitizeText } from "../../../../components/utils/sanitize";
 import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
-import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
 import AvatarImage from "../../../../components/shared/AvatarImage";
 
@@ -18,14 +16,13 @@ export default function ClientProfile() {
   const fileRef = useRef(null);
 
   const [clients, setClients] = useState(null);
-  const [requests, setRequests] = useState(null);
   const [name, setName] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
       setClients(await dataStore.load("clients", "clients.json"));
-      setRequests(await dataStore.load("profileRequests", "profile-requests.json"));
     })();
   }, []);
 
@@ -33,10 +30,10 @@ export default function ClientProfile() {
     if (user?.name) setName(user.name);
   }, [user]);
 
-  if (!clients || !requests) return <Loader full label="Loading your profile..." />;
+  if (!clients) return <Loader full label="Loading your profile..." />;
 
   const me = clients.find((c) => c.name === user?.name) || clients[0];
-  const myPending = requests.find((r) => r.clientId === me?.id && r.status === "pending");
+  const displayPhoto = photoPreview || me?.photo;
 
   function onPhotoChosen(e) {
     const file = e.target.files?.[0];
@@ -54,32 +51,23 @@ export default function ClientProfile() {
     reader.readAsDataURL(file);
   }
 
-  async function submitRequest(e) {
+  // Client-controlled: no Manager approval needed — updates apply the
+  // instant this is submitted, unlike the old profileRequests flow.
+  async function saveProfile(e) {
     e.preventDefault();
     if (!name.trim()) {
       push("Name cannot be empty.", "error");
       return;
     }
-    if (myPending) {
-      push("You already have a request pending approval.", "error");
-      return;
-    }
-    if (name.trim() === me?.name && !photoPreview) {
-      push("Change the name or choose a new photo before submitting.", "info");
-      return;
-    }
-    const record = {
-      id: genId("PR"),
-      clientId: me.id,
-      clientName: me.name,
-      requestedName: sanitizeText(name, 100),
-      requestedPhoto: photoPreview,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-    const next = await dataStore.insert("profileRequests", record);
-    setRequests(next);
-    push("Profile change request submitted — waiting for Manager approval.", "success");
+    setSaving(true);
+    const patch = { name: sanitizeText(name, 100) };
+    if (photoPreview) patch.photo = photoPreview;
+
+    const next = await dataStore.update("clients", (c) => c.id === me.id, patch);
+    setClients(next);
+    setSaving(false);
+    setPhotoPreview(null);
+    push("Profile updated.", "success");
   }
 
   return (
@@ -87,23 +75,16 @@ export default function ClientProfile() {
       <div>
         <h1 className="text-2xl font-bold text-ink-900">My Profile</h1>
         <p className="text-sm text-ink-400">
-          Changes to your name or photo need Manager approval before they apply.
+          Update your name or photo any time — changes apply immediately, no approval needed.
         </p>
       </div>
 
-      {myPending && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          You have a profile change request <Badge tone="pending">pending</Badge> approval — submitted{" "}
-          {new Date(myPending.createdAt).toLocaleDateString()}.
-        </div>
-      )}
-
-      <form onSubmit={submitRequest} className="space-y-4 rounded-xl border border-ink-100 bg-white p-6">
+      <form onSubmit={saveProfile} className="space-y-4 rounded-xl border border-ink-100 bg-white p-6">
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
             <div className="h-24 w-24 overflow-hidden rounded-full bg-ink-100">
-              {photoPreview ? (
-                <img src={photoPreview} alt="Profile preview" className="h-full w-full object-cover" />
+              {displayPhoto ? (
+                <img src={displayPhoto} alt="Profile preview" className="h-full w-full object-cover" />
               ) : (
                 <AvatarImage name={me?.name} size={96} />
               )}
@@ -141,10 +122,10 @@ export default function ClientProfile() {
         </div>
 
         <button
-          disabled={!!myPending}
+          disabled={saving}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Send size={16} /> {myPending ? "Request Submitted" : "Submit for Approval"}
+          <Send size={16} /> {saving ? "Saving..." : "Save Changes"}
         </button>
       </form>
     </div>

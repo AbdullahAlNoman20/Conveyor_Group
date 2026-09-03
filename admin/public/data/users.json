@@ -20,26 +20,6 @@
     "avatarColor": "#eb2a2d"
   },
   {
-    "id": "U-003",
-    "name": "Kamal Hossain",
-    "email": "kitchen@conveyorgroup.com",
-    "role": "kitchen_head",
-    "status": "active",
-    "department": "Kitchen",
-    "designation": "Kitchen Head",
-    "avatarColor": "#d97706"
-  },
-  {
-    "id": "U-004",
-    "name": "Shakil Mia",
-    "email": "waiter@conveyorgroup.com",
-    "role": "waiter",
-    "status": "active",
-    "department": "Restaurant Operations",
-    "designation": "Waiter",
-    "avatarColor": "#0284c7"
-  },
-  {
     "id": "U-005",
     "name": "Farzana Karim",
     "email": "client@conveyorgroup.com",
@@ -51,18 +31,7 @@
     "employmentType": "Company Employee",
     "mealPlan": "Fixed Company Meal",
     "mealBenefit": "Company Subsidized",
-    "defaultPaymentMethod": "wallet",
+    "defaultPaymentMethod": "salary",
     "avatarColor": "#059669"
-  },
-  {
-    "id": "U-006",
-    "name": "Guest User",
-    "email": "guest@conveyorgroup.com",
-    "role": "guest",
-    "status": "active",
-    "department": "-",
-    "designation": "Temporary Guest",
-    "guestType": "Temporary Guest",
-    "avatarColor": "#98999b"
   }
-]
+] 

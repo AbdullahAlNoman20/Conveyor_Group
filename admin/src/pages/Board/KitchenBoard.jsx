@@ -19,26 +19,17 @@ export default function KitchenBoard() {
     return () => clearInterval(t);
   }, []);
 
-  const { nowServing, readyZone, upNext } = useMemo(() => {
-    if (!orders) return { nowServing: null, readyZone: [], upNext: [] };
+  const { servingNow, readyZone, upNext } = useMemo(() => {
+    if (!orders) return { servingNow: [], readyZone: [], upNext: [] };
 
-    const active = orders.filter(
-      (o) => o.status !== "completed" && o.status !== "cancelled",
-    );
-
-    const sorted = [...active].sort((a, b) => {
-      const rank = (o) => PRIORITY_RANK[o.priority] ?? 3;
-      if (rank(a) !== rank(b)) return rank(a) - rank(b);
-      return new Date(a.createdAt) - new Date(b.createdAt);
-    });
-
-    const ready = sorted.filter((o) => o.status === "ready");
-    const upcoming = sorted.filter((o) => o.status !== "ready");
+    const active = orders
+      .filter((o) => o.status === "ready")
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
     return {
-      nowServing: ready[0] || upcoming[0] || null,
-      readyZone: ready,
-      upNext: upcoming.slice(0, 8),
+      servingNow: active.slice(0, 5),
+      readyZone: active.slice(5, 10),
+      upNext: active.slice(10, 15),
     };
   }, [orders]);
 
@@ -119,25 +110,26 @@ export default function KitchenBoard() {
           <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:justify-items-center">
             <section className="w-full max-w-md lg:col-span-1">
               <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-400">
-                Now Serving
+                Serving Now
               </p>
-              {nowServing ? (
-                <div className="flex flex-col items-center rounded-2xl border-2 border-brand-500 bg-ink-900 p-6 text-center board:p-10">
-                  <AvatarImage name={displayName(nowServing)} size={72} className="border-2 border-brand-500 board:h-24 board:w-24" />
-                  <p className="mt-3 text-2xl font-extrabold text-white board:text-4xl">
-                    {displayName(nowServing)}
-                  </p>
-                  <p className="mt-2 text-lg text-ink-200 board:text-2xl">
-                    {nowServing.tableNumber
-                      ? `Table ${nowServing.tableNumber}`
-                      : "Take Away"}
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-ink-800 bg-ink-900 p-10 text-center text-ink-500">
-                  No active orders
-                </div>
-              )}
+              <div className="space-y-2">
+                {servingNow.length === 0 && (
+                  <div className="rounded-2xl border border-ink-800 bg-ink-900 p-10 text-center text-ink-500">
+                    No active orders
+                  </div>
+                )}
+                {servingNow.map((o) => (
+                  <div
+                    key={o.id}
+                    className="flex items-center gap-3 rounded-2xl border-2 border-brand-500 bg-ink-900 p-4 board:p-6"
+                  >
+                    <AvatarImage name={displayName(o)} size={56} className="shrink-0 border-2 border-brand-500 board:h-16 board:w-16" />
+                    <span className="min-w-0 flex-1 truncate text-xl font-extrabold text-white board:text-2xl">
+                      {displayName(o)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </section>
 
             <section className="w-full max-w-md">
@@ -188,17 +180,6 @@ export default function KitchenBoard() {
                     <AvatarImage name={displayName(o)} size={32} className="shrink-0 board:h-10 board:w-10" />
                     <span className="min-w-0 flex-1 truncate text-base font-bold text-white board:text-lg">
                       {displayName(o)}
-                    </span>
-                    <span className="hidden text-sm text-ink-400 sm:inline">
-                      {o.tableNumber ? `Table ${o.tableNumber}` : "Take Away"}
-                    </span>
-                    {o.priority !== "normal" && (
-                      <span className="rounded bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase">
-                        {o.priority}
-                      </span>
-                    )}
-                    <span className="text-sm font-semibold text-amber-400">
-                      {etaLabel(o)}
                     </span>
                   </div>
                 ))}

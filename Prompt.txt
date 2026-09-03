@@ -1,48 +1,51 @@
-আমার প্রয়োজনীয় ফাইল লিস্ট (এই বড় আপডেটের জন্য — কয়েকটি ভাগে):
+এই ৭টা কাজ সম্পন্ন করতে আমার নিচের ফাইলগুলো লাগবে (তুমি বলেছ প্রায় সব আপডেট করেছ, তাই latest ভার্সন পাঠাও):
 
-# ================= ১. একদিনে একবার অর্ডার চেক (Daily Limit) =================
-src/components/services/selfOrder.js (আগেই দেয়া আছে — লাগবে না)
-src/pages/modules/manager/pages/ScanQR.jsx (আগেই দেয়া আছে — লাগবে না)
-src/pages/modules/client/pages/ClientDashboard.jsx (আগেই দেয়া আছে — লাগবে না)
+# ================= ১. Client Dashboard এর "Scan to Order" — approval ছাড়া সরাসরি order =================
+1. src/pages/modules/client/pages/ClientDashboard.jsx
+2. src/components/services/selfOrder.js
 
-# ================= ২. স্যালারি থেকে কাটা + প্রতিদিন/মাসিক সামারি =================
-src/components/services/earnings.js (আগেই দেয়া আছে — লাগবে না)
-src/pages/modules/client/pages/ClientWallet.jsx
-src/pages/modules/client/pages/ClientStatement.jsx
-src/pages/modules/manager/pages/ManagerReports.jsx
-src/pages/modules/super-admin/pages/FinancialDashboard.jsx
-src/pages/modules/super-admin/pages/SuperAdminDashboard.jsx
-src/components/utils/exportExcel.js (আগেই দেয়া আছে — লাগবে না)
-public/data/wallet-transactions.json
+# ================= ২. Account Requests — শুধু "View" বাটন + আলাদা Detail পেজে Accept/Reject =================
+3. src/pages/modules/super-admin/pages/AccountRequests.jsx
+4. src/pages/modules/super-admin/SuperAdminRoutes.jsx
 
-# ================= ৩. ডেইলি ৩০০ জনের খাবার লিমিট কাউন্টার =================
-src/pages/Home/Home.jsx (আগেই দেয়া আছে — লাগবে না)
-public/data/settings.json (আগেই দেয়া আছে — লাগবে না)
+# ================= ৩. Create Client ফর্ম রেজিস্ট্রেশন ফর্মের মতো, সরাসরি প্রোফাইল তৈরি =================
+5. src/pages/modules/super-admin/pages/SuperAdminClients.jsx
+6. src/pages/Register/Register.jsx
 
-# ================= ৪. লাইভ টোকেন বোর্ড (প্রোফাইল পিকচার + নাম) =================
-src/pages/Board/KitchenBoard.jsx
-src/components/shared/AvatarImage.jsx
-public/data/clients.json (আগেই দেয়া আছে — লাগবে না)
-s
-# ================= ৫. ওয়েটার এর "Ready Orders" (self-order সরাসরি Ready-তে আসার কথা) =================
-src/pages/modules/waiter/pages/WaiterOrders.jsx (আগেই দেয়া আছে — লাগবে না)
+# ================= ৪. Email Preview এ PDF Download যোগ =================
+7. src/components/shared/EmailPreviewModal.jsx
+8. src/components/utils/printLetterhead.js
 
-শুধু এই ফাইলগুলো দিলেই যথেষ্ট হবে (নতুন যা যা চাওয়া হয়নি সেগুলো বাদ):
+# ================= ৫. নোটিফিকেশন ক্লিনআপ (শুধু client/manager/super_admin, নির্দিষ্ট ক্লায়েন্টকে টার্গেট করে) =================
+9. src/components/context/NotificationContext.jsx
+10. src/components/services/socket.js
+11. src/components/services/notifyEvent.js
+12. src/components/utils/orderRecipient.js
 
-1. src/pages/modules/client/pages/ClientWallet.jsx
-2. src/pages/modules/client/pages/ClientStatement.jsx
-3. src/pages/modules/manager/pages/ManagerReports.jsx
-4. src/pages/modules/super-admin/pages/FinancialDashboard.jsx
-5. src/pages/modules/super-admin/pages/SuperAdminDashboard.jsx
-6. public/data/wallet-transactions.json
-7. src/pages/Board/KitchenBoard.jsx (আগে দেয়া ছিল, কিন্তু নতুন কিছু আপডেট থাকলে আবার দাও — না থাকলে বলো, পুরনোটাই ব্যবহার করবো)
-8. src/components/shared/AvatarImage.jsx
+# ================= ৬. ডিলিট → রিসাইকেল বিন (Restore করা যাবে) =================
+13. src/pages/modules/super-admin/pages/SuperAdminClients.jsx (উপরেই আছে)
+14. public/data/clients.json
 
-এই কাজটা বড়, তাই আমি ধাপে ধাপে করবো:
-- **ধাপ ১:** Daily-once order limit + Manager/Client উভয় জায়গায় চেক
-- **ধাপ ২:** পেমেন্ট মেথড সবসময় "salary" (wallet বাদ)
-- **ধাপ ৩:** 300-limit কাউন্টার (Home page + স্টেশন QR সেকশনে ডিজাইন)
-- **ধাপ ৪:** Token Board-এ প্রোফাইল পিকচার+নাম, self-order সরাসরি Ready
-- **ধাপ ৫:** Manager/Super Admin এর জন্য প্রতিদিন কতজন খেলো + কে কবে কত টাকার খেলো + মাসিক সামারি ডাউনলোড (Excel)
+# ================= ৭. সিস্টেম ব্যাকআপ (daily/weekly/monthly, JSON+CSV, transactions সহ) — নতুন ফিচার =================
+15. src/components/utils/exportExcel.js
+16. src/components/utils/downloadFile.js
+17. public/data/orders.json (রেফারেন্সের জন্য, না দিলেও চলবে)
 
-ফাইলগুলো দাও, তারপর একে একে সবগুলো সমাধান দিচ্ছি।
+# ================= Restaurant Settings ডিলিট =================
+18. src/pages/modules/super-admin/layout/SuperAdminLayout.jsx
+19. src/pages/modules/super-admin/pages/RestaurantSettings.jsx (শুধু কনফার্ম করতে এটা আসলেই ডিলিট করা যাবে, dependency আছে কিনা)
+
+আসল প্রয়োজনীয় ফাইল (মিনিমাম যা লাগবেই):
+1. src/pages/modules/client/pages/ClientDashboard.jsx
+2. src/components/services/selfOrder.js
+3. src/pages/modules/super-admin/pages/AccountRequests.jsx
+4. src/pages/modules/super-admin/SuperAdminRoutes.jsx
+5. src/pages/modules/super-admin/pages/SuperAdminClients.jsx
+6. src/pages/Register/Register.jsx
+7. src/components/shared/EmailPreviewModal.jsx
+8. src/components/context/NotificationContext.jsx
+9. src/components/services/socket.js
+10. src/components/services/notifyEvent.js
+11. src/pages/modules/super-admin/layout/SuperAdminLayout.jsx
+
+এই ১১টা পাঠাও — একসাথে সবগুলো কাজ (নতুন Recycle Bin পেজ + System Backup পেজ সহ) সম্পন্ন করে দেব।

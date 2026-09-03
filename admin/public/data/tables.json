@@ -1,8 +1,0 @@
-[
-  { "id": "T-01", "number": 1, "capacity": 4, "status": "occupied" },
-  { "id": "T-02", "number": 2, "capacity": 4, "status": "free" },
-  { "id": "T-03", "number": 3, "capacity": 6, "status": "occupied" },
-  { "id": "T-04", "number": 4, "capacity": 2, "status": "free" },
-  { "id": "T-05", "number": 5, "capacity": 4, "status": "reserved" },
-  { "id": "T-06", "number": 6, "capacity": 8, "status": "free" }
-]

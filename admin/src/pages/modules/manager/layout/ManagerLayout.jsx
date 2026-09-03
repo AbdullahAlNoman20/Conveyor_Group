@@ -1,20 +1,5 @@
-// FILE: src/pages/modules/manager/layout/ManagerLayout.jsx (MODIFIED — add Earnings nav link under Finance)
 import DashboardLayout from "../../../../components/layout/DashboardLayout";
-import {
-  LayoutDashboard,
-  ScanLine,
-  ClipboardPlus,
-  ClipboardCheck as ApprovalIcon,
-  ChefHat,
-  UserPlus,
-  ClipboardCheck,
-  CalendarRange,
-  Wallet,
-  Receipt,
-  BarChart3,
-  Monitor,
-  TrendingUp,
-} from "lucide-react";
+import { LayoutDashboard, ScanLine, CalendarRange, BarChart3, Monitor } from "lucide-react";
 
 const navGroups = [
   {
@@ -24,39 +9,17 @@ const navGroups = [
   {
     title: "Operations",
     items: [
-      { to: "/app/manager/scan-qr", label: "Scan QR", Icon: ScanLine },
-      { to: "/app/manager/new-order", label: "New Order", Icon: ClipboardPlus },
-      { to: "/app/manager/order-approvals", label: "Order Approvals", Icon: ApprovalIcon },
-      { to: "/app/manager/kitchen-queue", label: "Kitchen Queue", Icon: ChefHat },
+      { to: "/app/manager/scan-qr", label: "Scan QR — Order", Icon: ScanLine },
       { to: "/kitchen/board", label: "Token Display Board", Icon: Monitor },
     ],
   },
   {
-    title: "Guests",
-    items: [
-      { to: "/app/manager/guests", label: "Guest Management", Icon: UserPlus },
-      { to: "/app/manager/guest-requests", label: "Guest Requests", Icon: ClipboardCheck },
-      { to: "/app/manager/profile-requests", label: "Profile Change Requests", Icon: ClipboardCheck },
-    ],
-  },
-  {
     title: "Meal Planning",
-    items: [
-      { to: "/app/manager/meal-planner", label: "Weekly Menu Planner", Icon: CalendarRange },
-      { to: "/app/manager/pre-bookings", label: "Meal Pre-Bookings", Icon: CalendarRange },
-    ],
-  },
-  {
-    title: "Finance",
-    items: [
-      { to: "/app/manager/wallet-recharge", label: "Wallet Recharge", Icon: Wallet },
-      { to: "/app/manager/earnings", label: "Restaurant Earnings", Icon: TrendingUp }, // NEW
-      { to: "/app/manager/purchase", label: "Purchase Voucher", Icon: Receipt },
-    ],
+    items: [{ to: "/app/manager/meal-planner", label: "Weekly Menu Planner", Icon: CalendarRange }],
   },
   {
     title: "Reports",
-    items: [{ to: "/app/manager/reports", label: "Reports", Icon: BarChart3 }],
+    items: [{ to: "/app/manager/reports", label: "Who Ate Today / This Month", Icon: BarChart3 }],
   },
 ];
 

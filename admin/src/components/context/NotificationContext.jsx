@@ -8,69 +8,19 @@ import { useAuth } from "../hooks/useAuth";
 export const NotificationContext = createContext(null);
 
 const EVENT_COPY = {
-  [SOCKET_EVENTS.ORDER_SUBMITTED]: "A new order needs your approval.",
-  [SOCKET_EVENTS.MANAGER_ACCEPTED]: "Manager accepted your order.",
-  [SOCKET_EVENTS.ORDER_REJECTED]: "Your order was rejected by the Manager.",
-  [SOCKET_EVENTS.KITCHEN_ACCEPTED]: "Kitchen accepted your order.",
-  [SOCKET_EVENTS.PREPARATION_STARTED]: "Cooking started for your order.",
-  [SOCKET_EVENTS.FOOD_READY]: "Your food is ready — please collect.",
-  [SOCKET_EVENTS.FOOD_SERVED]: "Your order has been served.",
-  [SOCKET_EVENTS.ORDER_COMPLETED]: "Your order has been completed. Thank you!",
-  [SOCKET_EVENTS.ORDER_DELAYED]: "Your order has been delayed.",
-  [SOCKET_EVENTS.ORDER_CANCELLED]: "An order was cancelled.",
-  [SOCKET_EVENTS.GUEST_REQUEST_SUBMITTED]: "A guest request needs your approval.",
-  [SOCKET_EVENTS.GUEST_REQUEST_APPROVED]: "Your guest request was approved.",
-  [SOCKET_EVENTS.WALLET_RECHARGED]: "Your wallet has been recharged.",
-  [SOCKET_EVENTS.BOOKING_SUBMITTED]: "A new meal pre-booking needs your approval.",
   [SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED]: "A new account request needs your review.",
-  [SOCKET_EVENTS.INSTANT_ORDER_CREATED]: "An instant fixed-meal order was placed.",
-};
-
-const ORDER_EVENT_LINKS = {
-  super_admin: "/app/super-admin/reports",
-  manager: "/app/manager",
-  kitchen_head: "/app/kitchen/queue",
-  waiter: "/app/waiter",
-  client: "/app/client/orders",
-  guest: "/app/guest/orders",
+  [SOCKET_EVENTS.INSTANT_ORDER_CREATED]: "A fixed-meal order was placed.",
+  [SOCKET_EVENTS.FOOD_READY]: "Your order is ready for collection.",
 };
 
 function resolveLink(event, role) {
   switch (event) {
-    case SOCKET_EVENTS.ORDER_SUBMITTED:
-      return role === "manager"
-        ? "/app/manager/order-approvals"
-        : role === "kitchen_head"
-          ? "/app/kitchen/queue"
-          : ORDER_EVENT_LINKS[role] || "/";
-    case SOCKET_EVENTS.MANAGER_ACCEPTED:
-    case SOCKET_EVENTS.ORDER_REJECTED:
-    case SOCKET_EVENTS.KITCHEN_ACCEPTED:
-    case SOCKET_EVENTS.PREPARATION_STARTED:
-    case SOCKET_EVENTS.FOOD_READY:
-    case SOCKET_EVENTS.FOOD_SERVED:
-    case SOCKET_EVENTS.ORDER_COMPLETED:
-    case SOCKET_EVENTS.ORDER_DELAYED:
-    case SOCKET_EVENTS.ORDER_CANCELLED:
-      return ORDER_EVENT_LINKS[role] || "/";
-    case SOCKET_EVENTS.GUEST_REQUEST_SUBMITTED:
-      return role === "manager" ? "/app/manager/guest-requests" : ORDER_EVENT_LINKS[role] || "/";
-    case SOCKET_EVENTS.GUEST_REQUEST_APPROVED:
-      return role === "client" ? "/app/client/guest-request" : "/app/manager/guest-requests";
-    case SOCKET_EVENTS.WALLET_RECHARGED:
-      return role === "client" ? "/app/client/wallet" : "/app/manager/wallet-recharge";
-    case SOCKET_EVENTS.BOOKING_SUBMITTED:
-      return role === "manager"
-        ? "/app/manager/pre-bookings"
-        : "/app/client/pre-booking";
     case SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED:
-      return role === "super_admin" ? "/app/super-admin/account-requests" : "/";
+      return role === "super_admin" ? "/app/super-admin/account-requests" : "/app/client";
     case SOCKET_EVENTS.INSTANT_ORDER_CREATED:
-      return role === "manager"
-        ? "/app/manager"
-        : role === "kitchen_head"
-          ? "/app/kitchen/queue"
-          : "/";
+      return role === "manager" ? "/app/manager" : role === "super_admin" ? "/app/super-admin" : "/";
+    case SOCKET_EVENTS.FOOD_READY:
+      return role === "client" ? "/app/client/orders" : "/";
     default:
       return null;
   }
@@ -80,9 +30,10 @@ function recipientId(user) {
   return user?.id || user?.name || null;
 }
 
+// Strict targeting: a notification only reaches the intended client/role,
+// never everyone. recipientNames must match the user's own name exactly.
 function isForUser(entry, user) {
   if (!entry || !user) return false;
-  if (entry.global) return true;
   const roleMatch = entry.recipientRoles?.includes(user.role);
   const nameMatch = entry.recipientNames?.includes(user.name);
   return Boolean(roleMatch || nameMatch);
@@ -110,17 +61,13 @@ export function NotificationProvider({ children }) {
     };
   }, []);
 
-  // Reset the "already alerted" tracker whenever the logged-in user
-  // changes, so a fresh login always re-evaluates pending unread items.
   useEffect(() => {
     seenIdsRef.current = null;
   }, [user?.id, user?.name, user?.role]);
 
   const mine = useMemo(() => {
     if (!user) return [];
-    return all
-      .filter((n) => isForUser(n, user))
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return all.filter((n) => isForUser(n, user)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [all, user]);
 
   const myId = recipientId(user);
@@ -130,7 +77,6 @@ export function NotificationProvider({ children }) {
     const currentIds = new Set(mine.map((n) => n.id));
 
     if (seenIdsRef.current === null) {
-      // Fresh login/mount — alert once for anything still unread.
       const hasUnread = mine.some((n) => !n.readBy?.includes(myId));
       if (hasUnread) {
         playAlertSound();
@@ -142,10 +88,7 @@ export function NotificationProvider({ children }) {
 
     const newOnes = mine.filter((n) => !seenIdsRef.current.has(n.id));
     if (newOnes.length > 0) {
-      newOnes.forEach((n) => {
-        toastCtx?.push(n.message, "info");
-        showBrowserNotification("CCCMS", { body: n.message });
-      });
+      newOnes.forEach((n) => toastCtx?.push(n.message, "info"));
       playAlertSound();
     }
     seenIdsRef.current = currentIds;
@@ -192,15 +135,7 @@ export function NotificationProvider({ children }) {
   );
 
   const unreadCount = items.filter((i) => !i.read).length;
+  const value = useMemo(() => ({ items, unreadCount, markAllRead, markOneRead }), [items, unreadCount, myId]);
 
-  const value = useMemo(
-    () => ({ items, unreadCount, markAllRead, markOneRead }),
-    [items, unreadCount, myId]
-  );
-
-  return (
-    <NotificationContext.Provider value={value}>
-      {children}
-    </NotificationContext.Provider>
-  );
+  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 }

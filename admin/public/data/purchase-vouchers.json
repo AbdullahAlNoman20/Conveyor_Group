@@ -1,5 +1,0 @@
-[
-  { "id": "PV-8001", "vendor": "Fresh Farms Ltd", "category": "Vegetables", "amount": 4200, "paymentMethod": "Cash", "date": "2026-07-27", "remarks": "Weekly vegetable stock", "status": "recorded" },
-  { "id": "PV-8002", "vendor": "Bengal Fisheries", "category": "Fish", "amount": 9800, "paymentMethod": "Bank Transfer", "date": "2026-07-26", "remarks": "Rui & Katla batch", "status": "recorded" },
-  { "id": "PV-8003", "vendor": "Titas Gas", "category": "Gas", "amount": 3100, "paymentMethod": "Bank Transfer", "date": "2026-07-20", "remarks": "Monthly gas bill", "status": "recorded" }
-]

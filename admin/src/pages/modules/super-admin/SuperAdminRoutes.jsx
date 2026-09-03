@@ -3,22 +3,28 @@ import { lazy } from "react";
 const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
 const SuperAdminClients = lazy(() => import("./pages/SuperAdminClients"));
 const SuperAdminMenu = lazy(() => import("./pages/SuperAdminMenu"));
-const SuperAdminTables = lazy(() => import("./pages/SuperAdminTables"));
+const MenuItemForm = lazy(() => import("./pages/MenuItemForm"));
 const StaffManagement = lazy(() => import("./pages/StaffManagement"));
-const RestaurantSettings = lazy(() => import("./pages/RestaurantSettings"));
-const QRManagement = lazy(() => import("./pages/QRManagement"));
+const StaffForm = lazy(() => import("./pages/StaffForm"));
+const StaffProfileView = lazy(() => import("./pages/StaffProfileView"));
 const FinancialDashboard = lazy(() => import("./pages/FinancialDashboard"));
-const Subsidy = lazy(() => import("./pages/Subsidy"));
-const Reports = lazy(() => import("./pages/Reports"));
-const AuditLogs = lazy(() => import("./pages/AuditLogs"));
-const PurchaseVoucher = lazy(() => import("../manager/pages/PurchaseVoucher"));
-const SystemBackup = lazy(() => import("./pages/SystemBackup"));
-const RegistrationArchive = lazy(() => import("./pages/RegistrationArchive"));
 const AccountRequests = lazy(() => import("./pages/AccountRequests"));
+const AccountRequestDetail = lazy(() => import("./pages/AccountRequestDetail"));
+const ClientProfileView = lazy(() => import("./pages/ClientProfileView"));
+const CreateClient = lazy(() => import("./pages/CreateClient"));
+const WelcomeEmailPage = lazy(() => import("./pages/WelcomeEmailPage"));
+const RecycleBin = lazy(() => import("./pages/RecycleBin"));
+const SystemBackup = lazy(() => import("./pages/SystemBackup"));
 
 const SuperAdminRoutes = [
   { index: true, element: <SuperAdminDashboard /> },
   { path: "clients", element: <SuperAdminClients /> },
+  { path: "clients/new", element: <CreateClient /> },
+  { path: "clients/:id", element: <ClientProfileView /> },
+  { path: "welcome-email/:userId", element: <WelcomeEmailPage /> },
+  { path: "account-requests/:id", element: <AccountRequestDetail /> },
+  { path: "recycle-bin", element: <RecycleBin /> },
+  { path: "system-backup", element: <SystemBackup /> },
   {
     path: "managers",
     element: (
@@ -29,6 +35,7 @@ const SuperAdminRoutes = [
         idPrefix="MG"
         showEmail
         loginRole="manager"
+        routeType="managers"
       />
     ),
   },
@@ -43,20 +50,16 @@ const SuperAdminRoutes = [
         showEmail={false}
         roleField
         loginRole="kitchen_head"
+        routeType="kitchen-staff"
       />
     ),
   },
+  { path: "staff/new", element: <StaffForm /> },
+  { path: "staff/:id", element: <StaffProfileView /> },
   { path: "menu", element: <SuperAdminMenu /> },
-  { path: "tables", element: <SuperAdminTables /> },
-  { path: "settings", element: <RestaurantSettings /> },
-  { path: "qr-management", element: <QRManagement /> },
+  { path: "menu/new", element: <MenuItemForm /> },
+  { path: "menu/:id", element: <MenuItemForm /> },
   { path: "financial-dashboard", element: <FinancialDashboard /> },
-  { path: "subsidy", element: <Subsidy /> },
-  { path: "purchase", element: <PurchaseVoucher /> },
-  { path: "reports", element: <Reports /> },
-  { path: "audit", element: <AuditLogs /> },
-  { path: "system-backup", element: <SystemBackup /> },
-  { path: "registration-archive", element: <RegistrationArchive /> },
   { path: "account-requests", element: <AccountRequests /> },
 ];
 

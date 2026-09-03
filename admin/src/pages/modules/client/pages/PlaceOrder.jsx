@@ -9,7 +9,6 @@ import { notifyEvent } from "../../../../components/services/notifyEvent";
 import { genId } from "../../../../components/utils/idGenerator";
 import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
-import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
 import DishImage from "../../../../components/shared/DishImage";
 
@@ -150,10 +149,6 @@ export default function PlaceOrder() {
           : "Add at least one item to your order.",
         "error",
       );
-      return;
-    }
-    if (collectionType === "dine_in" && !tableNumber) {
-      push("Table number is required for Dine-In.", "error");
       return;
     }
 
@@ -352,43 +347,7 @@ export default function PlaceOrder() {
             </section>
           )}
 
-          <section className="rounded-xl border border-ink-100 bg-white p-5">
-            <h2 className="mb-4 text-sm font-bold text-ink-700">Collection</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Collection Type" required>
-                <select
-                  value={collectionType}
-                  onChange={(e) => setCollectionType(e.target.value)}
-                  className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-                >
-                  <option value="dine_in">Dine In</option>
-                  <option value="take_away">Take Away</option>
-                </select>
-              </FormField>
-              <FormField
-                label="Table Number"
-                required={collectionType === "dine_in"}
-              >
-                <input
-                  type="number"
-                  disabled={collectionType !== "dine_in"}
-                  value={tableNumber}
-                  onChange={(e) => setTableNumber(e.target.value)}
-                  className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:bg-ink-50"
-                />
-              </FormField>
-            </div>
-            <FormField label="Pay From" required className="mt-4">
-              <select
-                value={payFrom}
-                onChange={(e) => setPayFrom(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-              >
-                <option value="wallet">Wallet</option>
-                <option value="salary">Salary</option>
-              </select>
-            </FormField>
-          </section>
+         
         </div>
 
         <aside className="h-fit space-y-4 self-start rounded-xl border border-ink-100 bg-white p-5 lg:sticky lg:top-20">

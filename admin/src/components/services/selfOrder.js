@@ -100,14 +100,13 @@ export async function createInstantFixedMealOrder({ client, clients, orders, wee
   await notifyEvent(SOCKET_EVENTS.FOOD_READY, {
     message: `Order ${order.id} is ready for collection.`,
     recipientNames: [orderRecipientName(order)],
-    recipientRoles: ["waiter"],
   });
   await notifyEvent(SOCKET_EVENTS.INSTANT_ORDER_CREATED, {
     message:
       source === "manager_scan"
         ? `Instant fixed-meal order ${order.id} created for ${client.name} via QR scan.`
-        : `${client.name} self-ordered ${order.id} at the station — sent straight to the kitchen board.`,
-    recipientRoles: ["manager", "kitchen_head"],
+        : `${client.name} self-ordered ${order.id} — sent straight to the token board.`,
+    recipientRoles: ["manager", "super_admin"],
   });
 
   return order;

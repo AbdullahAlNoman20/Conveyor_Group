@@ -1,22 +1,17 @@
 // FILE: src/pages/modules/super-admin/pages/SuperAdminClients.jsx  (MODIFIED, full rewrite)
 import { useEffect, useState } from "react";
-import { UserPlus, Edit2, Ban, Trash2, KeyRound, Eye, IdCard, FileDown } from "lucide-react";
-import { printBlankRegistrationForm } from "../../../../components/utils/registrationForm";
+import { useNavigate } from "react-router-dom";
+import { UserPlus, Edit2, Ban, Trash2, KeyRound, IdCard, RotateCcw, Archive } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
-import { genId } from "../../../../components/utils/idGenerator";
 import { sanitizeText, sanitizeEmail } from "../../../../components/utils/sanitize";
 import { generatePassword, deriveEmail } from "../../../../components/utils/credentials";
 import { useToast } from "../../../../components/hooks/useToast";
 import Button from "../../../../components/shared/Button";
 import FormField from "../../../../components/shared/FormField";
-import Modal from "../../../../components/shared/Modal";
-import ConfirmDialog from "../../../../components/shared/ConfirmDialog";
 import Badge from "../../../../components/shared/Badge";
 import SearchInput from "../../../../components/shared/SearchInput";
 import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 import Loader from "../../../../components/shared/Loader";
-import EmailPreviewModal from "../../../../components/shared/EmailPreviewModal";
-import ProfileCardModal from "../../../../components/shared/ProfileCardModal";
 
 const EMPTY_FORM = {
   name: "",
@@ -32,16 +27,16 @@ const EMPTY_FORM = {
 
 export default function SuperAdminClients() {
   const { push } = useToast();
+  const navigate = useNavigate();
   const [clients, setClients] = useState(null);
   const [query, setQuery] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false); // drives the submit button's transaction animation
-  const [confirmTarget, setConfirmTarget] = useState(null); // { id, action }
+  const [saving, setSaving] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { id, action } — inline confirm bar, no modal
   const [confirmBusy, setConfirmBusy] = useState(false);
-  const [emailPreview, setEmailPreview] = useState(null); // { name, email, password, role, qrToken }
-  const [viewing, setViewing] = useState(null); // client being viewed in the profile modal
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     (async () => setClients(await dataStore.load("clients", "clients.json")))();
@@ -49,23 +44,18 @@ export default function SuperAdminClients() {
 
   const filtered = (clients || []).filter(
     (c) =>
-      c.name.toLowerCase().includes(query.toLowerCase()) ||
-      c.employeeId.toLowerCase().includes(query.toLowerCase())
+      (showArchived ? c.status === "archived" : c.status !== "archived") &&
+      (c.name.toLowerCase().includes(query.toLowerCase()) ||
+        c.employeeId.toLowerCase().includes(query.toLowerCase()))
   );
   const { page, setPage, totalPages, pageItems: pagedClients } = usePagination(filtered, 10);
 
   if (!clients) return <Loader full label="Loading clients..." />;
 
-  function openCreate() {
-    setEditing(null);
-    setForm(EMPTY_FORM);
-    setModalOpen(true);
-  }
-
   function openEdit(client) {
     setEditing(client);
     setForm({ ...EMPTY_FORM, ...client });
-    setModalOpen(true);
+    setEditOpen(true);
   }
 
   async function saveForm(e) {
@@ -97,64 +87,7 @@ export default function SuperAdminClients() {
       return;
     }
 
-    // --- New client: create the profile AND a linked login account ---
-    // Everything below (userId, password, QR token) is generated together
-    // in one shot so the profile, the login credentials, and the virtual
-    // ID card/QR are never out of sync with each other.
-    const email = form.email ? sanitizeEmail(form.email) : deriveEmail(cleanName);
-    const phone = sanitizeText(form.phone, 20);
-    const password = generatePassword();
-    const clientId = genId("C");
-    const userId = genId("U");
-
-    const clientRecord = {
-      id: clientId,
-      userId,
-      ...form,
-      name: cleanName,
-      email,
-      phone,
-      walletBalance: 0,
-      monthlyBill: 0,
-      qrStatus: "active",
-      qrToken: genId("QR"),
-      status: "active",
-    };
-    const userRecord = {
-      id: userId,
-      name: cleanName,
-      email,
-      phone,
-      password,
-      role: "client",
-      status: "active",
-      department: form.department,
-      designation: form.designation,
-      employeeId: form.employeeId,
-      employmentType: form.employmentType,
-      mealPlan: form.mealPlan, // Fixed Company Meal | Custom Menu | Complimentary Meal — read
-      mealBenefit: form.mealBenefit, // by PlaceOrder / NewOrder to decide fixed-vs-full menu flow
-      defaultPaymentMethod: "wallet",
-      avatarColor: "#059669",
-    };
-
-    const next = await dataStore.insert("clients", clientRecord);
-    setClients(next);
-    await dataStore.insert("users", userRecord);
-
     setSaving(false);
-    push(`${cleanName} created — login account ready.`, "success");
-    setModalOpen(false);
-    // Immediately hand the Super Admin the "send credentials" modal — this
-    // is the one-click welcome-email step from the SRS: profile + QR +
-    // login all exist the moment this fires.
-    setEmailPreview({
-      name: cleanName,
-      email,
-      password,
-      role: `Client (${form.mealPlan})`,
-      qrToken: clientId,
-    });
   }
 
   async function handleConfirm() {
@@ -164,10 +97,18 @@ export default function SuperAdminClients() {
     const client = clients.find((c) => c.id === id);
 
     if (action === "delete") {
-      const next = await dataStore.remove("clients", (c) => c.id === id);
+      // Soft-delete: archive instead of remove, so it can be restored from
+      // the Recycle Bin view later. The login account is deactivated too,
+      // but neither record is actually erased.
+      const next = await dataStore.update("clients", (c) => c.id === id, { status: "archived", prevStatus: client.status });
       setClients(next);
-      if (client?.userId) await dataStore.remove("users", (u) => u.id === client.userId);
-      push("Client deleted.", "success");
+      if (client?.userId) await dataStore.update("users", (u) => u.id === client.userId, { status: "suspended" });
+      push("Client moved to Recycle Bin — restore anytime.", "success");
+    } else if (action === "restore") {
+      const next = await dataStore.update("clients", (c) => c.id === id, { status: client.prevStatus || "active" });
+      setClients(next);
+      if (client?.userId) await dataStore.update("users", (u) => u.id === client.userId, { status: "active" });
+      push("Client restored.", "success");
     } else if (action === "suspend") {
       const next = await dataStore.update("clients", (c) => c.id === id, { status: "suspended" });
       setClients(next);
@@ -181,12 +122,12 @@ export default function SuperAdminClients() {
     } else if (action === "reset") {
       const newPassword = generatePassword();
       if (client?.userId) await dataStore.update("users", (u) => u.id === client.userId, { password: newPassword });
-      setEmailPreview({
-        name: client.name,
-        email: client.email || deriveEmail(client.name),
-        password: newPassword,
-        role: `Client (${client.mealPlan})`,
+      setConfirmBusy(false);
+      setConfirmTarget(null);
+      navigate(`/app/super-admin/welcome-email/${client.userId}`, {
+        state: { name: client.name, email: client.email || deriveEmail(client.name), password: newPassword, role: `Client (${client.mealPlan})` },
       });
+      return;
     }
     setConfirmBusy(false);
     setConfirmTarget(null);
@@ -203,10 +144,14 @@ export default function SuperAdminClients() {
         </div>
         <div className="flex flex-wrap gap-2">
           <SearchInput value={query} onChange={setQuery} placeholder="Search name or Employee ID..." />
-          <Button variant="secondary" icon={FileDown} onClick={printBlankRegistrationForm}>
-            Blank Registration Form
+          <Button
+            variant="secondary"
+            icon={Archive}
+            onClick={() => setShowArchived((s) => !s)}
+          >
+            {showArchived ? "Show Active" : "Recycle Bin"}
           </Button>
-          <Button variant="primary" icon={UserPlus} onClick={openCreate}>
+          <Button variant="primary" icon={UserPlus} onClick={() => navigate("/app/super-admin/clients/new")}>
             Create Client
           </Button>
         </div>
@@ -236,32 +181,40 @@ export default function SuperAdminClients() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
-                    <Button variant="icon" title="View Profile" onClick={() => setViewing(c)}>
+                    <Button variant="icon" title="View Profile" onClick={() => navigate(`/app/super-admin/clients/${c.id}`)}>
                       <IdCard size={14} />
                     </Button>
-                    <Button variant="icon" title="Edit" onClick={() => openEdit(c)}>
-                      <Edit2 size={14} />
-                    </Button>
-                    <Button variant="icon" title="Reset Password" onClick={() => setConfirmTarget({ id: c.id, action: "reset" })}>
-                      <KeyRound size={14} />
-                    </Button>
-                    {c.status === "active" ? (
-                      <Button variant="icon" title="Suspend" onClick={() => setConfirmTarget({ id: c.id, action: "suspend" })}>
-                        <Ban size={14} />
+                    {c.status === "archived" ? (
+                      <Button variant="icon" title="Restore" onClick={() => setConfirmTarget({ id: c.id, action: "restore" })}>
+                        <RotateCcw size={14} />
                       </Button>
                     ) : (
-                      <Button variant="icon" title="Reactivate" onClick={() => setConfirmTarget({ id: c.id, action: "activate" })}>
-                        <Eye size={14} />
-                      </Button>
+                      <>
+                        <Button variant="icon" title="Edit" onClick={() => openEdit(c)}>
+                          <Edit2 size={14} />
+                        </Button>
+                        <Button variant="icon" title="Reset Password" onClick={() => setConfirmTarget({ id: c.id, action: "reset" })}>
+                          <KeyRound size={14} />
+                        </Button>
+                        {c.status === "active" ? (
+                          <Button variant="icon" title="Suspend" onClick={() => setConfirmTarget({ id: c.id, action: "suspend" })}>
+                            <Ban size={14} />
+                          </Button>
+                        ) : (
+                          <Button variant="icon" title="Reactivate" onClick={() => setConfirmTarget({ id: c.id, action: "activate" })}>
+                            <RotateCcw size={14} />
+                          </Button>
+                        )}
+                        <Button
+                          variant="icon"
+                          title="Delete (moves to Recycle Bin)"
+                          className="hover:text-brand-600 hover:bg-brand-50"
+                          onClick={() => setConfirmTarget({ id: c.id, action: "delete" })}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </>
                     )}
-                    <Button
-                      variant="icon"
-                      title="Delete"
-                      className="hover:text-brand-600 hover:bg-brand-50"
-                      onClick={() => setConfirmTarget({ id: c.id, action: "delete" })}
-                    >
-                      <Trash2 size={14} />
-                    </Button>
                   </div>
                 </td>
               </tr>
@@ -278,8 +231,11 @@ export default function SuperAdminClients() {
         <Pagination page={page} totalPages={totalPages} onChange={setPage} className="px-4 pb-3" />
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Client" : "Create Client"}>
+      {editOpen && (
+      <div className="rounded-xl border border-ink-100 bg-white p-6">
+        <h2 className="mb-4 text-lg font-bold text-ink-900">Edit Client</h2>
         <form onSubmit={saveForm} className="grid gap-4 sm:grid-cols-2">
+
           <FormField label="Name" required>
             <input
               value={form.name}
@@ -359,52 +315,44 @@ export default function SuperAdminClients() {
               </select>
             </FormField>
           </div>
-          <div className="sm:col-span-2">
+                    <div className="flex gap-2 sm:col-span-2">
+            <Button type="button" variant="secondary" fullWidth onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
             <Button type="submit" variant="primary" fullWidth loading={saving}>
-              {editing ? "Save Changes" : "Create Client & Send Credentials"}
+              Save Changes
             </Button>
           </div>
         </form>
-      </Modal>
+      </div>
+      )}
 
-      <ProfileCardModal
-        open={!!viewing}
-        onClose={() => setViewing(null)}
-        person={viewing}
-        role="Client"
-        qrValue={viewing ? JSON.stringify({ clientId: viewing.id, employeeId: viewing.employeeId, status: viewing.qrStatus }) : ""}
-      />
-
-      <EmailPreviewModal
-        open={!!emailPreview}
-        onClose={() => setEmailPreview(null)}
-        {...(emailPreview || {})}
-      />
-
-      <ConfirmDialog
-        open={!!confirmTarget}
-        title={
-          confirmTarget?.action === "delete"
-            ? "Delete this client?"
-            : confirmTarget?.action === "suspend"
-            ? "Suspend this client?"
-            : confirmTarget?.action === "reset"
-            ? "Reset password?"
-            : "Reactivate this client?"
-        }
-        message={
-          confirmTarget?.action === "delete"
-            ? "This permanently removes the client record and their login account."
-            : confirmTarget?.action === "reset"
-            ? "A new password will be generated and shown for you to share with the client."
-            : "This action can be reversed later from this same screen."
-        }
-        confirmLabel="Confirm"
-        danger={confirmTarget?.action === "delete" || confirmTarget?.action === "suspend"}
-        busy={confirmBusy}
-        onConfirm={handleConfirm}
-        onCancel={() => setConfirmTarget(null)}
-      />
+      {/* Inline confirm bar — replaces the modal confirm dialog */}
+      {confirmTarget && (
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-ink-200 bg-white p-4 shadow-2xl sm:left-72">
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium text-ink-700">
+              {confirmTarget.action === "delete" && "Move this client to the Recycle Bin?"}
+              {confirmTarget.action === "restore" && "Restore this client from the Recycle Bin?"}
+              {confirmTarget.action === "suspend" && "Suspend this client?"}
+              {confirmTarget.action === "activate" && "Reactivate this client?"}
+              {confirmTarget.action === "reset" && "Reset this client's password?"}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setConfirmTarget(null)} disabled={confirmBusy}>
+                Cancel
+              </Button>
+              <Button
+                variant={confirmTarget.action === "delete" ? "danger" : "primary"}
+                onClick={handleConfirm}
+                loading={confirmBusy}
+              >
+                Confirm
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

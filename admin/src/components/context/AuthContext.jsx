@@ -1,10 +1,12 @@
 import { createContext, useEffect, useMemo, useState } from "react";
 import { dataStore } from "../services/dataStore";
+import { ROLES } from "../constants/roles";
 
 export const AuthContext = createContext(null);
 
 const SESSION_KEY = "cccms:session";
 const DEMO_PASSWORD = "Demo@123"; // testing-phase only, no real auth backend yet
+const VALID_ROLES = Object.values(ROLES);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -14,7 +16,17 @@ export function AuthProvider({ children }) {
     (async () => {
       try {
         const raw = localStorage.getItem(SESSION_KEY);
-        if (raw) setUser(JSON.parse(raw));
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          // Guards against stale sessions from removed roles (e.g. an old
+          // "kitchen_head" test login) silently bouncing the user back to
+          // "/" instead of ever reaching their dashboard.
+          if (parsed?.role && VALID_ROLES.includes(parsed.role)) {
+            setUser(parsed);
+          } else {
+            localStorage.removeItem(SESSION_KEY);
+          }
+        }
       } finally {
         setLoading(false);
       }

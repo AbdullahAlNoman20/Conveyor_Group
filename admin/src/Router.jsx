@@ -15,14 +15,8 @@ import SuperAdminLayout from "./pages/modules/super-admin/layout/SuperAdminLayou
 import SuperAdminRoutes from "./pages/modules/super-admin/SuperAdminRoutes";
 import ManagerLayout from "./pages/modules/manager/layout/ManagerLayout";
 import ManagerRoutes from "./pages/modules/manager/ManagerRoutes";
-import KitchenLayout from "./pages/modules/kitchen/layout/KitchenLayout";
-import KitchenRoutes from "./pages/modules/kitchen/KitchenRoutes";
-import WaiterLayout from "./pages/modules/waiter/layout/WaiterLayout";
-import WaiterRoutes from "./pages/modules/waiter/WaiterRoutes";
 import ClientLayout from "./pages/modules/client/layout/ClientLayout";
 import ClientRoutes from "./pages/modules/client/ClientRoutes";
-import GuestLayout from "./pages/modules/guest/layout/GuestLayout";
-import GuestRoutes from "./pages/modules/guest/GuestRoutes";
 
 const Router = createBrowserRouter([
   {
@@ -56,24 +50,6 @@ const Router = createBrowserRouter([
         children: ManagerRoutes,
       },
       {
-        path: "app/kitchen",
-        element: (
-          <RoleRoute allowedRoles={[ROLES.KITCHEN_HEAD]}>
-            <KitchenLayout />
-          </RoleRoute>
-        ),
-        children: KitchenRoutes,
-      },
-      {
-        path: "app/waiter",
-        element: (
-          <RoleRoute allowedRoles={[ROLES.WAITER]}>
-            <WaiterLayout />
-          </RoleRoute>
-        ),
-        children: WaiterRoutes,
-      },
-      {
         path: "app/client",
         element: (
           <RoleRoute allowedRoles={[ROLES.CLIENT]}>
@@ -82,16 +58,6 @@ const Router = createBrowserRouter([
         ),
         children: ClientRoutes,
       },
-      {
-        path: "app/guest",
-        element: (
-          <RoleRoute allowedRoles={[ROLES.GUEST]}>
-            <GuestLayout />
-          </RoleRoute>
-        ),
-        children: GuestRoutes,
-      },
-
       { path: "*", element: <Navigate to="/" replace /> },
     ],
   },

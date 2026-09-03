@@ -1,6 +1,7 @@
 // FILE: src/pages/modules/client/pages/ClientStatement.jsx (FULL REWRITE — real Excel/PDF, eye-icon to OrderDetail)
 import { useNavigate } from "react-router-dom";
 import { Download, FileText, Eye } from "lucide-react";
+import ShareButton from "../../../../components/shared/ShareButton";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import { useAuth } from "../../../../components/hooks/useAuth";
 import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
@@ -93,6 +94,7 @@ export default function ClientStatement() {
           <button onClick={downloadExcel} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold hover:bg-ink-50">
             <Download size={14} /> Excel
           </button>
+          <ShareButton title={`Monthly Statement — ${monthLabel}`} text={`Total: Tk ${totalAmount}`} />
         </div>
       </div>
 
