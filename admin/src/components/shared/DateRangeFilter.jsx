@@ -2,7 +2,13 @@
 import { useMemo, useState } from "react";
 import { Calendar } from "lucide-react";
 
-const PRESETS = ["Today", "This Week", "This Month", "This Year", "Custom Range"];
+const PRESETS = [
+  "Today",
+  "This Week",
+  "This Month",
+  "This Year",
+  "Custom Range",
+];
 
 function startOfWeek(d) {
   const date = new Date(d);
@@ -27,12 +33,17 @@ export function resolveRange(preset, customFrom, customTo) {
     case "This Week":
       return { from: startOfWeek(now), to: endOfToday };
     case "This Month":
-      return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: endOfToday };
+      return {
+        from: new Date(now.getFullYear(), now.getMonth(), 1),
+        to: endOfToday,
+      };
     case "This Year":
       return { from: new Date(now.getFullYear(), 0, 1), to: endOfToday };
     case "Custom Range": {
       const from = customFrom ? new Date(customFrom) : new Date(0);
-      const to = customTo ? new Date(new Date(customTo).setHours(23, 59, 59, 999)) : endOfToday;
+      const to = customTo
+        ? new Date(new Date(customTo).setHours(23, 59, 59, 999))
+        : endOfToday;
       return { from, to };
     }
     default:
@@ -46,12 +57,31 @@ export function useDateRangeFilter(defaultPreset = "This Month") {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
-  const range = useMemo(() => resolveRange(preset, customFrom, customTo), [preset, customFrom, customTo]);
+  const range = useMemo(
+    () => resolveRange(preset, customFrom, customTo),
+    [preset, customFrom, customTo],
+  );
 
-  return { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range };
+  return {
+    preset,
+    setPreset,
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    range,
+  };
 }
 
-export default function DateRangeFilter({ preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range }) {
+export default function DateRangeFilter({
+  preset,
+  setPreset,
+  customFrom,
+  setCustomFrom,
+  customTo,
+  setCustomTo,
+  range,
+}) {
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-100 bg-white p-3">
       <Calendar size={16} className="text-ink-400" />
@@ -61,7 +91,9 @@ export default function DateRangeFilter({ preset, setPreset, customFrom, setCust
             key={p}
             onClick={() => setPreset(p)}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-              preset === p ? "bg-brand-600 text-white" : "text-ink-500 hover:bg-ink-50"
+              preset === p
+                ? "bg-brand-600 text-white"
+                : "text-ink-500 hover:bg-ink-50"
             }`}
           >
             {p}
@@ -74,14 +106,14 @@ export default function DateRangeFilter({ preset, setPreset, customFrom, setCust
             type="date"
             value={customFrom}
             onChange={(e) => setCustomFrom(e.target.value)}
-            className="rounded-lg border border-ink-200 px-2 py-1 text-xs outline-none focus:border-brand-500"
+            className="rounded-lg border border-ink-200 px-2 py-1 text-xs outline-none "
           />
           <span className="text-xs text-ink-400">to</span>
           <input
             type="date"
             value={customTo}
             onChange={(e) => setCustomTo(e.target.value)}
-            className="rounded-lg border border-ink-200 px-2 py-1 text-xs outline-none focus:border-brand-500"
+            className="rounded-lg border border-ink-200 px-2 py-1 text-xs outline-none "
           />
         </div>
       )}

@@ -33,15 +33,19 @@ export default function ClientProfile() {
   function onPhotoChosen(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+
     if (!file.type.startsWith("image/")) {
       push("Please choose an image file.", "error");
       return;
     }
+
     if (file.size > MAX_PHOTO_BYTES) {
       push("Image is too large — please choose one under 2MB.", "error");
       return;
     }
+
     const reader = new FileReader();
+
     reader.onload = () => setPhotoPreview(reader.result);
     reader.readAsDataURL(file);
   }
@@ -50,44 +54,89 @@ export default function ClientProfile() {
   // instant this is submitted, unlike the old profileRequests flow.
   async function saveProfile(e) {
     e.preventDefault();
+
     if (!name.trim()) {
       push("Name cannot be empty.", "error");
       return;
     }
-    setSaving(true);
-    const patch = { name: sanitizeText(name, 100) };
-    if (photoPreview) patch.photo = photoPreview;
 
-    await dataStore.update("clients", (c) => c.id === me.id, patch);
-    // Keep the linked login account (what Navbar/AuthContext reads) in
-    // sync too, so the photo shows up instantly in the Navbar avatar,
-    // Token Board, Manager/Super Admin views — everywhere — without
-    // requiring a re-login.
-    if (me.userId) await dataStore.update("users", (u) => u.id === me.userId, patch);
-    setSaving(false);
-    setPhotoPreview(null);
-    push("Profile updated — synced everywhere instantly.", "success");
+    setSaving(true);
+
+    try {
+      const patch = {
+        name: sanitizeText(name, 100),
+      };
+
+      if (photoPreview) {
+        patch.photo = photoPreview;
+      }
+
+      await dataStore.update(
+        "clients",
+        (c) => c.id === me.id,
+        patch,
+      );
+
+      // Keep the linked login account (what Navbar/AuthContext reads) in
+      // sync too, so the photo shows up instantly in the Navbar avatar,
+      // Token Board, Manager/Super Admin views — everywhere — without
+      // requiring a re-login.
+      if (me.userId) {
+        await dataStore.update(
+          "users",
+          (u) => u.id === me.userId,
+          patch,
+        );
+      }
+
+      setSaving(false);
+      setPhotoPreview(null);
+
+      push(
+        "Profile updated — synced everywhere instantly.",
+        "success",
+      );
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      setSaving(false);
+      push("Failed to update profile. Please try again.", "error");
+    }
   }
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-ink-900">My Profile</h1>
+        <h1 className="text-2xl font-bold text-ink-900">
+          My Profile
+        </h1>
+
         <p className="text-sm text-ink-400">
-          Update your name or photo any time — changes apply immediately, no approval needed.
+          Update your name or photo any time — changes apply
+          immediately, no approval needed.
         </p>
       </div>
 
-      <form onSubmit={saveProfile} className="space-y-4 rounded-xl border border-ink-100 bg-white p-6">
+      <form
+        onSubmit={saveProfile}
+        className="space-y-4 rounded-xl border border-ink-100 bg-white p-6"
+      >
         <div className="flex flex-col items-center gap-3">
           <div className="relative">
             <div className="h-24 w-24 overflow-hidden rounded-full bg-ink-100">
               {displayPhoto ? (
-                <img src={displayPhoto} alt="Profile preview" className="h-full w-full object-cover" />
+                <img
+                  src={displayPhoto}
+                  alt="Profile preview"
+                  className="h-full w-full object-cover"
+                />
               ) : (
-                <AvatarImage name={me?.name} size={96} />
+                <AvatarImage
+                  name={me?.name}
+                  size={96}
+                />
               )}
             </div>
+
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
@@ -96,9 +145,19 @@ export default function ClientProfile() {
             >
               <Camera size={14} />
             </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPhotoChosen} />
+
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPhotoChosen}
+            />
           </div>
-          <p className="text-xs text-ink-400">JPG or PNG, under 2MB</p>
+
+          <p className="text-xs text-ink-400">
+            JPG or PNG, under 2MB
+          </p>
         </div>
 
         <FormField label="Full Name" required>
@@ -111,20 +170,34 @@ export default function ClientProfile() {
 
         <div className="grid grid-cols-2 gap-3 text-sm text-ink-500">
           <div>
-            <p className="text-xs text-ink-400">Employee ID</p>
-            <p className="font-medium text-ink-800">{me?.employeeId}</p>
+            <p className="text-xs text-ink-400">
+              Employee ID
+            </p>
+
+            <p className="font-medium text-ink-800">
+              {me?.employeeId}
+            </p>
           </div>
+
           <div>
-            <p className="text-xs text-ink-400">Department</p>
-            <p className="font-medium text-ink-800">{me?.department}</p>
+            <p className="text-xs text-ink-400">
+              Department
+            </p>
+
+            <p className="font-medium text-ink-800">
+              {me?.department}
+            </p>
           </div>
         </div>
 
         <button
+          type="submit"
           disabled={saving}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Send size={16} /> {saving ? "Saving..." : "Save Changes"}
+          <Send size={16} />
+
+          {saving ? "Saving..." : "Save Changes"}
         </button>
       </form>
     </div>

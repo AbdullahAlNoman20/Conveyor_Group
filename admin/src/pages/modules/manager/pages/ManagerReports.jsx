@@ -211,11 +211,12 @@ export default function ManagerReports() {
           )}
         </div>
       </div>
+      
       {/* Actions */}
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:w-auto">
+        <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
           <button
             onClick={downloadExcel}
-            className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 py-2.5 text-xs font-semibold transition hover:bg-ink-50 sm:min-h-0 sm:py-2"
+            className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50 sm:h-8 sm:px-2.5"
           >
             <FileSpreadsheet size={14} className="shrink-0" />
             <span>Excel</span>
@@ -223,7 +224,7 @@ export default function ManagerReports() {
 
           <button
             onClick={printReport}
-            className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 py-2.5 text-xs font-semibold transition hover:bg-ink-50 sm:min-h-0 sm:py-2"
+            className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50 sm:h-8 sm:px-2.5"
           >
             <Printer size={14} className="shrink-0" />
             <span>Print</span>

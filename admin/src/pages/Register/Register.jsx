@@ -13,10 +13,7 @@ import { SOCKET_EVENTS } from "../../components/services/socket";
 import { notifyEvent } from "../../components/services/notifyEvent";
 import { playAlertSound } from "../../components/services/notify";
 import { genId } from "../../components/utils/idGenerator";
-import {
-  sanitizeText,
-  sanitizeEmail,
-} from "../../components/utils/sanitize";
+import { sanitizeText, sanitizeEmail } from "../../components/utils/sanitize";
 
 import { useToast } from "../../components/hooks/useToast";
 import FormField from "../../components/shared/FormField";
@@ -53,8 +50,7 @@ export default function Register() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const needsDocument =
-    form.mealBenefit === "Complimentary";
+  const needsDocument = form.mealBenefit === "Complimentary";
 
   function set(field, value) {
     setForm((f) => ({
@@ -116,26 +112,17 @@ export default function Register() {
     };
 
     try {
-      await dataStore.insert(
-        "accountRequests",
-        request
-      );
+      await dataStore.insert("accountRequests", request);
 
-      await notifyEvent(
-        SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED,
-        {
-          message: `New account request from ${request.name} is waiting for review.`,
-          recipientRoles: ["super_admin"],
-        }
-      );
+      await notifyEvent(SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED, {
+        message: `New account request from ${request.name} is waiting for review.`,
+        recipientRoles: ["super_admin"],
+      });
 
-      await notifyEvent(
-        SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED,
-        {
-          message: `Thanks, ${request.name}! Your registration was submitted and is awaiting Super Admin approval.`,
-          recipientNames: [request.name],
-        }
-      );
+      await notifyEvent(SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED, {
+        message: `Thanks, ${request.name}! Your registration was submitted and is awaiting Super Admin approval.`,
+        recipientNames: [request.name],
+      });
 
       playAlertSound();
 
@@ -143,13 +130,10 @@ export default function Register() {
 
       push(
         "Registration submitted — a Super Admin will review it shortly.",
-        "success"
+        "success",
       );
     } catch {
-      push(
-        "Could not submit your registration. Please try again.",
-        "error"
-      );
+      push("Could not submit your registration. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -184,23 +168,16 @@ export default function Register() {
             sm:p-8
           "
         >
-          <CheckCircle2
-            size={40}
-            className="mx-auto text-emerald-600"
-          />
+          <CheckCircle2 size={40} className="mx-auto text-emerald-600" />
 
           <h1 className="mt-4 text-lg font-bold text-ink-900 sm:text-xl">
             Request Submitted
           </h1>
 
           <p className="mt-2 text-xs leading-relaxed text-ink-500 sm:text-sm">
-            Your registration has been sent to a Super Admin
-            for approval. Once approved, your login credentials
-            will be sent to{" "}
-            <span className="break-all font-semibold">
-              {form.email}
-            </span>
-            .
+            Your registration has been sent to a Super Admin for approval. Once
+            approved, your login credentials will be sent to{" "}
+            <span className="break-all font-semibold">{form.email}</span>.
           </p>
 
           <Link
@@ -306,8 +283,8 @@ export default function Register() {
             </h1>
 
             <p className="max-w-xl text-xs leading-relaxed text-ink-500 sm:text-sm">
-              Fill in your details — a Super Admin will review
-              and approve your account.
+              Fill in your details — a Super Admin will review and approve your
+              account.
             </p>
           </div>
 
@@ -351,9 +328,7 @@ export default function Register() {
             >
               <button
                 type="button"
-                onClick={() =>
-                  cameraInputRef.current?.click()
-                }
+                onClick={() => cameraInputRef.current?.click()}
                 className="
                   inline-flex
                   w-full
@@ -377,9 +352,7 @@ export default function Register() {
 
               <button
                 type="button"
-                onClick={() =>
-                  galleryInputRef.current?.click()
-                }
+                onClick={() => galleryInputRef.current?.click()}
                 className="
                   inline-flex
                   w-full
@@ -416,8 +389,7 @@ export default function Register() {
 
                 const reader = new FileReader();
 
-                reader.onload = () =>
-                  setPhoto(reader.result);
+                reader.onload = () => setPhoto(reader.result);
 
                 reader.readAsDataURL(file);
               }}
@@ -436,8 +408,7 @@ export default function Register() {
 
                 const reader = new FileReader();
 
-                reader.onload = () =>
-                  setPhoto(reader.result);
+                reader.onload = () => setPhoto(reader.result);
 
                 reader.readAsDataURL(file);
               }}
@@ -468,9 +439,7 @@ export default function Register() {
             >
               <input
                 value={form.name}
-                onChange={(e) =>
-                  set("name", e.target.value)
-                }
+                onChange={(e) => set("name", e.target.value)}
                 className="
                   w-full min-w-0
                   rounded-lg
@@ -479,8 +448,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  focus:border-brand-500
-                  focus:ring-2
+                  
+                  
                   focus:ring-brand-100
                 "
               />
@@ -499,9 +468,7 @@ export default function Register() {
             >
               <input
                 value={form.employeeId}
-                onChange={(e) =>
-                  set("employeeId", e.target.value)
-                }
+                onChange={(e) => set("employeeId", e.target.value)}
                 className="
                   w-full min-w-0
                   rounded-lg
@@ -510,8 +477,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  focus:border-brand-500
-                  focus:ring-2
+                  
+                  
                   focus:ring-brand-100
                 "
               />
@@ -525,16 +492,13 @@ export default function Register() {
               info={{
                 instruction:
                   "Use a working email address — your login credentials will be sent here once approved.",
-                example:
-                  "rafiqul.islam@conveyorgroup.com",
+                example: "rafiqul.islam@conveyorgroup.com",
               }}
             >
               <input
                 type="email"
                 value={form.email}
-                onChange={(e) =>
-                  set("email", e.target.value)
-                }
+                onChange={(e) => set("email", e.target.value)}
                 className="
                   w-full min-w-0
                   rounded-lg
@@ -543,8 +507,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  focus:border-brand-500
-                  focus:ring-2
+                  
+                  
                   focus:ring-brand-100
                 "
               />
@@ -554,16 +518,13 @@ export default function Register() {
             <FormField
               label="Phone"
               info={{
-                instruction:
-                  "Your active mobile number for contact purposes.",
+                instruction: "Your active mobile number for contact purposes.",
                 example: "01712-345678",
               }}
             >
               <input
                 value={form.phone}
-                onChange={(e) =>
-                  set("phone", e.target.value)
-                }
+                onChange={(e) => set("phone", e.target.value)}
                 className="
                   w-full min-w-0
                   rounded-lg
@@ -572,8 +533,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  focus:border-brand-500
-                  focus:ring-2
+                  
+                  
                   focus:ring-brand-100
                 "
               />
@@ -585,16 +546,13 @@ export default function Register() {
               error={errors.department}
               required
               info={{
-                instruction:
-                  "The department you currently work in.",
+                instruction: "The department you currently work in.",
                 example: "Finance, Operations, IT",
               }}
             >
               <input
                 value={form.department}
-                onChange={(e) =>
-                  set("department", e.target.value)
-                }
+                onChange={(e) => set("department", e.target.value)}
                 className="
                   w-full min-w-0
                   rounded-lg
@@ -603,8 +561,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  focus:border-brand-500
-                  focus:ring-2
+                  
+                  
                   focus:ring-brand-100
                 "
               />
@@ -614,16 +572,13 @@ export default function Register() {
             <FormField
               label="Designation"
               info={{
-                instruction:
-                  "Your official job title/designation.",
+                instruction: "Your official job title/designation.",
                 example: "Senior Accountant",
               }}
             >
               <input
                 value={form.designation}
-                onChange={(e) =>
-                  set("designation", e.target.value)
-                }
+                onChange={(e) => set("designation", e.target.value)}
                 className="
                   w-full min-w-0
                   rounded-lg
@@ -632,8 +587,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  focus:border-brand-500
-                  focus:ring-2
+                  
+                  
                   focus:ring-brand-100
                 "
               />
@@ -654,9 +609,7 @@ export default function Register() {
                   text-ink-600
                 "
               >
-                <span className="truncate">
-                  {FIXED_MEAL_PLAN}
-                </span>
+                <span className="truncate">{FIXED_MEAL_PLAN}</span>
               </div>
             </FormField>
 
@@ -667,19 +620,14 @@ export default function Register() {
                 hint="Default is Self Paid. Selecting Complimentary requires a supporting document below."
                 info={{
                   instruction:
-                    'Self Paid means you pay for your own meals. Complimentary means the company provides your meals free — this requires a signed permission letter from the Chairman as proof.',
+                    "Self Paid means you pay for your own meals. Complimentary means the company provides your meals free — this requires a signed permission letter from the Chairman as proof.",
                   example:
                     'Choose "Self Paid" unless your company has agreed to cover your meals.',
                 }}
               >
                 <select
                   value={form.mealBenefit}
-                  onChange={(e) =>
-                    set(
-                      "mealBenefit",
-                      e.target.value
-                    )
-                  }
+                  onChange={(e) => set("mealBenefit", e.target.value)}
                   className="
                     w-full min-w-0
                     rounded-lg
@@ -689,8 +637,8 @@ export default function Register() {
                     text-sm
                     outline-none
                     transition
-                    focus:border-brand-500
-                    focus:ring-2
+                    
+                    
                     focus:ring-brand-100
                   "
                 >
@@ -727,9 +675,7 @@ export default function Register() {
                 loading={submitting}
                 icon={UserPlus}
               >
-                {submitting
-                  ? "Submitting..."
-                  : "Submit Registration"}
+                {submitting ? "Submitting..." : "Submit Registration"}
               </Button>
             </div>
           </form>

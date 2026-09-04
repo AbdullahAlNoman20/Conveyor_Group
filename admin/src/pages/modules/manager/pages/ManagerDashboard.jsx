@@ -37,9 +37,27 @@ export default function ManagerDashboard() {
     (o) => new Date(o.createdAt).toDateString() === todayStr
   );
   const dinersToday = [...new Set(todaysOrders.map((o) => o.clientName))];
-  const salaryToday = todaysOrders
+    const salaryToday = todaysOrders
     .filter((o) => o.paymentMethod === "salary")
     .reduce((s, o) => s + o.amount, 0);
+
+  const now = new Date();
+
+  const monthOrders = orders.filter((o) => {
+    const d = new Date(o.createdAt);
+
+    return (
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear() &&
+      o.paymentMethod === "salary"
+    );
+  });
+
+  const salaryMonth = monthOrders.reduce(
+    (s, o) => s + o.amount,
+    0
+  );
+
   const mealsRemaining = mealStatus
     ? Math.max(0, mealStatus.dailyLimit - mealStatus.served)
     : null;
@@ -66,7 +84,7 @@ export default function ManagerDashboard() {
     .slice(0, 10);
 
   return (
-    <div className="w-full min-w-0 space-y-4 overflow-x-hidden sm:space-y-6">
+    <div className="box-border w-full min-w-0 max-w-full space-y-4 overflow-x-hidden sm:space-y-6">
       {/* Header */}
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
@@ -129,51 +147,72 @@ export default function ManagerDashboard() {
         />
       </div>
 
-      {/* Diners Chart */}
-      <div className="min-w-0 overflow-hidden rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
-        <h2 className="mb-3 text-sm font-bold text-ink-700">
-          Diners — Last 7 Days
-        </h2>
+           {/* Charts / Monthly Summary */}
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        {/* Last 7 Days */}
+        <div className="min-w-0 overflow-hidden rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
+          <h2 className="mb-3 text-sm font-bold text-ink-700">
+            Diners — Last 7 Days
+          </h2>
 
-        <div className="w-full min-w-0">
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart
-              data={last7}
-              margin={{
-                top: 5,
-                right: 5,
-                left: -10,
-                bottom: 0,
-              }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-              />
+          <div className="w-full min-w-0 overflow-hidden">
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart
+                data={last7}
+                margin={{
+                  top: 5,
+                  right: 5,
+                  left: -10,
+                  bottom: 0,
+                }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
 
-              <XAxis
-                dataKey="day"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-              />
+                <XAxis
+                  dataKey="day"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
 
-              <YAxis
-                allowDecimals={false}
-                fontSize={11}
-                tickLine={false}
-                axisLine={false}
-              />
+                <YAxis
+                  allowDecimals={false}
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                />
 
-              <Tooltip />
+                <Tooltip />
 
-              <Bar
-                dataKey="diners"
-                fill="#eb2a2d"
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+                <Bar
+                  dataKey="diners"
+                  fill="#eb2a2d"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* This Month */}
+        <div className="min-w-0 overflow-hidden rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
+          <h2 className="mb-3 text-sm font-bold text-ink-700">
+            This Month
+          </h2>
+
+          <div className="flex h-[220px] min-w-0 flex-col items-center justify-center gap-2 px-2 text-center">
+            <p className="max-w-full break-words text-3xl font-extrabold text-brand-600 sm:text-4xl">
+              Tk {salaryMonth.toLocaleString()}
+            </p>
+
+            <p className="text-xs leading-5 text-ink-500 sm:text-sm">
+              total salary deducted so far,{" "}
+              {monthOrders.length} orders
+            </p>
+          </div>
         </div>
       </div>
 
@@ -187,7 +226,7 @@ export default function ManagerDashboard() {
           {recent.map((o) => (
             <div
               key={o.id}
-              className="flex min-w-0 items-center gap-2 rounded-lg bg-ink-50 px-2.5 py-2.5 text-sm sm:gap-3 sm:px-3"
+              className="box-border flex w-full min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-lg bg-ink-50 px-2.5 py-2.5 text-sm sm:gap-3 sm:px-3"
             >
               {/* Avatar */}
               <AvatarImage

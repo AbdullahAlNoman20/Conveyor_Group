@@ -45,10 +45,7 @@ export default function Login() {
       password: form.password,
     };
 
-    const {
-      valid,
-      errors: validationErrors,
-    } = validateLoginForm(clean);
+    const { valid, errors: validationErrors } = validateLoginForm(clean);
 
     setErrors(validationErrors);
 
@@ -166,11 +163,7 @@ export default function Login() {
             </div>
 
             {/* Login Form */}
-            <form
-              onSubmit={handleSubmit}
-              noValidate
-              className="space-y-4"
-            >
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
               <FormField
                 label="Email Address"
                 htmlFor="email"
@@ -197,8 +190,8 @@ export default function Login() {
                     text-sm
                     outline-none
                     transition
-                    focus:border-brand-500
-                    focus:ring-2
+                    
+                    
                     focus:ring-brand-100
                   "
                   placeholder="you@conveyorgroup.com"
@@ -232,8 +225,8 @@ export default function Login() {
                       text-sm
                       outline-none
                       transition
-                      focus:border-brand-500
-                      focus:ring-2
+                      
+                      
                       focus:ring-brand-100
                     "
                     placeholder="••••••••"
@@ -254,16 +247,10 @@ export default function Login() {
                       hover:text-ink-600
                     "
                     aria-label={
-                      showPassword
-                        ? "Hide password"
-                        : "Show password"
+                      showPassword ? "Hide password" : "Show password"
                     }
                   >
-                    {showPassword ? (
-                      <EyeOff size={18} />
-                    ) : (
-                      <Eye size={18} />
-                    )}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </FormField>
@@ -288,9 +275,7 @@ export default function Login() {
               >
                 <LogIn size={16} />
 
-                <span>
-                  {submitting ? "Signing in..." : "Sign In"}
-                </span>
+                <span>{submitting ? "Signing in..." : "Sign In"}</span>
               </button>
             </form>
 
@@ -328,9 +313,8 @@ export default function Login() {
             </div>
 
             <p className="mb-4 text-xs leading-relaxed text-ink-500">
-              Click any account below to auto-fill its login
-              credentials (design/testing phase — no real backend
-              is connected yet).
+              Click any account below to auto-fill its login credentials
+              (design/testing phase — no real backend is connected yet).
             </p>
 
             {/* Demo Users */}
@@ -359,11 +343,7 @@ export default function Login() {
                 >
                   {/* User */}
                   <span className="flex min-w-0 w-full items-center gap-2">
-                    <AvatarImage
-                      name={u.name}
-                      photo={u.photo}
-                      size={32}
-                    />
+                    <AvatarImage name={u.name} photo={u.photo} size={32} />
 
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-ink-900">
@@ -392,9 +372,7 @@ export default function Login() {
                       sm:text-right
                     "
                   >
-                    <span className="block break-all">
-                      {u.email}
-                    </span>
+                    <span className="block break-all">{u.email}</span>
 
                     <span className="block font-mono text-brand-600">
                       {DEMO_PASSWORD}

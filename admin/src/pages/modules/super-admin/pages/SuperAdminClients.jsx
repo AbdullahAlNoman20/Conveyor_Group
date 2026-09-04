@@ -57,17 +57,14 @@ export default function SuperAdminClients() {
   const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
-    (async () =>
-      setClients(await dataStore.load("clients", "clients.json")))();
+    (async () => setClients(await dataStore.load("clients", "clients.json")))();
   }, []);
 
   const filtered = (clients || []).filter(
     (c) =>
-      (showArchived
-        ? c.status === "archived"
-        : c.status !== "archived") &&
+      (showArchived ? c.status === "archived" : c.status !== "archived") &&
       (c.name.toLowerCase().includes(query.toLowerCase()) ||
-        c.employeeId.toLowerCase().includes(query.toLowerCase()))
+        c.employeeId.toLowerCase().includes(query.toLowerCase())),
   );
 
   const {
@@ -104,20 +101,16 @@ export default function SuperAdminClients() {
         {
           ...form,
           name: cleanName,
-        }
+        },
       );
 
       setClients(next);
 
-      await dataStore.update(
-        "users",
-        (u) => u.id === editing.userId,
-        {
-          name: cleanName,
-          email: form.email ? sanitizeEmail(form.email) : undefined,
-          phone: sanitizeText(form.phone, 20),
-        }
-      );
+      await dataStore.update("users", (u) => u.id === editing.userId, {
+        name: cleanName,
+        email: form.email ? sanitizeEmail(form.email) : undefined,
+        phone: sanitizeText(form.phone, 20),
+      });
 
       setSaving(false);
 
@@ -139,94 +132,59 @@ export default function SuperAdminClients() {
     const client = clients.find((c) => c.id === id);
 
     if (action === "delete") {
-      const next = await dataStore.update(
-        "clients",
-        (c) => c.id === id,
-        {
-          status: "archived",
-          prevStatus: client.status,
-        }
-      );
+      const next = await dataStore.update("clients", (c) => c.id === id, {
+        status: "archived",
+        prevStatus: client.status,
+      });
 
       setClients(next);
 
       if (client?.userId) {
-        await dataStore.update(
-          "users",
-          (u) => u.id === client.userId,
-          {
-            status: "suspended",
-          }
-        );
+        await dataStore.update("users", (u) => u.id === client.userId, {
+          status: "suspended",
+        });
       }
 
-      push(
-        "Client moved to Recycle Bin — restore anytime.",
-        "success"
-      );
+      push("Client moved to Recycle Bin — restore anytime.", "success");
     } else if (action === "restore") {
-      const next = await dataStore.update(
-        "clients",
-        (c) => c.id === id,
-        {
-          status: client.prevStatus || "active",
-        }
-      );
+      const next = await dataStore.update("clients", (c) => c.id === id, {
+        status: client.prevStatus || "active",
+      });
 
       setClients(next);
 
       if (client?.userId) {
-        await dataStore.update(
-          "users",
-          (u) => u.id === client.userId,
-          {
-            status: "active",
-          }
-        );
+        await dataStore.update("users", (u) => u.id === client.userId, {
+          status: "active",
+        });
       }
 
       push("Client restored.", "success");
     } else if (action === "suspend") {
-      const next = await dataStore.update(
-        "clients",
-        (c) => c.id === id,
-        {
-          status: "suspended",
-        }
-      );
+      const next = await dataStore.update("clients", (c) => c.id === id, {
+        status: "suspended",
+      });
 
       setClients(next);
 
       if (client?.userId) {
-        await dataStore.update(
-          "users",
-          (u) => u.id === client.userId,
-          {
-            status: "suspended",
-          }
-        );
+        await dataStore.update("users", (u) => u.id === client.userId, {
+          status: "suspended",
+        });
       }
 
       push("Client suspended.", "success");
     } else if (action === "activate") {
-      const next = await dataStore.update(
-        "clients",
-        (c) => c.id === id,
-        {
-          status: "active",
-        }
-      );
+      const next = await dataStore.update("clients", (c) => c.id === id, {
+        status: "active",
+      });
 
       setClients(next);
 
       if (client?.userId) {
-        await dataStore.update(
-          "users",
-          (u) => u.id === client.userId,
-          {
-            status: "active",
-          }
-        );
+        await dataStore.update("users", (u) => u.id === client.userId, {
+          status: "active",
+        });
       }
 
       push("Client reactivated.", "success");
@@ -234,30 +192,22 @@ export default function SuperAdminClients() {
       const newPassword = generatePassword();
 
       if (client?.userId) {
-        await dataStore.update(
-          "users",
-          (u) => u.id === client.userId,
-          {
-            password: newPassword,
-          }
-        );
+        await dataStore.update("users", (u) => u.id === client.userId, {
+          password: newPassword,
+        });
       }
 
       setConfirmBusy(false);
       setConfirmTarget(null);
 
-      navigate(
-        `/app/super-admin/welcome-email/${client.userId}`,
-        {
-          state: {
-            name: client.name,
-            email:
-              client.email || deriveEmail(client.name),
-            password: newPassword,
-            role: `Client (${client.mealPlan})`,
-          },
-        }
-      );
+      navigate(`/app/super-admin/welcome-email/${client.userId}`, {
+        state: {
+          name: client.name,
+          email: client.email || deriveEmail(client.name),
+          password: newPassword,
+          role: `Client (${client.mealPlan})`,
+        },
+      });
 
       return;
     }
@@ -278,8 +228,8 @@ export default function SuperAdminClients() {
           </h1>
 
           <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-400 sm:text-sm">
-            Create a client and their login account, virtual ID card,
-            and QR are generated together.
+            Create a client and their login account, virtual ID card, and QR are
+            generated together.
           </p>
         </div>
 
@@ -301,29 +251,19 @@ export default function SuperAdminClients() {
             <Button
               variant="secondary"
               icon={Archive}
-              onClick={() =>
-                setShowArchived((s) => !s)
-              }
+              onClick={() => setShowArchived((s) => !s)}
               className="w-full justify-center sm:w-auto"
             >
-              {showArchived
-                ? "Show Active"
-                : "Recycle Bin"}
+              {showArchived ? "Show Active" : "Recycle Bin"}
             </Button>
 
             <Button
               variant="primary"
               icon={UserPlus}
-              onClick={() =>
-                navigate(
-                  "/app/super-admin/clients/new"
-                )
-              }
+              onClick={() => navigate("/app/super-admin/clients/new")}
               className="w-full justify-center sm:w-auto"
             >
-              <span className="sm:inline">
-                Create Client
-              </span>
+              <span className="sm:inline">Create Client</span>
             </Button>
           </div>
         </div>
@@ -338,25 +278,15 @@ export default function SuperAdminClients() {
           <table className="w-full min-w-[850px] text-left text-sm">
             <thead className="bg-ink-50 text-xs uppercase text-ink-400">
               <tr>
-                <th className="whitespace-nowrap px-4 py-3">
-                  Name
-                </th>
+                <th className="whitespace-nowrap px-4 py-3">Name</th>
 
-                <th className="whitespace-nowrap px-4 py-3">
-                  Employee ID
-                </th>
+                <th className="whitespace-nowrap px-4 py-3">Employee ID</th>
 
-                <th className="whitespace-nowrap px-4 py-3">
-                  Department
-                </th>
+                <th className="whitespace-nowrap px-4 py-3">Department</th>
 
-                <th className="whitespace-nowrap px-4 py-3">
-                  Meal Plan
-                </th>
+                <th className="whitespace-nowrap px-4 py-3">Meal Plan</th>
 
-                <th className="whitespace-nowrap px-4 py-3">
-                  Status
-                </th>
+                <th className="whitespace-nowrap px-4 py-3">Status</th>
 
                 <th className="whitespace-nowrap px-4 py-3 text-right">
                   Actions
@@ -366,14 +296,9 @@ export default function SuperAdminClients() {
 
             <tbody className="divide-y divide-ink-100">
               {pagedClients.map((c) => (
-                <tr
-                  key={c.id}
-                  className="transition-colors hover:bg-ink-50/50"
-                >
+                <tr key={c.id} className="transition-colors hover:bg-ink-50/50">
                   <td className="max-w-[220px] px-4 py-3 font-medium text-ink-800">
-                    <div className="truncate">
-                      {c.name}
-                    </div>
+                    <div className="truncate">{c.name}</div>
                   </td>
 
                   <td className="whitespace-nowrap px-4 py-3 text-ink-500">
@@ -381,21 +306,15 @@ export default function SuperAdminClients() {
                   </td>
 
                   <td className="max-w-[180px] px-4 py-3 text-ink-500">
-                    <div className="truncate">
-                      {c.department}
-                    </div>
+                    <div className="truncate">{c.department}</div>
                   </td>
 
                   <td className="max-w-[200px] px-4 py-3 text-ink-500">
-                    <div className="truncate">
-                      {c.mealPlan}
-                    </div>
+                    <div className="truncate">{c.mealPlan}</div>
                   </td>
 
                   <td className="whitespace-nowrap px-4 py-3">
-                    <Badge tone={c.status}>
-                      {c.status}
-                    </Badge>
+                    <Badge tone={c.status}>{c.status}</Badge>
                   </td>
 
                   <td className="px-4 py-3">
@@ -405,9 +324,7 @@ export default function SuperAdminClients() {
                         variant="icon"
                         title="View Profile"
                         onClick={() =>
-                          navigate(
-                            `/app/super-admin/clients/${c.id}`
-                          )
+                          navigate(`/app/super-admin/clients/${c.id}`)
                         }
                       >
                         <IdCard size={14} />
@@ -433,9 +350,7 @@ export default function SuperAdminClients() {
                           <Button
                             variant="icon"
                             title="Edit"
-                            onClick={() =>
-                              openEdit(c)
-                            }
+                            onClick={() => openEdit(c)}
                           >
                             <Edit2 size={14} />
                           </Button>
@@ -535,9 +450,7 @@ export default function SuperAdminClients() {
       {editOpen && (
         <div className="rounded-xl border border-ink-100 bg-white p-4 sm:p-6">
           <div className="mb-4">
-            <h2 className="text-lg font-bold text-ink-900">
-              Edit Client
-            </h2>
+            <h2 className="text-lg font-bold text-ink-900">Edit Client</h2>
 
             <p className="mt-1 text-xs text-ink-400 sm:text-sm">
               Update the client's profile and meal settings.
@@ -558,15 +471,12 @@ export default function SuperAdminClients() {
                     name: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
               />
             </FormField>
 
             {/* Employee ID */}
-            <FormField
-              label="Employee ID"
-              required
-            >
+            <FormField label="Employee ID" required>
               <input
                 value={form.employeeId}
                 onChange={(e) =>
@@ -575,7 +485,7 @@ export default function SuperAdminClients() {
                     employeeId: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
               />
             </FormField>
 
@@ -593,7 +503,7 @@ export default function SuperAdminClients() {
                     email: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
               />
             </FormField>
 
@@ -607,7 +517,7 @@ export default function SuperAdminClients() {
                     phone: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
               />
             </FormField>
 
@@ -621,7 +531,7 @@ export default function SuperAdminClients() {
                     department: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
               />
             </FormField>
 
@@ -635,7 +545,7 @@ export default function SuperAdminClients() {
                     designation: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
               />
             </FormField>
 
@@ -646,22 +556,15 @@ export default function SuperAdminClients() {
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,
-                    employmentType:
-                      e.target.value,
+                    employmentType: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
               >
-                <option>
-                  Company Employee
-                </option>
-                <option>
-                  External Client
-                </option>
+                <option>Company Employee</option>
+                <option>External Client</option>
                 <option>Contractor</option>
-                <option>
-                  Temporary Employee
-                </option>
+                <option>Temporary Employee</option>
               </select>
             </FormField>
 
@@ -678,15 +581,11 @@ export default function SuperAdminClients() {
                     mealPlan: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
               >
-                <option>
-                  Fixed Company Meal
-                </option>
+                <option>Fixed Company Meal</option>
                 <option>Custom Menu</option>
-                <option>
-                  Complimentary Meal
-                </option>
+                <option>Complimentary Meal</option>
               </select>
             </FormField>
 
@@ -701,11 +600,9 @@ export default function SuperAdminClients() {
                       mealBenefit: e.target.value,
                     }))
                   }
-                  className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                  className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
                 >
-                  <option>
-                    Company Subsidized
-                  </option>
+                  <option>Company Subsidized</option>
                   <option>Complimentary</option>
                   <option>Self Paid</option>
                 </select>
@@ -718,9 +615,7 @@ export default function SuperAdminClients() {
                 type="button"
                 variant="secondary"
                 fullWidth
-                onClick={() =>
-                  setEditOpen(false)
-                }
+                onClick={() => setEditOpen(false)}
               >
                 Cancel
               </Button>
@@ -746,24 +641,17 @@ export default function SuperAdminClients() {
           <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {/* Message */}
             <p className="text-center text-sm font-medium leading-5 text-ink-700 sm:text-left">
-              {confirmTarget.action ===
-                "delete" &&
+              {confirmTarget.action === "delete" &&
                 "Move this client to the Recycle Bin?"}
 
-              {confirmTarget.action ===
-                "restore" &&
+              {confirmTarget.action === "restore" &&
                 "Restore this client from the Recycle Bin?"}
 
-              {confirmTarget.action ===
-                "suspend" &&
-                "Suspend this client?"}
+              {confirmTarget.action === "suspend" && "Suspend this client?"}
 
-              {confirmTarget.action ===
-                "activate" &&
-                "Reactivate this client?"}
+              {confirmTarget.action === "activate" && "Reactivate this client?"}
 
-              {confirmTarget.action ===
-                "reset" &&
+              {confirmTarget.action === "reset" &&
                 "Reset this client's password?"}
             </p>
 
@@ -771,9 +659,7 @@ export default function SuperAdminClients() {
             <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
               <Button
                 variant="secondary"
-                onClick={() =>
-                  setConfirmTarget(null)
-                }
+                onClick={() => setConfirmTarget(null)}
                 disabled={confirmBusy}
                 className="w-full sm:w-auto"
               >
@@ -782,10 +668,7 @@ export default function SuperAdminClients() {
 
               <Button
                 variant={
-                  confirmTarget.action ===
-                  "delete"
-                    ? "danger"
-                    : "primary"
+                  confirmTarget.action === "delete" ? "danger" : "primary"
                 }
                 onClick={handleConfirm}
                 loading={confirmBusy}

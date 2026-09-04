@@ -4,7 +4,10 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, CheckCircle2, XCircle, FileText, Send } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { genId } from "../../../../components/utils/idGenerator";
-import { generatePassword, deriveEmail } from "../../../../components/utils/credentials";
+import {
+  generatePassword,
+  deriveEmail,
+} from "../../../../components/utils/credentials";
 import { SOCKET_EVENTS } from "../../../../components/services/socket";
 import { notifyEvent } from "../../../../components/services/notifyEvent";
 import { useToast } from "../../../../components/hooks/useToast";
@@ -35,7 +38,10 @@ export default function RequestDetail() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    (async () => setRequests(await dataStore.load("accountRequests", "account-requests.json")))();
+    (async () =>
+      setRequests(
+        await dataStore.load("accountRequests", "account-requests.json"),
+      ))();
   }, []);
 
   if (!requests) return <Loader full label="Loading request..." />;
@@ -107,9 +113,13 @@ export default function RequestDetail() {
 
     await dataStore.insert("clients", clientRecord);
     await dataStore.insert("users", userRecord);
-    const nextRequests = await dataStore.update("accountRequests", (r) => r.id === req.id, {
-      status: "approved",
-    });
+    const nextRequests = await dataStore.update(
+      "accountRequests",
+      (r) => r.id === req.id,
+      {
+        status: "approved",
+      },
+    );
     setRequests(nextRequests);
     setBusy(false);
     push(`${req.name}'s account approved and created.`, "success");
@@ -128,10 +138,14 @@ export default function RequestDetail() {
       return;
     }
     setBusy(true);
-    const next = await dataStore.update("accountRequests", (r) => r.id === req.id, {
-      status: "rejected",
-      rejectionReason: reason.trim(),
-    });
+    const next = await dataStore.update(
+      "accountRequests",
+      (r) => r.id === req.id,
+      {
+        status: "rejected",
+        rejectionReason: reason.trim(),
+      },
+    );
     setRequests(next);
     // No real mail server yet — logged as a notification so the applicant
     // sees the reason once they check back, same simulated pattern used
@@ -162,7 +176,15 @@ export default function RequestDetail() {
             {req.employeeId} · {req.department}
           </p>
         </div>
-        <Badge tone={req.status === "pending" ? "pending" : req.status === "approved" ? "active" : "cancelled"}>
+        <Badge
+          tone={
+            req.status === "pending"
+              ? "pending"
+              : req.status === "approved"
+                ? "active"
+                : "cancelled"
+          }
+        >
           {req.status}
         </Badge>
       </div>
@@ -207,28 +229,51 @@ export default function RequestDetail() {
 
       {req.status === "pending" && (
         <div className="flex gap-3">
-          <Button variant="primary" icon={CheckCircle2} loading={busy} onClick={approve} fullWidth>
+          <Button
+            variant="primary"
+            icon={CheckCircle2}
+            loading={busy}
+            onClick={approve}
+            fullWidth
+          >
             Approve
           </Button>
-          <Button variant="danger" icon={XCircle} onClick={() => setRejectOpen(true)} fullWidth>
+          <Button
+            variant="danger"
+            icon={XCircle}
+            onClick={() => setRejectOpen(true)}
+            fullWidth
+          >
             Reject
           </Button>
         </div>
       )}
 
-      <Modal open={rejectOpen} onClose={() => setRejectOpen(false)} title="Reject Request" size="sm">
+      <Modal
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        title="Reject Request"
+        size="sm"
+      >
         <div className="space-y-4">
           <p className="text-sm text-ink-500">
-            This reason will be emailed to {req.name} explaining why their request was rejected.
+            This reason will be emailed to {req.name} explaining why their
+            request was rejected.
           </p>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={4}
             placeholder="e.g. Employee ID could not be verified against HR records."
-            className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
           />
-          <Button variant="danger" icon={Send} loading={busy} onClick={confirmReject} fullWidth>
+          <Button
+            variant="danger"
+            icon={Send}
+            loading={busy}
+            onClick={confirmReject}
+            fullWidth
+          >
             Send Rejection Email
           </Button>
         </div>

@@ -30,12 +30,12 @@ export default function MealPlanner() {
   // Beverages / Evening Snacks / Custom Menu items don't belong on this
   // planner, per the SRS's Fixed Company Meal definition.
   const fixedMealOptions = menu.filter(
-    (m) => m.category === "Fixed Meal" && m.available !== false
+    (m) => m.category === "Fixed Meal" && m.available !== false,
   );
 
   function updateDay(day, mealName) {
     setDraft((list) =>
-      list.map((d) => (d.day === day ? { ...d, meal: mealName } : d))
+      list.map((d) => (d.day === day ? { ...d, meal: mealName } : d)),
     );
   }
 
@@ -44,7 +44,7 @@ export default function MealPlanner() {
     setWeekly(draft);
     push(
       "Weekly menu updated. Fixed Meal clients will see these choices automatically.",
-      "success"
+      "success",
     );
   }
 
@@ -109,9 +109,7 @@ export default function MealPlanner() {
 
         <div className="divide-y divide-ink-100">
           {draft.map((d) => {
-            const selected = fixedMealOptions.find(
-              (m) => m.name === d.meal
-            );
+            const selected = fixedMealOptions.find((m) => m.name === d.meal);
 
             return (
               <div
@@ -147,12 +145,10 @@ export default function MealPlanner() {
                       <select
                         value={d.meal}
                         onChange={(e) => updateDay(d.day, e.target.value)}
-                        className="w-full rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100 md:w-72"
+                        className="w-full rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink-700 outline-none transition   focus:ring-brand-100 md:w-72"
                       >
                         {!selected && d.meal && (
-                          <option value={d.meal}>
-                            {d.meal} (not in menu)
-                          </option>
+                          <option value={d.meal}>{d.meal} (not in menu)</option>
                         )}
 
                         {fixedMealOptions.map((m) => (
@@ -173,9 +169,7 @@ export default function MealPlanner() {
       {/* Mobile */}
       <div className="space-y-3 sm:hidden">
         {draft.map((d) => {
-          const selected = fixedMealOptions.find(
-            (m) => m.name === d.meal
-          );
+          const selected = fixedMealOptions.find((m) => m.name === d.meal);
 
           return (
             <div
@@ -228,12 +222,10 @@ export default function MealPlanner() {
                   <select
                     value={d.meal}
                     onChange={(e) => updateDay(d.day, e.target.value)}
-                    className="w-full rounded-xl border border-ink-200 bg-white px-3 py-3 text-sm text-ink-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                    className="w-full rounded-xl border border-ink-200 bg-white px-3 py-3 text-sm text-ink-700 outline-none transition   focus:ring-brand-100"
                   >
                     {!selected && d.meal && (
-                      <option value={d.meal}>
-                        {d.meal} (not in menu)
-                      </option>
+                      <option value={d.meal}>{d.meal} (not in menu)</option>
                     )}
 
                     {fixedMealOptions.map((m) => (

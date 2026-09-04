@@ -17,16 +17,14 @@ export default function ClientStatements() {
   const filtered = clients.filter(
     (c) =>
       c.name.toLowerCase().includes(query.toLowerCase()) ||
-      c.employeeId?.toLowerCase().includes(query.toLowerCase())
+      c.employeeId?.toLowerCase().includes(query.toLowerCase()),
   );
 
   const selected = clients.find((c) => c.id === selectedId);
 
   const selectedOrders = selected
     ? orders.filter(
-        (o) =>
-          o.clientId === selected.id ||
-          o.clientName === selected.name
+        (o) => o.clientId === selected.id || o.clientName === selected.name,
       )
     : [];
 
@@ -39,8 +37,8 @@ export default function ClientStatements() {
         </h1>
 
         <p className="mt-1 max-w-2xl text-sm leading-5 text-ink-400">
-          Pick a client to view their Monthly Statement — identical to what
-          they see.
+          Pick a client to view their Monthly Statement — identical to what they
+          see.
         </p>
       </div>
 
@@ -58,7 +56,7 @@ export default function ClientStatements() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search client by name or Employee ID..."
-              className="w-full min-w-0 rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full min-w-0 rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none transition   focus:ring-brand-100"
             />
           </div>
 
@@ -72,10 +70,7 @@ export default function ClientStatements() {
               >
                 {/* Client Icon + Name */}
                 <span className="flex min-w-0 flex-1 items-center gap-2">
-                  <Users
-                    size={14}
-                    className="shrink-0 text-ink-400"
-                  />
+                  <Users size={14} className="shrink-0 text-ink-400" />
 
                   <span className="min-w-0 truncate font-medium text-ink-800">
                     {c.name}

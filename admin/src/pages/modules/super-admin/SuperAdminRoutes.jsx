@@ -15,6 +15,7 @@ const WelcomeEmailPage = lazy(() => import("./pages/WelcomeEmailPage"));
 const RecycleBin = lazy(() => import("./pages/RecycleBin"));
 const SystemBackup = lazy(() => import("./pages/SystemBackup"));
 const ClientStatements = lazy(() => import("./pages/ClientStatements"));
+const StaffForm = lazy(() => import("./pages/StaffForm"));
 
 const SuperAdminRoutes = [
   { index: true, element: <SuperAdminDashboard /> },
@@ -55,6 +56,7 @@ const SuperAdminRoutes = [
       />
     ),
   },
+  { path: "staff/new", element: <StaffForm /> },
   { path: "staff/:id", element: <StaffProfileView /> },
   { path: "menu", element: <SuperAdminMenu /> },
   { path: "menu/new", element: <MenuItemForm /> },
