@@ -8,6 +8,7 @@ import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
 import AvatarImage from "../../../../components/shared/AvatarImage";
+import PasswordChangeSection from "../../../../components/shared/PasswordChangeSection";
 
 const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2MB — sane client-side upload guard
 
@@ -200,6 +201,8 @@ export default function ClientProfile() {
           {saving ? "Saving..." : "Save Changes"}
         </button>
       </form>
+
+      <PasswordChangeSection />
     </div>
   );
 }

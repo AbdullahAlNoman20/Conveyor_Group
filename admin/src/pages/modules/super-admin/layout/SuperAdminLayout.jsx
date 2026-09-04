@@ -9,12 +9,16 @@ import {
   Archive,
   HardDriveDownload,
   FileText,
+  UserCircle,
 } from "lucide-react";
 
 const navGroups = [
   {
     title: "Overview",
-    items: [{ to: "/app/super-admin", label: "Dashboard", Icon: LayoutDashboard, end: true }],
+    items: [
+      { to: "/app/super-admin", label: "Dashboard", Icon: LayoutDashboard, end: true },
+      { to: "/app/super-admin/profile", label: "My Profile", Icon: UserCircle },
+    ],
   },
   {
     title: "User Management",

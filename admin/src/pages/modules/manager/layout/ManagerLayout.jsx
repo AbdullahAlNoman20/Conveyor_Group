@@ -7,6 +7,7 @@ import {
   BarChart3,
   Monitor,
   FileText, // FIX: was used below but never imported — crashed the whole module
+  UserCircle,
 } from "lucide-react";
 
 const navGroups = [
@@ -14,6 +15,7 @@ const navGroups = [
     title: "Overview",
     items: [
       { to: "/app/manager", label: "Dashboard", Icon: LayoutDashboard, end: true },
+      { to: "/app/manager/profile", label: "My Profile", Icon: UserCircle },
     ],
   },
   {

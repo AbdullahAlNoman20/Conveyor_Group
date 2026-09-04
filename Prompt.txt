@@ -1,51 +1,44 @@
-এই ৭টা কাজ সম্পন্ন করতে আমার নিচের ফাইলগুলো লাগবে (তুমি বলেছ প্রায় সব আপডেট করেছ, তাই latest ভার্সন পাঠাও):
+এই কাজটা ৩ ভাগে ভাগ করছি, প্রতিটার জন্য যা লাগবে:
 
-# ================= ১. Client Dashboard এর "Scan to Order" — approval ছাড়া সরাসরি order =================
-1. src/pages/modules/client/pages/ClientDashboard.jsx
-2. src/components/services/selfOrder.js
+# ================= ১. Global Input Zoom/Focus Fix + Responsive Spacing =================
+এটা মূলত একটা global CSS ফিক্স (iOS-এ input focus করলে zoom হওয়া বন্ধ করতে font-size:16px, আর focus outline মিনিমাল করতে) — এই ফাইলগুলো লাগবে:
 
-# ================= ২. Account Requests — শুধু "View" বাটন + আলাদা Detail পেজে Accept/Reject =================
-3. src/pages/modules/super-admin/pages/AccountRequests.jsx
-4. src/pages/modules/super-admin/SuperAdminRoutes.jsx
+1. src/index.css
+2. tailwind.config.js
+3. src/components/shared/FormField.jsx (latest)
+4. src/components/shared/Button.jsx (latest, যদি তুমি আপডেট করে থাকো)
 
-# ================= ৩. Create Client ফর্ম রেজিস্ট্রেশন ফর্মের মতো, সরাসরি প্রোফাইল তৈরি =================
-5. src/pages/modules/super-admin/pages/SuperAdminClients.jsx
-6. src/pages/Register/Register.jsx
+এই ৪টা ঠিক করলেই পুরো সিস্টেমের সব input/select/textarea/button-এ একসাথে প্রয়োগ হয়ে যাবে (global rule), আলাদা আলাদা পেজ ঠিক করা লাগবে না — তবে যদি কোনো নির্দিষ্ট পেজে তুমি ইতিমধ্যে custom inline style/scale ব্যবহার করে থাকো যেটা override করে, সেই ফাইলগুলো বলো আলাদাভাবে।
 
-# ================= ৪. Email Preview এ PDF Download যোগ =================
-7. src/components/shared/EmailPreviewModal.jsx
-8. src/components/utils/printLetterhead.js
+# ================= ২. Change Password UI (Disclaimer সহ, শুধু ডিজাইন — ফাংশনাল না) =================
+5. src/pages/modules/client/pages/ClientProfile.jsx — এটা আমার কাছে latest (document ৯৭) আছে, লাগবে না, আমি এখানেই যোগ করে দিচ্ছি।
 
-# ================= ৫. নোটিফিকেশন ক্লিনআপ (শুধু client/manager/super_admin, নির্দিষ্ট ক্লায়েন্টকে টার্গেট করে) =================
-9. src/components/context/NotificationContext.jsx
-10. src/components/services/socket.js
-11. src/components/services/notifyEvent.js
-12. src/components/utils/orderRecipient.js
+প্রশ্ন: Manager/Super Admin এর নিজস্ব কোনো "My Profile / Edit Profile" পেজ কি আছে (staff নিজে লগইন করে নিজের প্রোফাইল দেখতে)? ট্রি-তে সেরকম কিছু দেখছি না (StaffProfileView.jsx শুধু Super Admin অন্যদের প্রোফাইল দেখার জন্য)। যদি Manager/Super Admin এর জন্যও একটা "My Profile" পেজ বানাতে হয় (নতুন), নাকি এখন শুধু Client-এই এই ফিচার লাগবে — এটা কনফার্ম করো। যদি নতুন পেজ লাগে সেটাও করে দেব।
 
-# ================= ৬. ডিলিট → রিসাইকেল বিন (Restore করা যাবে) =================
-13. src/pages/modules/super-admin/pages/SuperAdminClients.jsx (উপরেই আছে)
-14. public/data/clients.json
+# ================= ৩. পুরো প্রজেক্ট Tree ক্লিনআপ (unused ফাইল বাদ) =================
+নিচের ফাইলগুলো সন্দেহজনক (হয়তো আর ব্যবহার হচ্ছে না) — এগুলোর কনটেন্ট দাও যাতে আমি প্রতিটার import যাচাই করে নিশ্চিত করতে পারি ব্যবহার হচ্ছে কিনা, নাকি ডিলিট করা যাবে:
 
-# ================= ৭. সিস্টেম ব্যাকআপ (daily/weekly/monthly, JSON+CSV, transactions সহ) — নতুন ফিচার =================
-15. src/components/utils/exportExcel.js
-16. src/components/utils/downloadFile.js
-17. public/data/orders.json (রেফারেন্সের জন্য, না দিলেও চলবে)
+6. src/components/shared/ShareButton.jsx
+7. src/components/shared/Modal.jsx
+8. src/components/shared/OrderTokenModal.jsx
+9. src/components/shared/StatementView.jsx
+10. src/components/shared/CompletedOrderSteps.jsx
+11. src/pages/modules/client/pages/ClientSpendDetail.jsx
+12. src/pages/modules/client/pages/ClientWalletTransactionDetail.jsx
+13. src/pages/modules/client/pages/OrderConfirmation.jsx
+14. src/pages/modules/client/pages/PlaceOrder.jsx
+15. src/pages/modules/manager/pages/ClientStatements.jsx (manager ফোল্ডারে)
+16. src/pages/modules/super-admin/pages/ClientStatements.jsx (super-admin ফোল্ডারেও একই নামের ফাইল — duplicate কিনা যাচাই দরকার)
+17. src/pages/modules/super-admin/pages/RequestDetail.jsx (vs AccountRequestDetail.jsx — দুটোই আছে, একটা পুরনো রয়ে গেছে কিনা)
+18. src/components/utils/registrationForm.js
+19. src/components/services/settings.js
+20. src/components/services/api.js
+21. src/components/shared/ProtectedRoute.jsx (vs RoleRoute.jsx — একটাই আসলে ব্যবহার হওয়ার কথা)
+22. src/Router.jsx (latest — কোন কোন রুট এখনো active তা চূড়ান্তভাবে যাচাই করতে)
+23. src/pages/modules/manager/ManagerRoutes.jsx (latest)
+24. src/pages/modules/super-admin/SuperAdminRoutes.jsx (latest)
+25. src/pages/modules/manager/layout/ManagerLayout.jsx (latest)
+26. src/pages/modules/super-admin/layout/SuperAdminLayout.jsx (latest)
+27. src/pages/modules/client/layout/ClientLayout.jsx (latest)
 
-# ================= Restaurant Settings ডিলিট =================
-18. src/pages/modules/super-admin/layout/SuperAdminLayout.jsx
-19. src/pages/modules/super-admin/pages/RestaurantSettings.jsx (শুধু কনফার্ম করতে এটা আসলেই ডিলিট করা যাবে, dependency আছে কিনা)
-
-আসল প্রয়োজনীয় ফাইল (মিনিমাম যা লাগবেই):
-1. src/pages/modules/client/pages/ClientDashboard.jsx
-2. src/components/services/selfOrder.js
-3. src/pages/modules/super-admin/pages/AccountRequests.jsx
-4. src/pages/modules/super-admin/SuperAdminRoutes.jsx
-5. src/pages/modules/super-admin/pages/SuperAdminClients.jsx
-6. src/pages/Register/Register.jsx
-7. src/components/shared/EmailPreviewModal.jsx
-8. src/components/context/NotificationContext.jsx
-9. src/components/services/socket.js
-10. src/components/services/notifyEvent.js
-11. src/pages/modules/super-admin/layout/SuperAdminLayout.jsx
-
-এই ১১টা পাঠাও — একসাথে সবগুলো কাজ (নতুন Recycle Bin পেজ + System Backup পেজ সহ) সম্পন্ন করে দেব।
+এতগুলো ফাইল একসাথে না দিলেও চলবে — চাইলে ধাপে ধাপে (আগে Router+Routes+Layout ৬টা, তারপর বাকিগুলো) পাঠাতে পারো, আমি প্রতিটা ব্যাচ শেষে রিপোর্ট দেব কোনটা রাখা লাগবে, কোনটা ডিলিট করা যাবে।

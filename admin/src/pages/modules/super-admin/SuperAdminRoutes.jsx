@@ -16,9 +16,11 @@ const RecycleBin = lazy(() => import("./pages/RecycleBin"));
 const SystemBackup = lazy(() => import("./pages/SystemBackup"));
 const ClientStatements = lazy(() => import("./pages/ClientStatements"));
 const StaffForm = lazy(() => import("./pages/StaffForm"));
+const SuperAdminProfile = lazy(() => import("./pages/SuperAdminProfile"));
 
 const SuperAdminRoutes = [
   { index: true, element: <SuperAdminDashboard /> },
+  { path: "profile", element: <SuperAdminProfile /> },
   { path: "clients", element: <SuperAdminClients /> },
   { path: "clients/new", element: <CreateClient /> },
   { path: "clients/:id", element: <ClientProfileView /> },

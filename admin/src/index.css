@@ -32,10 +32,39 @@ h4 {
   @apply bg-transparent;
 }
 
-/* visible keyboard focus everywhere */
+/* Visible keyboard focus everywhere EXCEPT form controls — those already
+   carry their own minimal Tailwind focus ring (border-color + soft ring)
+   defined per-component, so a second thick outline on top looked heavy
+   and duplicated. */
 :focus-visible {
   outline: 2px solid #eb2a2d;
   outline-offset: 2px;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+}
+
+/* iOS Safari auto-zooms the whole page when a focused input's computed
+   font-size is under 16px. Force 16px on every form control on mobile so
+   tapping into ANY field never triggers an unwanted zoom/scale-up,
+   regardless of the text-sm (14px) utility classes used throughout. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Prevents the double-tap-to-zoom gesture on interactive controls. */
+input,
+select,
+textarea,
+button,
+a {
+  touch-action: manipulation;
 }
 
 @media (prefers-reduced-motion: reduce) {
