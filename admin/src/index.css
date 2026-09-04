@@ -47,14 +47,15 @@ textarea:focus-visible {
 }
 
 /* iOS Safari auto-zooms the whole page when a focused input's computed
-   font-size is under 16px. Force 16px on every form control on mobile so
-   tapping into ANY field never triggers an unwanted zoom/scale-up,
-   regardless of the text-sm (14px) utility classes used throughout. */
+   font-size is under 16px. Tailwind's own utility classes (e.g. text-sm)
+   are class selectors and beat a plain tag selector on specificity, so
+   this MUST use !important to actually win and stop the zoom on every
+   input/select/textarea, everywhere in the app. */
 @media (max-width: 640px) {
   input,
   select,
   textarea {
-    font-size: 16px;
+    font-size: 16px !important;
   }
 }
 

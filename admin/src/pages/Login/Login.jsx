@@ -110,7 +110,7 @@ export default function Login() {
       <div className="absolute inset-0 bg-ink-950/80" />
 
       {/* Main */}
-      <div className="relative flex min-h-screen flex-1 items-center justify-center px-3 py-16 sm:px-5 sm:py-10">
+      <div className="relative flex min-h-screen flex-1 items-center justify-center px-5 py-16 sm:px-8 sm:py-10">
         {/* Back Button */}
         <Link
           to="/"

@@ -233,9 +233,9 @@ export default function Register() {
           flex flex-1
           items-center
           justify-center
-          px-3
+          px-5
           py-16
-          sm:px-5
+          sm:px-8
           sm:py-10
         "
       >
