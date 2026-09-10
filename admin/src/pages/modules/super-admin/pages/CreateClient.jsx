@@ -1,16 +1,11 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, UserPlus, Camera, Image as ImageIcon } from "lucide-react";
-import { dataStore } from "../../../../components/services/dataStore";
-import { genId } from "../../../../components/utils/idGenerator";
+import { apiPost, uploadFile } from "../../../../components/services/api";
 import {
   sanitizeText,
   sanitizeEmail,
 } from "../../../../components/utils/sanitize";
-import {
-  generatePassword,
-  deriveEmail,
-} from "../../../../components/utils/credentials";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import FileUpload from "../../../../components/shared/FileUpload";
@@ -33,6 +28,7 @@ export default function CreateClient() {
   const { push } = useToast();
   const [form, setForm] = useState(EMPTY_FORM);
   const [photo, setPhoto] = useState("");
+  const [photoPath, setPhotoPath] = useState("");
   const [docData, setDocData] = useState("");
   const [docName, setDocName] = useState("");
   const cameraInputRef = useRef(null);
@@ -46,12 +42,20 @@ export default function CreateClient() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handlePhoto(e) {
+  // Preview locally, but store only the Supabase object path on the record.
+  async function handlePhoto(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setPhoto(reader.result);
     reader.readAsDataURL(file);
+    try {
+      const { path } = await uploadFile("avatars", file);
+      setPhotoPath(path);
+    } catch (err) {
+      setPhoto("");
+      push(err.message || "Upload failed. Please try again.", "error");
+    }
   }
 
   async function submit(e) {
@@ -69,65 +73,31 @@ export default function CreateClient() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setSaving(true);
-    const cleanName = sanitizeText(form.name, 100);
-    const email = form.email
-      ? sanitizeEmail(form.email)
-      : deriveEmail(cleanName);
-    const password = generatePassword();
-    const clientId = genId("C");
-    const userId = genId("U");
+    try {
+      // One call creates the profile, the login account and the QR token
+      // inside a single transaction — no half-created accounts.
+      const result = await apiPost("/clients", {
+        name: sanitizeText(form.name, 100),
+        employeeId: sanitizeText(form.employeeId, 30),
+        email: form.email ? sanitizeEmail(form.email) : undefined,
+        phone: sanitizeText(form.phone, 20),
+        department: sanitizeText(form.department, 60),
+        designation: sanitizeText(form.designation, 60),
+        employmentType: DEFAULT_EMPLOYMENT_TYPE,
+        mealBenefit: form.mealBenefit,
+        photoPath: photoPath || undefined,
+        supportingDocumentPath: needsDocument ? docData : undefined,
+        supportingDocumentName: needsDocument ? docName : undefined,
+      });
 
-    const clientRecord = {
-      id: clientId,
-      userId,
-      photo: photo || "",
-      name: cleanName,
-      employeeId: sanitizeText(form.employeeId, 30),
-      email,
-      phone: sanitizeText(form.phone, 20),
-      department: sanitizeText(form.department, 60),
-      designation: sanitizeText(form.designation, 60),
-      employmentType: DEFAULT_EMPLOYMENT_TYPE,
-      mealPlan: FIXED_MEAL_PLAN,
-      mealBenefit: form.mealBenefit,
-      supportingDocument: needsDocument ? docData : "",
-      walletBalance: 0,
-      monthlyBill: 0,
-      qrStatus: "active",
-      qrToken: genId("QR"),
-      status: "active",
-    };
-    const userRecord = {
-      id: userId,
-      name: cleanName,
-      email,
-      phone: clientRecord.phone,
-      password,
-      role: "client",
-      status: "active",
-      department: clientRecord.department,
-      designation: clientRecord.designation,
-      employeeId: clientRecord.employeeId,
-      employmentType: DEFAULT_EMPLOYMENT_TYPE,
-      mealPlan: FIXED_MEAL_PLAN,
-      mealBenefit: form.mealBenefit,
-      defaultPaymentMethod: "salary",
-      avatarColor: "#059669",
-    };
-
-    await dataStore.insert("clients", clientRecord);
-    await dataStore.insert("users", userRecord);
-    setSaving(false);
-    push(`${cleanName} created — login account ready.`, "success");
-    navigate(`/app/super-admin/welcome-email/${userId}`, {
-      state: {
-        name: cleanName,
-        email,
-        password,
-        role: `Client (${FIXED_MEAL_PLAN})`,
-        qrToken: clientId,
-      },
-    });
+      push(`${result.credentials.name} created — login account ready.`, "success");
+      navigate(`/app/super-admin/welcome-email/${result.credentials.userId}`, {
+        state: result.credentials,
+      });
+    } catch (err) {
+      push(err.message, "error");
+      setSaving(false);
+    }
   }
 
   return (

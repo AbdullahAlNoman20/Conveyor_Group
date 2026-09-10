@@ -1,0 +1,78 @@
+# backend/docker-compose.yml
+name: cccms
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cccms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cccms}
+      POSTGRES_DB: cccms
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./drizzle/0000_init.sql:/docker-entrypoint-initdb.d/0000_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cccms -d cccms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DB_HOST: postgres
+      DB_USER: cccms
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-cccms}
+      DB_NAME: cccms
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 25
+      AUTH_TYPE: scram-sha-256
+    # The edoburu image always listens on 5432 inside the container, so the
+    # host-side 6432 must map to 5432, not 6432.
+    ports: ["6432:5432"]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    profiles: ["prod"]
+    depends_on:
+      pgbouncer: { condition: service_started }
+      redis: { condition: service_healthy }
+    env_file: [.env]
+    environment:
+      # pgbouncer listens on 5432 inside the container network.
+      DATABASE_URL: postgres://cccms:${POSTGRES_PASSWORD:-cccms}@pgbouncer:5432/cccms
+      REDIS_URL: redis://redis:6379
+    ports: ["4000:4000"]
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    profiles: ["prod"]
+    depends_on: [api]
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+
+volumes:
+  pgdata:
+  redisdata:

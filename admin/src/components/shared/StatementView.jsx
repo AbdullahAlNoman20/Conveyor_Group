@@ -73,22 +73,15 @@ export default function StatementView({
 
   const saved = readSavedPeriod();
 
-  const [year, setYear] = useState(
-    saved?.year ?? now.getFullYear()
-  );
+  const [year, setYear] = useState(saved?.year ?? now.getFullYear());
 
-  const [month, setMonth] = useState(
-    saved?.month ?? now.getMonth()
-  );
+  const [month, setMonth] = useState(saved?.month ?? now.getMonth());
 
   const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     try {
-      sessionStorage.setItem(
-        periodStorageKey,
-        JSON.stringify({ year, month })
-      );
+      sessionStorage.setItem(periodStorageKey, JSON.stringify({ year, month }));
     } catch {}
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,9 +90,9 @@ export default function StatementView({
   const myOrders = useMemo(
     () =>
       (orders || []).filter(
-        (o) => !["cancelled", "rejected"].includes(o.status)
+        (o) => !["cancelled", "rejected"].includes(o.status),
       ),
-    [orders]
+    [orders],
   );
 
   const monthsWithData = useMemo(() => {
@@ -121,40 +114,29 @@ export default function StatementView({
       myOrders.filter((o) => {
         const d = new Date(o.createdAt);
 
-        return (
-          d.getFullYear() === year &&
-          d.getMonth() === month
-        );
+        return d.getFullYear() === year && d.getMonth() === month;
       }),
-    [myOrders, year, month]
+    [myOrders, year, month],
   );
 
   const sorted = useMemo(
     () =>
       [...monthOrders].sort(
-        (a, b) =>
-          new Date(b.createdAt) - new Date(a.createdAt)
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
       ),
-    [monthOrders]
+    [monthOrders],
   );
 
   const totalAmount = useMemo(
-    () =>
-      monthOrders.reduce(
-        (s, o) => s + Number(o.amount || 0),
-        0
-      ),
-    [monthOrders]
+    () => monthOrders.reduce((s, o) => s + Number(o.amount || 0), 0),
+    [monthOrders],
   );
 
   const daysEaten = useMemo(
     () =>
-      new Set(
-        monthOrders.map(
-          (o) => new Date(o.createdAt).toDateString()
-        )
-      ).size,
-    [monthOrders]
+      new Set(monthOrders.map((o) => new Date(o.createdAt).toDateString()))
+        .size,
+    [monthOrders],
   );
 
   const {
@@ -167,8 +149,7 @@ export default function StatementView({
   const monthLabel = `${MONTH_NAMES[month]} ${year}`;
 
   const isCurrentPeriod =
-    year === now.getFullYear() &&
-    month === now.getMonth();
+    year === now.getFullYear() && month === now.getMonth();
 
   function downloadExcel() {
     exportToExcel(
@@ -179,15 +160,14 @@ export default function StatementView({
           minute: "2-digit",
         }),
         Order: o.id,
-        Items: o.items
-          ?.map((i) => `${i.qty}x ${i.name}`)
-          .join(", "),
+        Items: o.items?.map((i) => `${i.qty}x ${i.name}`).join(", "),
         "Amount (Tk)": o.amount,
         Status: o.status,
       })),
-      `${client?.name || "statement"}-${year}-${String(
-        month + 1
-      ).padStart(2, "0")}`
+      `${client?.name || "statement"}-${year}-${String(month + 1).padStart(
+        2,
+        "0",
+      )}`,
     );
   }
 
@@ -218,17 +198,13 @@ export default function StatementView({
               .map(
                 (o) =>
                   `<tr>
-                    <td>${new Date(
-                      o.createdAt
-                    ).toLocaleDateString()}</td>
+                    <td>${new Date(o.createdAt).toLocaleDateString()}</td>
                     <td>${o.id}</td>
                     <td>${(o.items || [])
-                      .map(
-                        (i) => `${i.qty}x ${i.name}`
-                      )
+                      .map((i) => `${i.qty}x ${i.name}`)
                       .join(", ")}</td>
                     <td>Tk ${o.amount}</td>
-                  </tr>`
+                  </tr>`,
               )
               .join("")}
           </tbody>
@@ -240,7 +216,7 @@ export default function StatementView({
         </div>
 
         <div class="row total">
-          <span>Total Salary Deduction</span>
+          <span>Total</span>
           <span>Tk ${totalAmount}</span>
         </div>
       `,
@@ -270,10 +246,7 @@ export default function StatementView({
 
           <p className="mt-1 text-sm leading-5 text-ink-400">
             All meals and salary deductions for{" "}
-            <span className="font-medium text-ink-600">
-              {client?.name}
-            </span>
-            .
+            <span className="font-medium text-ink-600">{client?.name}</span>.
           </p>
         </div>
 
@@ -349,28 +322,18 @@ export default function StatementView({
           <div className="mb-3 flex items-center justify-between">
             <button
               type="button"
-              onClick={() =>
-                setYear((y) =>
-                  Math.max(MIN_YEAR, y - 1)
-                )
-              }
+              onClick={() => setYear((y) => Math.max(MIN_YEAR, y - 1))}
               disabled={year <= MIN_YEAR}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-500 transition hover:bg-ink-100 disabled:opacity-30"
             >
               <ChevronLeft size={18} />
             </button>
 
-            <span className="text-lg font-bold text-ink-900">
-              {year}
-            </span>
+            <span className="text-lg font-bold text-ink-900">{year}</span>
 
             <button
               type="button"
-              onClick={() =>
-                setYear((y) =>
-                  Math.min(MAX_YEAR, y + 1)
-                )
-              }
+              onClick={() => setYear((y) => Math.min(MAX_YEAR, y + 1))}
               disabled={year >= MAX_YEAR}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-500 transition hover:bg-ink-100 disabled:opacity-30"
             >
@@ -381,9 +344,7 @@ export default function StatementView({
           {/* Months */}
           <div className="grid grid-cols-3 gap-2">
             {MONTH_NAMES.map((m, idx) => {
-              const hasData = monthsWithData.has(
-                `${year}-${idx}`
-              );
+              const hasData = monthsWithData.has(`${year}-${idx}`);
 
               const isSelected = idx === month;
 
@@ -396,8 +357,8 @@ export default function StatementView({
                     isSelected
                       ? "border-brand-500 bg-brand-50 text-brand-700"
                       : hasData
-                      ? "border-ink-200 text-ink-700 hover:border-brand-300"
-                      : "border-ink-100 text-ink-400 hover:border-brand-200"
+                        ? "border-ink-200 text-ink-700 hover:border-brand-300"
+                        : "border-ink-100 text-ink-400 hover:border-brand-200"
                   }`}
                 >
                   {m.slice(0, 3)}
@@ -425,7 +386,7 @@ export default function StatementView({
         />
 
         <StatCard
-          label="Salary Deduction"
+          label="Total Amount"
           value={`Tk ${totalAmount}`}
           Icon={Wallet}
           accent="amber"
@@ -435,9 +396,7 @@ export default function StatementView({
           label="Avg per Meal"
           value={`Tk ${
             monthOrders.length
-              ? Math.round(
-                  totalAmount / monthOrders.length
-                )
+              ? Math.round(totalAmount / monthOrders.length)
               : 0
           }`}
           accent="sky"
@@ -461,29 +420,19 @@ export default function StatementView({
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="text-xs uppercase text-ink-400">
               <tr>
-                <th className="whitespace-nowrap py-2 pr-4">
-                  Date
-                </th>
+                <th className="whitespace-nowrap py-2 pr-4">Date</th>
 
-                <th className="whitespace-nowrap py-2 pr-4">
-                  Order
-                </th>
+                <th className="whitespace-nowrap py-2 pr-4">Order</th>
 
-                <th className="min-w-[180px] py-2 pr-4">
-                  Items
-                </th>
+                <th className="min-w-[180px] py-2 pr-4">Items</th>
 
-                <th className="whitespace-nowrap py-2 pr-4">
-                  Status
-                </th>
+                <th className="whitespace-nowrap py-2 pr-4">Status</th>
 
                 <th className="whitespace-nowrap py-2 pr-4 text-right">
                   Deducted
                 </th>
 
-                <th className="whitespace-nowrap py-2 text-right">
-                  Details
-                </th>
+                <th className="whitespace-nowrap py-2 text-right">Details</th>
               </tr>
             </thead>
 
@@ -492,35 +441,24 @@ export default function StatementView({
                 <tr key={o.id} className="align-middle">
                   {/* Date */}
                   <td className="whitespace-nowrap py-2.5 pr-4 text-ink-500">
-                    {new Date(
-                      o.createdAt
-                    ).toLocaleDateString()}
+                    {new Date(o.createdAt).toLocaleDateString()}
                   </td>
 
                   {/* Order ID */}
                   <td className="max-w-[150px] py-2.5 pr-4 font-medium text-ink-800">
-                    <span className="block truncate">
-                      {o.id}
-                    </span>
+                    <span className="block truncate">{o.id}</span>
                   </td>
 
                   {/* Items */}
                   <td className="max-w-[260px] py-2.5 pr-4 text-ink-500">
                     <span className="block break-words">
-                      {o.items
-                        ?.map(
-                          (i) =>
-                            `${i.qty}x ${i.name}`
-                        )
-                        .join(", ")}
+                      {o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}
                     </span>
                   </td>
 
                   {/* Status */}
                   <td className="whitespace-nowrap py-2.5 pr-4">
-                    <Badge tone={o.status}>
-                      {o.status}
-                    </Badge>
+                    <Badge tone={o.status}>{o.status}</Badge>
                   </td>
 
                   {/* Amount */}
@@ -533,9 +471,7 @@ export default function StatementView({
                     {onViewOrder && (
                       <button
                         type="button"
-                        onClick={() =>
-                          onViewOrder(o.id)
-                        }
+                        onClick={() => onViewOrder(o.id)}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-500 transition hover:bg-ink-100 hover:text-ink-700"
                         aria-label={`View order ${o.id}`}
                       >

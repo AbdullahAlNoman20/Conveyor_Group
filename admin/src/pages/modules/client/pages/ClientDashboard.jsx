@@ -1,5 +1,6 @@
-// FILE: src/pages/modules/client/pages/ClientDashboard.jsx (MODIFIED — removed "Current Month Bill" wallet-era stat card)
-import { useState } from "react";
+// admin/src/pages/modules/client/pages/ClientDashboard.jsx
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Utensils,
   Receipt,
@@ -12,23 +13,19 @@ import {
   ShoppingCart,
   ArrowRight,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
 import Modal from "../../../../components/shared/Modal";
 import QRScannerCamera from "../../../../components/shared/QRScannerCamera";
-import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import {
   isMobileDevice,
   hasCameraSupport,
 } from "../../../../components/utils/device";
-import {
-  createInstantFixedMealOrder,
-  todaysFixedMeal as getTodaysFixedMeal,
-} from "../../../../components/services/selfOrder";
+import { createInstantFixedMealOrder } from "../../../../components/services/selfOrder";
 import { dataStore } from "../../../../components/services/dataStore";
+import { apiGet } from "../../../../components/services/api";
 
 const WEEKDAYS = [
   "Sunday",
@@ -40,57 +37,50 @@ const WEEKDAYS = [
   "Saturday",
 ];
 
-function startOfWeek(d) {
-  const day = d.getDay();
-  const diff = d.getDate() - day;
-  return new Date(d.getFullYear(), d.getMonth(), diff);
-}
-
 export default function ClientDashboard() {
   const { user } = useAuth();
   const { push } = useToast();
-  const clients = useLiveCollection("clients", "clients.json");
-  const orders = useLiveCollection("orders", "orders.json");
-  const weeklyMenu = useLiveCollection("weeklyMenu", "weekly-menu.json");
-  const menu = useLiveCollection("menu", "menu.json");
 
+  // SECURITY: the old `clients.find(byName) || clients[0]` fallback showed this
+  // client someone ELSE's data when no name matched. /reports/dashboard is
+  // resolved from the session user id on the server instead.
+  const [dash, setDash] = useState(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [manualCode, setManualCode] = useState("");
   const [placing, setPlacing] = useState(false);
   const [scanFailed, setScanFailed] = useState(false);
+
   const canUseCamera = isMobileDevice() && hasCameraSupport();
 
-  if (!clients || !orders || !weeklyMenu || !menu)
-    return <Loader full label="Loading your dashboard..." />;
+  useEffect(() => {
+    let mounted = true;
 
-  const me = clients.find((c) => c.name === user?.name) || clients[0];
-  const isFixedMealClient = me?.mealPlan === "Fixed Company Meal";
+    async function refresh() {
+      try {
+        const data = await apiGet("/reports/dashboard");
+        if (mounted) setDash(data);
+      } catch {
+        // keep the last good render rather than blanking the page
+      }
+    }
+
+    refresh();
+    const unsubscribe = dataStore.subscribe("orders", refresh);
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   async function attemptInstantOrder(scannedCode) {
+    // The station code, the plan check, the one-per-day rule and the meal-slot
+    // reservation are all verified server-side in a single transaction.
+    setPlacing(true);
     try {
-      const settings = await dataStore.load("settings", "settings.json");
-      if (
-        !scannedCode ||
-        scannedCode.trim() !== settings?.selfOrderStationCode
-      ) {
-        push("That doesn't match the Self-Order Station code.", "error");
-        return;
-      }
-      if (!isFixedMealClient) {
-        push(
-          "Self-Order Station is only available for Fixed Company Meal plans.",
-          "error",
-        );
-        return;
-      }
-      setPlacing(true);
       const order = await createInstantFixedMealOrder({
-        client: me,
-        clients,
-        orders,
-        weeklyMenu,
-        menu,
         source: "self_scan",
+        stationCode: (scannedCode || "").trim(),
       });
       push(
         `Order ${order.id} confirmed — sent straight to the kitchen board!`,
@@ -99,10 +89,7 @@ export default function ClientDashboard() {
       setScannerOpen(false);
       setManualCode("");
     } catch (err) {
-      push(
-        err?.message || "Couldn't place your order. Please try again.",
-        "error",
-      );
+      push(err?.message || "Couldn't place your order. Please try again.", "error");
     } finally {
       setPlacing(false);
     }
@@ -112,43 +99,23 @@ export default function ClientDashboard() {
     setScanFailed(false);
     setScannerOpen(true);
   }
+
   function closeScanner() {
     setScannerOpen(false);
     setManualCode("");
   }
 
-  const myOrders = orders.filter(
-    (o) => o.clientId === user?.id || o.clientName === user?.name,
-  );
-  const now = new Date();
-  const todayISO = now.toISOString().slice(0, 10);
-  const weekStart = startOfWeek(now);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (!dash) return <Loader full label="Loading your dashboard..." />;
 
-  const billable = myOrders.filter(
-    (o) => !["cancelled", "rejected"].includes(o.status),
-  );
-  const todaysOrders = billable.filter(
-    (o) => (o.createdAt || "").slice(0, 10) === todayISO,
-  );
-  const weeksOrders = billable.filter(
-    (o) => new Date(o.createdAt) >= weekStart,
-  );
-  const monthsOrders = billable.filter(
-    (o) => new Date(o.createdAt) >= monthStart,
-  );
+  const isFixedMealClient = dash.mealPlan === "Fixed Company Meal";
 
-  const todaySpend = todaysOrders.reduce((s, o) => s + o.amount, 0);
-  const weekSpend = weeksOrders.reduce((s, o) => s + o.amount, 0);
-  const monthSpend = monthsOrders.reduce((s, o) => s + o.amount, 0);
+  // Aggregates come from one indexed SQL query instead of pulling every order
+  // into the browser and summing it there.
+  const { todaySpend, weekSpend, monthSpend, todayOrders, monthOrders } = dash.spend;
   const maxSpend = Math.max(todaySpend, weekSpend, monthSpend, 1);
-
-  const recentOrders = [...billable]
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 4);
-
+  const recentOrders = dash.recentOrders || [];
   const todayName = WEEKDAYS[new Date().getDay()];
-  const todaysFixedMealName = weeklyMenu.find((d) => d.day === todayName)?.meal;
+  const todaysFixedMealName = dash.todaysFixedMeal?.name;
 
   return (
     <div className="space-y-6">
@@ -157,7 +124,7 @@ export default function ClientDashboard() {
           Welcome, {user?.name?.split(" ")[0]}
         </h1>
         <p className="text-sm text-ink-400">
-          Here's your meal & billing summary for today.
+          Here's your meal summary for today.
         </p>
       </div>
 
@@ -206,14 +173,11 @@ export default function ClientDashboard() {
         </Link>
       </div>
 
-      {/* Stat cards — "Current Month Bill" (tied to the removed wallet/salary
-          billing system) has been dropped. Replaced with a plain order-count
-          stat that doesn't depend on any wallet/salary concept. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <Link to="/app/client/statement">
           <StatCard
             label="Today's Orders"
-            value={todaysOrders.length}
+            value={todayOrders}
             Icon={Utensils}
             accent="amber"
           />
@@ -221,7 +185,7 @@ export default function ClientDashboard() {
         <Link to="/app/client/statement">
           <StatCard
             label="This Month's Orders"
-            value={monthsOrders.length}
+            value={monthOrders}
             Icon={Receipt}
             accent="brand"
           />
@@ -229,7 +193,7 @@ export default function ClientDashboard() {
         <Link to="/app/client/qr-card">
           <StatCard
             label="QR Status"
-            value={me?.qrStatus ?? "active"}
+            value={dash.qrStatus ?? "active"}
             Icon={QrCode}
             accent="ink"
           />
@@ -239,20 +203,18 @@ export default function ClientDashboard() {
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-ink-100 bg-white p-5">
           <h2 className="mb-2 text-sm font-bold text-ink-700">Today's Meal</h2>
-          {me?.mealPlan === "Fixed Company Meal" ? (
+          {isFixedMealClient ? (
             <p className="text-sm text-ink-600">
               Your fixed meal today (
-              <span className="font-semibold text-ink-900">{todayName}</span>)
-              is{" "}
+              <span className="font-semibold text-ink-900">{todayName}</span>) is{" "}
               <span className="font-semibold text-brand-600">
-                {todaysFixedMealName}
+                {todaysFixedMealName || "not set yet"}
               </span>
               . This is set by the Weekly Meal Planner and can't be changed.
             </p>
           ) : (
             <p className="text-sm text-ink-500">
-              You're on a Custom Menu — choose from the full menu when you place
-              an order.
+              Your meal plan doesn't include the daily fixed meal.
             </p>
           )}
         </div>
@@ -283,9 +245,7 @@ export default function ClientDashboard() {
                 <div className="h-2 w-full overflow-hidden rounded-full bg-ink-100">
                   <div
                     className="h-full rounded-full bg-brand-500"
-                    style={{
-                      width: `${Math.max(4, (value / maxSpend) * 100)}%`,
-                    }}
+                    style={{ width: `${Math.max(4, (value / maxSpend) * 100)}%` }}
                   />
                 </div>
               </div>
@@ -315,10 +275,7 @@ export default function ClientDashboard() {
                 className="flex items-center justify-between gap-3 rounded-lg border border-ink-100 px-3 py-2.5 hover:border-brand-300 hover:bg-brand-50"
               >
                 <div className="flex min-w-0 items-center gap-2">
-                  <CheckCircle2
-                    size={16}
-                    className="shrink-0 text-emerald-600"
-                  />
+                  <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-ink-800">
                       {o.id}
@@ -353,14 +310,14 @@ export default function ClientDashboard() {
             <div className="space-y-3">
               <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
                 <Keyboard size={14} className="mt-0.5 shrink-0" />
-                Camera isn't available right now — type the station code shown
-                on the counter's Self-Order screen instead.
+                Camera isn't available right now — type the station code shown on
+                the counter's Self-Order screen instead.
               </div>
               <input
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
                 placeholder="Enter station code..."
-                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm outline-none   focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
               <button
                 type="button"
@@ -375,7 +332,7 @@ export default function ClientDashboard() {
           <p className="text-center text-xs text-ink-400">
             Today's meal:{" "}
             <span className="font-semibold text-ink-700">
-              {getTodaysFixedMeal(weeklyMenu, menu).name}
+              {todaysFixedMealName || "—"}
             </span>
           </p>
           <button

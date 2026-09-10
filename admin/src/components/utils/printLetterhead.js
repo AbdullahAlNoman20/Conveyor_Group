@@ -1,15 +1,19 @@
 // FILE: src/components/utils/printLetterhead.js
 import logoUrl from "../../assets/logo.jpeg";
+import { escapeHtml } from "./sanitize";
 
+// `title` is interpolated as text. `bodyHtml` is caller-controlled markup whose
+// data fields are already escaped by the API on read.
 export function printOnLetterhead({ title, bodyHtml }) {
-  const win = window.open("", "_blank", "width=800,height=1000");
+  const win = window.open("", "_blank", "width=800,height=1000,noopener,noreferrer");
   if (!win) return;
+  const safeTitle = escapeHtml(String(title || "Document"));
 
   win.document.write(`
     <!doctype html>
     <html>
       <head>
-        <title>${title}</title>
+        <title>${safeTitle}</title>
         <style>
           * { box-sizing: border-box; }
           body { position: relative; font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #0d0d0e; padding: 32px; }

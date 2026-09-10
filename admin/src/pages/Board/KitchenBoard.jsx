@@ -1,24 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLiveCollection } from "../../components/hooks/useLiveCollection";
+// admin/src/pages/Board/KitchenBoard.jsx
+import { useEffect, useState } from "react";
+import { apiGet } from "../../components/services/api";
+import { socket } from "../../components/services/dataStore";
 import AvatarImage from "../../components/shared/AvatarImage";
 import Footer from "../../components/Footer";
 import logo from "../../assets/logo.jpeg";
 
-function displayName(order) {
-  return (order.clientName || "").replace(/^Guest - /, "");
-}
-
-// Orders only carry the client's name — look up their actual uploaded
-// photo from the clients collection so the Token Board shows the real
-// profile picture instead of the generated placeholder.
-function photoFor(order, clients) {
-  const match = (clients || []).find((c) => c.name === order.clientName);
-  return match?.photo || "";
-}
-
 export default function KitchenBoard() {
-  const orders = useLiveCollection("orders", "orders.json");
-  const clients = useLiveCollection("clients", "clients.json");
+  // The board hangs on a counter TV with no login, so it reads the public
+  // projection (names + photos only — no employee IDs, amounts or departments)
+  // instead of the authenticated orders/clients collections.
+  const [queue, setQueue] = useState(null);
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -26,19 +18,39 @@ export default function KitchenBoard() {
     return () => clearInterval(t);
   }, []);
 
-  const { servingNow, readyZone, upNext } = useMemo(() => {
-    if (!orders) return { servingNow: [], readyZone: [], upNext: [] };
+  useEffect(() => {
+    let mounted = true;
 
-    const active = orders
-      .filter((o) => o.status === "ready")
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    async function refresh() {
+      try {
+        const data = await apiGet("/public/board");
+        if (mounted) setQueue(data);
+      } catch {
+        if (mounted) setQueue((prev) => prev ?? []);
+      }
+    }
 
-    return {
-      servingNow: active.slice(0, 5),
-      readyZone: active.slice(5, 10),
-      upNext: active.slice(10, 15),
+    refresh();
+
+    // Pushed by the server whenever an order changes — no polling.
+    const onChange = ({ collection }) => {
+      if (collection === "orders") refresh();
     };
-  }, [orders]);
+    socket.on("data:changed", onChange);
+
+    // Safety net in case a socket event is missed while the TV sleeps.
+    const poll = setInterval(refresh, 30000);
+
+    return () => {
+      mounted = false;
+      socket.off("data:changed", onChange);
+      clearInterval(poll);
+    };
+  }, []);
+
+  const servingNow = queue?.slice(0, 5) ?? [];
+  const readyZone = queue?.slice(5, 10) ?? [];
+  const upNext = queue?.slice(10, 15) ?? [];
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-ink-950 text-white">
@@ -90,13 +102,11 @@ export default function KitchenBoard() {
           </div>
         </header>
 
-        {!orders && (
-          <p className="py-20 text-center text-ink-400">
-            Loading live queue...
-          </p>
+        {!queue && (
+          <p className="py-20 text-center text-ink-400">Loading live queue...</p>
         )}
 
-        {orders && (
+        {queue && (
           <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:justify-items-center">
             <section className="w-full max-w-md lg:col-span-1">
               <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-400">
@@ -114,13 +124,13 @@ export default function KitchenBoard() {
                     className="flex items-center gap-3 rounded-2xl border-2 border-brand-500 bg-ink-900 p-4 board:p-6"
                   >
                     <AvatarImage
-                      name={displayName(o)}
-                      photo={photoFor(o, clients)}
+                      name={o.clientName}
+                      photo={o.photo}
                       size={56}
                       className="shrink-0 border-2 border-brand-500 board:h-16 board:w-16"
                     />
                     <span className="min-w-0 flex-1 truncate text-xl font-extrabold text-white board:text-2xl">
-                      {displayName(o)}
+                      {o.clientName}
                     </span>
                   </div>
                 ))}
@@ -143,13 +153,13 @@ export default function KitchenBoard() {
                     className="flex items-center gap-3 rounded-xl border border-emerald-600 bg-emerald-600/20 px-4 py-3 board:py-4"
                   >
                     <AvatarImage
-                      name={displayName(o)}
-                      photo={photoFor(o, clients)}
+                      name={o.clientName}
+                      photo={o.photo}
                       size={36}
                       className="shrink-0 border border-emerald-500 board:h-11 board:w-11"
                     />
                     <span className="min-w-0 flex-1 truncate text-lg font-bold text-emerald-100 board:text-xl">
-                      {displayName(o)}
+                      {o.clientName}
                     </span>
                     <span className="hidden text-sm text-ink-200 sm:inline board:text-base">
                       {o.tableNumber ? `Table ${o.tableNumber}` : "Take Away"}
@@ -178,13 +188,13 @@ export default function KitchenBoard() {
                     className="flex items-center gap-3 rounded-xl bg-ink-900 px-4 py-3 board:py-4"
                   >
                     <AvatarImage
-                      name={displayName(o)}
-                      photo={photoFor(o, clients)}
+                      name={o.clientName}
+                      photo={o.photo}
                       size={32}
                       className="shrink-0 board:h-10 board:w-10"
                     />
                     <span className="min-w-0 flex-1 truncate text-base font-bold text-white board:text-lg">
-                      {displayName(o)}
+                      {o.clientName}
                     </span>
                   </div>
                 ))}

@@ -8,6 +8,8 @@ const ClientStatement = lazy(() => import("./pages/ClientStatement"));
 const ClientProfile = lazy(() => import("./pages/ClientProfile"));
 const PlaceOrder = lazy(() => import("./pages/PlaceOrder"));
 
+// ClientSpendDetail.jsx and ClientWalletTransactionDetail.jsx were never
+// routed and the wallet system is gone — delete both files.
 const ClientRoutes = [
   { index: true, element: <ClientDashboard /> },
   { path: "qr-card", element: <ClientQRCard /> },

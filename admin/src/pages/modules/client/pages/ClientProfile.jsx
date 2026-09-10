@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Send } from "lucide-react";
-import { dataStore } from "../../../../components/services/dataStore";
+import { apiGet, apiPatch, uploadFile } from "../../../../components/services/api";
 import { sanitizeText } from "../../../../components/utils/sanitize";
 import { useAuth } from "../../../../components/hooks/useAuth";
-import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import { useToast } from "../../../../components/hooks/useToast";
 import FormField from "../../../../components/shared/FormField";
 import Loader from "../../../../components/shared/Loader";
@@ -17,21 +16,29 @@ export default function ClientProfile() {
   const { push } = useToast();
   const fileRef = useRef(null);
 
-  const clients = useLiveCollection("clients", "clients.json");
+  // Resolved from the session user id — never a name match with a clients[0]
+  // fallback, which used to show one client another client's profile.
+  const [me, setMe] = useState(null);
   const [name, setName] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoPath, setPhotoPath] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (user?.name) setName(user.name);
-  }, [user]);
+    let mounted = true;
+    apiGet("/clients/me").then((data) => {
+      if (!mounted) return;
+      setMe(data);
+      setName(data.name);
+    }).catch(() => undefined);
+    return () => { mounted = false; };
+  }, []);
 
-  if (!clients) return <Loader full label="Loading your profile..." />;
+  if (!me) return <Loader full label="Loading your profile..." />;
 
-  const me = clients.find((c) => c.name === user?.name) || clients[0];
-  const displayPhoto = photoPreview || me?.photo;
+  const displayPhoto = photoPreview || me.photo;
 
-  function onPhotoChosen(e) {
+  async function onPhotoChosen(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -45,10 +52,19 @@ export default function ClientProfile() {
       return;
     }
 
+    // Local preview only; the real bytes stream straight to Supabase Storage
+    // and the record keeps just the returned object path.
     const reader = new FileReader();
-
     reader.onload = () => setPhotoPreview(reader.result);
     reader.readAsDataURL(file);
+
+    try {
+      const { path } = await uploadFile("avatars", file);
+      setPhotoPath(path);
+    } catch (err) {
+      setPhotoPreview(null);
+      push(err.message || "Upload failed. Please try again.", "error");
+    }
   }
 
   // Client-controlled: no Manager approval needed — updates apply the
@@ -64,43 +80,21 @@ export default function ClientProfile() {
     setSaving(true);
 
     try {
-      const patch = {
-        name: sanitizeText(name, 100),
-      };
+      const patch = { name: sanitizeText(name, 100) };
+      if (photoPath) patch.photoPath = photoPath;
 
-      if (photoPreview) {
-        patch.photo = photoPreview;
-      }
-
-      await dataStore.update(
-        "clients",
-        (c) => c.id === me.id,
-        patch,
-      );
-
-      // Keep the linked login account (what Navbar/AuthContext reads) in
-      // sync too, so the photo shows up instantly in the Navbar avatar,
-      // Token Board, Manager/Super Admin views — everywhere — without
-      // requiring a re-login.
-      if (me.userId) {
-        await dataStore.update(
-          "users",
-          (u) => u.id === me.userId,
-          patch,
-        );
-      }
-
-      setSaving(false);
+      // The server updates the clients row AND the linked users row in one
+      // transaction, so the navbar avatar and token board update instantly.
+      const updated = await apiPatch("/clients/me", patch);
+      setMe(updated);
       setPhotoPreview(null);
-
-      push(
-        "Profile updated — synced everywhere instantly.",
-        "success",
-      );
+      setPhotoPath(null);
+      window.dispatchEvent(new CustomEvent("cccms:profile-updated"));
+      push("Profile updated — synced everywhere instantly.", "success");
     } catch (error) {
-      console.error("Failed to update profile:", error);
+      push(error.message || "Failed to update profile. Please try again.", "error");
+    } finally {
       setSaving(false);
-      push("Failed to update profile. Please try again.", "error");
     }
   }
 

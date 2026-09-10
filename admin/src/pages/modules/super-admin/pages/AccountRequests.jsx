@@ -12,7 +12,7 @@ export default function AccountRequests() {
   const [requests, setRequests] = useState(null);
 
   useEffect(() => {
-    (async () => setRequests(await dataStore.load("accountRequests", "account-requests.json")))();
+    (async () => setRequests(await dataStore.load("accountRequests")))();
   }, []);
 
   const pending = (requests || []).filter((r) => r.status === "pending");

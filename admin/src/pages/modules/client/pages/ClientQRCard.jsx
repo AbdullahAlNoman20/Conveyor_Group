@@ -1,21 +1,34 @@
 // FILE: src/pages/modules/client/pages/ClientQRCard.jsx (MODIFIED — mobile-responsive fixes)
+import { useEffect, useState } from "react";
 import { Download, ShieldCheck, Utensils, UserRound } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useAuth } from "../../../../components/hooks/useAuth";
-import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
+import { apiGet } from "../../../../components/services/api";
 import { useToast } from "../../../../components/hooks/useToast";
 import Loader from "../../../../components/shared/Loader";
 import Badge from "../../../../components/shared/Badge";
 
 export default function ClientQRCard() {
-  const { user } = useAuth();
   const { push } = useToast();
-  const clients = useLiveCollection("clients", "clients.json");
+  const [me, setMe] = useState(null);
 
-  if (!clients) return <Loader full label="Loading your QR card..." />;
+  useEffect(() => {
+    let mounted = true;
+    apiGet("/clients/me")
+      .then((data) => { if (mounted) setMe(data); })
+      .catch(() => { if (mounted) setMe(null); });
+    return () => { mounted = false; };
+  }, []);
 
-  const me = clients.find((c) => c.name === user?.name) || clients[0];
-  const qrPayload = JSON.stringify({ clientId: me?.id, employeeId: me?.employeeId, status: me?.qrStatus });
+  if (!me) return <Loader full label="Loading your QR card..." />;
+
+  // Permanent payload — this card is printed once and used forever. The
+  // qrToken is what the scanner verifies; a lost card is killed by the Super
+  // Admin's "Reissue QR" action, which invalidates this token instantly.
+  const qrPayload = JSON.stringify({
+    clientId: me.id,
+    employeeId: me.employeeId,
+    qrToken: me.qrToken,
+  });
 
   function handleDownload() {
     const qrSvg = document.getElementById("client-qr-svg");
@@ -34,6 +47,7 @@ export default function ClientQRCard() {
     const name = escapeXml(me?.name || "Employee");
     const department = escapeXml(me?.department || "N/A");
     const status = escapeXml(me?.qrStatus || "active");
+    const issuedOn = new Date(me?.qrIssuedAt || Date.now()).toISOString().slice(0, 10);
 
     const cardSvg = `
       <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1050" height="600" viewBox="0 0 1050 600">
@@ -68,7 +82,7 @@ export default function ClientQRCard() {
         <rect x="680" y="185" width="280" height="280" rx="26" fill="#ffffff" stroke="#e5e7eb" stroke-width="2" />
         <g transform="translate(730, 235)">${qrMarkup}</g>
         <text x="820" y="495" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.5" fill="#6b7280">SCAN TO VERIFY</text>
-        <text x="970" y="535" text-anchor="end" font-family="Arial, sans-serif" font-size="11" font-weight="600" fill="#9ca3af">Issued: 2026-01-05</text>
+        <text x="970" y="535" text-anchor="end" font-family="Arial, sans-serif" font-size="11" font-weight="600" fill="#9ca3af">Issued: ${escapeXml(issuedOn)}</text>
       </svg>
     `;
 
@@ -170,7 +184,9 @@ export default function ClientQRCard() {
 
             <div className="mt-5 flex items-center justify-between border-t border-ink-100 pt-4 sm:mt-6">
               <p className="text-[9px] font-semibold uppercase tracking-wider text-ink-400 sm:text-[10px]">Issue Date</p>
-              <p className="text-xs font-bold text-ink-700">2026-01-05</p>
+              <p className="text-xs font-bold text-ink-700">
+                {new Date(me?.qrIssuedAt || Date.now()).toISOString().slice(0, 10)}
+              </p>
             </div>
           </div>
 

@@ -37,8 +37,7 @@ export default function OrderConfirmation() {
           <thead><tr><th>Item</th><th>Qty</th></tr></thead>
           <tbody>${(order.items || []).map((i) => `<tr><td>${i.name}</td><td>${i.qty}</td></tr>`).join("")}</tbody>
         </table>
-        <div class="row"><span class="label">Subtotal</span><span>Tk ${order.subtotal}</span></div>
-        <div class="row"><span class="label">VAT (5%)</span><span>Tk ${order.tax}</span></div>
+
         <div class="row total"><span>Total</span><span>Tk ${order.amount}</span></div>
       `,
     });
@@ -73,12 +72,7 @@ export default function OrderConfirmation() {
           </div>
 
           <div className="mt-3 space-y-1 border-t border-ink-100 pt-3 text-sm">
-            <div className="flex justify-between text-ink-500">
-              <span>Subtotal</span><span>Tk {order.subtotal}</span>
-            </div>
-            <div className="flex justify-between text-ink-500">
-              <span>VAT (5%)</span><span>Tk {order.tax}</span>
-            </div>
+
             <div className="flex justify-between text-base font-bold text-ink-900">
               <span>Total</span><span>Tk {order.amount}</span>
             </div>
@@ -96,8 +90,8 @@ export default function OrderConfirmation() {
         <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-sm font-bold text-ink-700">Order Progress</h2>
           <CompletedOrderSteps />
-          <p className="mt-5 text-center text-xs text-ink-400">
-            Your order was placed and completed instantly — every step above is done.
+          <p className="mt-5 text-center text-xs leading-5 text-ink-400">
+            Confirmed instantly — your name is on the collection board now.
           </p>
         </div>
       </div>

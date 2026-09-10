@@ -6,7 +6,7 @@ import {
   CalendarRange,
   BarChart3,
   Monitor,
-  FileText, // FIX: was used below but never imported — crashed the whole module
+  FileText,
   UserCircle,
 } from "lucide-react";
 

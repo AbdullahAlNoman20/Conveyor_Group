@@ -26,18 +26,18 @@ const STEPS = [
   },
   {
     Icon: UtensilsCrossed,
-    title: "Pick your meal",
-    text: "Choose from today's fixed menu or the full à la carte list.",
+    title: "Today's meal is set",
+    text: "The Weekly Planner decides the day's dish — nothing to choose.",
   },
   {
     Icon: Timer,
-    title: "Track it live",
-    text: "Watch your order move from kitchen to counter in real time.",
+    title: "Confirmed instantly",
+    text: "No approval steps. Your name goes on the board straight away.",
   },
   {
     Icon: Wallet,
-    title: "Pay without cash",
-    text: "Wallet, salary deduction, or company billing — your choice.",
+    title: "Collect at the counter",
+    text: "Watch the live board and pick it up when your name appears.",
   },
 ];
 

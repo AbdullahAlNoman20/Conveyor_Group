@@ -1,16 +1,20 @@
 import { useRef, useState } from "react";
-import { Paperclip, X, FileText } from "lucide-react";
+import { Paperclip, X, FileText, Loader2 } from "lucide-react";
+import { uploadFile } from "../services/api";
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2MB — keeps the base64 data URL reasonable for localStorage
 
 /** Simple file-to-dataURL uploader (no backend yet — this stores the
  * document inline on the request record; swap for a real upload endpoint
  * once one exists, callers only care about onChange(dataUrl, fileName)). */
-export default function FileUpload({ label, value, fileName, onChange, required, accept = "image/*,.pdf", hint, error }) {
+export default function FileUpload({ label, value, fileName, onChange, required, accept = "image/*,.pdf", hint, error, kind = "documents" }) {
   const inputRef = useRef(null);
   const [localError, setLocalError] = useState("");
+  const [uploading, setUploading] = useState(false);
 
-  function handleFile(e) {
+  // Files now stream to Supabase Storage and only the object PATH is stored.
+  // Base64 data-URLs in the record are gone.
+  async function handleFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_SIZE_BYTES) {
@@ -18,9 +22,15 @@ export default function FileUpload({ label, value, fileName, onChange, required,
       return;
     }
     setLocalError("");
-    const reader = new FileReader();
-    reader.onload = () => onChange(reader.result, file.name);
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const { path } = await uploadFile(kind, file);
+      onChange(path, file.name);
+    } catch (err) {
+      setLocalError(err.message || "Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   function clear() {
@@ -39,9 +49,11 @@ export default function FileUpload({ label, value, fileName, onChange, required,
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink-200 px-3 py-4 text-sm text-ink-500 hover:border-brand-400 hover:text-brand-600"
+          disabled={uploading}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-ink-200 px-3 py-4 text-sm text-ink-500 hover:border-brand-400 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Paperclip size={16} /> Click to upload a file
+          {uploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+          {uploading ? "Uploading..." : "Click to upload a file"}
         </button>
       ) : (
         <div className="flex items-center justify-between gap-2 rounded-lg border border-ink-200 bg-ink-50 px-3 py-2.5 text-sm">

@@ -143,14 +143,6 @@ export default function OrderDetail() {
               </span>
             </div>
 
-            {order.tax ? (
-              <div className="flex items-center justify-between gap-4 text-ink-500">
-                <span>VAT (5%)</span>
-                <span className="shrink-0 whitespace-nowrap">
-                  Tk {order.tax}
-                </span>
-              </div>
-            ) : null}
 
             <div className="flex items-center justify-between gap-4 text-base font-bold text-ink-900">
               <span>Total</span>
@@ -172,8 +164,7 @@ export default function OrderDetail() {
           </div>
 
           <p className="mt-5 text-center text-xs leading-5 text-ink-400">
-            This order was placed and fulfilled instantly — every step above
-            is done.
+            Confirmed instantly — no approval steps needed.
           </p>
         </div>
       </div>

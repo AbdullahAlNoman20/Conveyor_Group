@@ -5,15 +5,13 @@ import {
   CheckCircle2,
   XCircle,
   User,
-  Wallet,
-  Receipt,
   Clock,
   Monitor,
   Keyboard,
   Search,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { dataStore } from "../../../../components/services/dataStore";
+import { apiPost } from "../../../../components/services/api";
 import {
   isMobileDevice,
   hasCameraSupport,
@@ -37,11 +35,9 @@ import Loader from "../../../../components/shared/Loader";
  */
 export default function ScanQR() {
   const { push } = useToast();
+  // Guests removed: guests.json never existed, so that whole branch was dead
+  // and the Custom-Menu path linked to a route that doesn't exist.
   const [clients, setClients] = useState(null);
-  const [guests, setGuests] = useState(null);
-  const [menu, setMenu] = useState(null);
-  const [weeklyMenu, setWeeklyMenu] = useState(null);
-  const [orders, setOrders] = useState(null);
   const [selectedId, setSelectedId] = useState("");
   const [simSearch, setSimSearch] = useState("");
   const [result, setResult] = useState(null); // { ok, message, client, guest }
@@ -55,13 +51,7 @@ export default function ScanQR() {
   const showFallbackSearch = !mobile || cameraFailed;
 
   useEffect(() => {
-    (async () => {
-      setClients(await dataStore.load("clients", "clients.json"));
-      setGuests(await dataStore.load("guests", "guests.json"));
-      setMenu(await dataStore.load("menu", "menu.json"));
-      setWeeklyMenu(await dataStore.load("weeklyMenu", "weekly-menu.json"));
-      setOrders(await dataStore.load("orders", "orders.json"));
-    })();
+    (async () => setClients(await dataStore.load("clients")))();
   }, []);
 
   useEffect(() => {
@@ -85,8 +75,7 @@ export default function ScanQR() {
       .slice(0, 8);
   }, [clients, simSearch]);
 
-  if (!clients || !guests || !menu || !weeklyMenu || !orders)
-    return <Loader full label="Loading directory..." />;
+  if (!clients) return <Loader full label="Loading directory..." />;
 
   // Fixed-meal clients scanned by the Manager skip menu selection AND both
   // approval steps entirely — this creates the order right here and sends
@@ -96,12 +85,8 @@ export default function ScanQR() {
     setPlacingInstant(true);
     try {
       const order = await createInstantFixedMealOrder({
-        client,
-        clients,
-        orders,
-        weeklyMenu,
-        menu,
         source: "manager_scan",
+        clientId: client.id,
       });
       push(
         `Order ${order.id} confirmed — sent straight to the kitchen board.`,
@@ -123,51 +108,19 @@ export default function ScanQR() {
     setInstantOrder(null);
   }
 
-  function evaluateClient(client, scannedToken) {
-    if (!client) return { ok: false, message: "Invalid QR Code" };
-    if (client.status === "suspended")
-      return { ok: false, message: "Account Suspended", client };
-    if (client.qrStatus === "expired")
-      return { ok: false, message: "Expired QR Code", client };
-    if (client.qrStatus !== "active")
-      return { ok: false, message: "Invalid QR Code", client };
-    if (scannedToken && client.qrToken && scannedToken !== client.qrToken) {
-      return {
-        ok: false,
-        message: "Invalid QR Code — this card has been replaced",
-        client,
-      };
-    }
-    return { ok: true, message: "QR Verified", client };
-  }
-
-  function evaluateGuest(guest) {
-    if (!guest) return { ok: false, message: "Invalid QR Code" };
-    if (guest.status !== "active")
-      return { ok: false, message: "Expired QR Code", guest };
-    return { ok: true, message: "Guest QR Verified", guest };
-  }
-
-  function handleDecoded(text) {
+  // Every check (suspended / expired / replaced card) now runs server-side.
+  // Front-end validation alone was trivially bypassable.
+  async function handleDecoded(text) {
     try {
-      const payload = JSON.parse(text);
-      if (payload?.clientId) {
-        const client = clients.find((c) => c.id === payload.clientId);
-        setResult(evaluateClient(client, payload.qrToken));
-        return;
-      }
-    } catch {
-      // Not JSON — fall through to guest-token matching below.
+      setResult(await apiPost("/qr/scan", { payload: text }));
+    } catch (err) {
+      setResult({ ok: false, message: err.message });
     }
-    const guest = guests.find((g) => g.qrToken === text.trim());
-    setResult(
-      guest ? evaluateGuest(guest) : { ok: false, message: "Invalid QR Code" },
-    );
   }
 
-  function simulateScan(client) {
+  async function simulateScan(client) {
     setSelectedId(client.id);
-    setResult(evaluateClient(client));
+    await handleDecoded(JSON.stringify({ clientId: client.id, qrToken: client.qrToken }));
   }
 
   function onScannerInputKeyDown(e) {
@@ -350,73 +303,26 @@ export default function ScanQR() {
               value={result.client.designation}
             />
             <InfoRow
-              icon={Wallet}
-              label="Wallet Balance"
-              value={`Tk ${result.client.walletBalance}`}
+              icon={Clock}
+              label="Last Order Date"
+              value={result.client.lastOrderDate || "No orders yet"}
             />
-            <InfoRow
-              icon={Receipt}
-              label="Current Monthly Bill"
-              value={`Tk ${result.client.monthlyBill}`}
-            />
-            <InfoRow icon={Clock} label="Last Order Date" value="2026-07-27" />
             <InfoRow
               icon={CheckCircle2}
               label="Account Status"
               value={result.client.status}
             />
           </div>
-          {result.client.mealPlan === "Fixed Company Meal" ? (
-            <button
-              type="button"
-              disabled={placingInstant}
-              onClick={() => placeInstantOrder(result.client)}
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {placingInstant
-                ? "Placing order..."
-                : `Confirm Fixed Meal for ${result.client.name.split(" ")[0]} — Instant Order`}
-            </button>
-          ) : (
-            <Link
-              to="/app/manager/new-order"
-              state={{ client: result.client }}
-              className="mt-6 inline-flex rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
-            >
-              {`Create Order for ${result.client.name.split(" ")[0]}`}
-            </Link>
-          )}
-        </div>
-      )}
-
-      {result?.ok && result.guest && (
-        <div className="rounded-xl border border-emerald-200 bg-white p-6">
-          <div className="mb-4 flex items-center gap-2 text-emerald-600">
-            <CheckCircle2 size={22} />
-            <p className="font-semibold">Guest QR Verified</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <InfoRow icon={User} label="Guest Name" value={result.guest.name} />
-            <InfoRow icon={User} label="Guest Type" value={result.guest.type} />
-            <InfoRow
-              icon={CheckCircle2}
-              label="Status"
-              value={result.guest.status}
-            />
-          </div>
-          <Link
-            to="/app/manager/new-order"
-            state={{
-              guest: {
-                name: result.guest.name,
-                department:
-                  result.guest.company || result.guest.organization || "",
-              },
-            }}
-            className="mt-6 inline-flex rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+          <button
+            type="button"
+            disabled={placingInstant}
+            onClick={() => placeInstantOrder(result.client)}
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Create Order for {result.guest.name.split(" ")[0]}
-          </Link>
+            {placingInstant
+              ? "Placing order..."
+              : `Confirm Fixed Meal for ${result.client.name.split(" ")[0]} — Instant Order`}
+          </button>
         </div>
       )}
 

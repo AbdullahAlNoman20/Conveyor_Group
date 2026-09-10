@@ -10,14 +10,11 @@ import FormField from "../../../../components/shared/FormField";
 import FileUpload from "../../../../components/shared/FileUpload";
 import { sanitizeText } from "../../../../components/utils/sanitize";
 
-const CATEGORIES = [
-  "Appetizer",
-  "Main Course",
-  "Dessert",
-  "Beverage",
-  "Side Dish",
-];
-const SPICE_LEVELS = ["None", "Mild", "Medium", "Hot", "Extra Hot"];
+// FIX: the old list matched nothing. Home.jsx, PlaceOrder.jsx and
+// MealPlanner.jsx all filter on these four, and so does the DB constraint —
+// a dish created with the old categories was invisible everywhere.
+const CATEGORIES = ["Fixed Meal", "Custom Menu", "Beverage", "Evening Snack"];
+const SPICE_LEVELS = ["-", "Mild", "Medium", "Medium-Hot", "Hot"];
 
 const NAME_MAX = 100;
 const DESCRIPTION_MAX = 500;
@@ -29,9 +26,12 @@ const EMPTY_FORM = {
   price: "",
   spiceLevel: SPICE_LEVELS[0],
   description: "",
-  image: "",
+  image: "",        // Supabase object PATH — only set on a fresh upload
+  previewUrl: "",   // signed URL, display only, never saved
   imageName: "",
   available: true,
+  calories: null,
+  allergens: [],
 };
 
 const FIELD_INFO = {
@@ -106,7 +106,7 @@ export default function MenuItemForm() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const menu = await dataStore.load("menu", "menu.json");
+      const menu = await dataStore.load("menu");
       if (!active) return;
       if (isEdit) {
         const existing = (menu || []).find((m) => String(m.id) === String(id));
@@ -123,9 +123,16 @@ export default function MenuItemForm() {
               ? existing.spiceLevel
               : SPICE_LEVELS[0],
             description: existing.description ?? "",
-            image: existing.image ?? "",
+            // `existing.image` is a SIGNED URL that expires in minutes. Saving
+            // it back as imagePath would permanently break the photo, so the
+            // preview URL and the stored path are kept separate: imagePath is
+            // only set when a NEW file is uploaded.
+            previewUrl: existing.image ?? "",
+            image: "",
             imageName: existing.imageName ?? "",
             available: existing.available ?? true,
+            calories: existing.calories ?? null,
+            allergens: existing.allergens ?? [],
           });
         }
       }
@@ -160,10 +167,21 @@ export default function MenuItemForm() {
         price: Number(form.price),
         spiceLevel: form.spiceLevel,
         description: sanitizeText(form.description, DESCRIPTION_MAX),
-        image: form.image,
-        imageName: form.imageName,
         available: Boolean(form.available),
       };
+
+      // Only send the image keys when a new file was actually uploaded — the
+      // server treats an absent key as "leave it alone", so an edit no longer
+      // wipes the existing photo (or calories/allergens, which this form
+      // doesn't expose at all).
+      if (form.image) {
+        payload.imagePath = form.image;
+        payload.imageName = form.imageName || undefined;
+      }
+      if (!isEdit) {
+        payload.calories = form.calories ?? undefined;
+        payload.allergens = form.allergens ?? [];
+      }
 
       if (isEdit) {
         await dataStore.update(
@@ -173,12 +191,13 @@ export default function MenuItemForm() {
         );
         push("Menu item updated.", "success");
       } else {
-        await dataStore.create("menu", payload);
+        // FIX: dataStore has no `create` — creating an item threw silently.
+        await dataStore.insert("menu", payload);
         push("Menu item created.", "success");
       }
       navigate("/app/super-admin/menu");
     } catch (err) {
-      push("Failed to save menu item. Please try again.", "error");
+      push(err.message || "Failed to save menu item. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -311,20 +330,27 @@ export default function MenuItemForm() {
           hint="JPG or PNG, under 2MB."
         >
           <FileUpload
-            value={form.image}
+            kind="menu-items"
+            value={form.image || form.previewUrl}
             fileName={form.imageName}
             accept="image/*"
-            onChange={(dataUrl, name) => {
-              updateField("image", dataUrl);
+            onChange={(path, name) => {
+              updateField("image", path);
               updateField("imageName", name);
+              if (!path) updateField("previewUrl", "");
             }}
           />
-          {form.image && (
+          {form.previewUrl && !form.image && (
             <img
-              src={form.image}
-              alt="Dish preview"
+              src={form.previewUrl}
+              alt="Current dish photo"
               className="mt-2 h-28 w-28 rounded-lg border border-ink-200 object-cover"
             />
+          )}
+          {form.image && (
+            <p className="mt-2 text-xs font-medium text-emerald-600">
+              New photo ready — save to apply.
+            </p>
           )}
         </FormField>
 

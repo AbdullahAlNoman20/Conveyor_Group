@@ -37,8 +37,9 @@ export default function ManagerDashboard() {
     (o) => new Date(o.createdAt).toDateString() === todayStr
   );
   const dinersToday = [...new Set(todaysOrders.map((o) => o.clientName))];
-    const salaryToday = todaysOrders
-    .filter((o) => o.paymentMethod === "salary")
+  // Wallet/salary split is gone — every non-cancelled order counts.
+  const salaryToday = todaysOrders
+    .filter((o) => !["cancelled", "rejected"].includes(o.status))
     .reduce((s, o) => s + o.amount, 0);
 
   const now = new Date();
@@ -49,7 +50,7 @@ export default function ManagerDashboard() {
     return (
       d.getMonth() === now.getMonth() &&
       d.getFullYear() === now.getFullYear() &&
-      o.paymentMethod === "salary"
+      !["cancelled", "rejected"].includes(o.status)
     );
   });
 
@@ -126,7 +127,7 @@ export default function ManagerDashboard() {
         />
 
         <StatCard
-          label="Salary Deducted Today"
+          label="Meal Value Today"
           value={`Tk ${salaryToday.toLocaleString()}`}
           Icon={Banknote}
           accent="amber"
@@ -209,8 +210,7 @@ export default function ManagerDashboard() {
             </p>
 
             <p className="text-xs leading-5 text-ink-500 sm:text-sm">
-              total salary deducted so far,{" "}
-              {monthOrders.length} orders
+              total meal value so far, {monthOrders.length} orders
             </p>
           </div>
         </div>

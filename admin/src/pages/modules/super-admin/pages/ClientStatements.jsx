@@ -6,8 +6,8 @@ import StatementView from "../../../../components/shared/StatementView";
 import Loader from "../../../../components/shared/Loader";
 
 export default function ClientStatements() {
-  const clients = useLiveCollection("clients", "clients.json");
-  const orders = useLiveCollection("orders", "orders.json");
+  const clients = useLiveCollection("clients");
+  const orders = useLiveCollection("orders");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
 

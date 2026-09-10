@@ -8,11 +8,8 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 
-import { dataStore } from "../../components/services/dataStore";
-import { SOCKET_EVENTS } from "../../components/services/socket";
-import { notifyEvent } from "../../components/services/notifyEvent";
+import { apiPost, uploadFile } from "../../components/services/api";
 import { playAlertSound } from "../../components/services/notify";
-import { genId } from "../../components/utils/idGenerator";
 import { sanitizeText, sanitizeEmail } from "../../components/utils/sanitize";
 
 import { useToast } from "../../components/hooks/useToast";
@@ -42,6 +39,7 @@ export default function Register() {
   const [docData, setDocData] = useState("");
   const [docName, setDocName] = useState("");
   const [photo, setPhoto] = useState("");
+  const [photoPath, setPhotoPath] = useState("");
 
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
@@ -94,46 +92,27 @@ export default function Register() {
     setSubmitting(true);
 
     const request = {
-      id: genId("AR"),
-      photo: photo || "",
+      photoPath: photoPath || undefined,
       name: sanitizeText(form.name, 100),
       employeeId: sanitizeText(form.employeeId, 30),
       email: sanitizeEmail(form.email),
       phone: sanitizeText(form.phone, 20),
       department: sanitizeText(form.department, 60),
       designation: sanitizeText(form.designation, 60),
-      employmentType: DEFAULT_EMPLOYMENT_TYPE,
-      mealPlan: FIXED_MEAL_PLAN,
       mealBenefit: form.mealBenefit,
-      supportingDocument: needsDocument ? docData : "",
-      supportingDocumentName: needsDocument ? docName : "",
-      status: "pending",
-      createdAt: new Date().toISOString(),
+      supportingDocumentPath: needsDocument ? docData : undefined,
+      supportingDocumentName: needsDocument ? docName : undefined,
     };
 
     try {
-      await dataStore.insert("accountRequests", request);
-
-      await notifyEvent(SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED, {
-        message: `New account request from ${request.name} is waiting for review.`,
-        recipientRoles: ["super_admin"],
-      });
-
-      await notifyEvent(SOCKET_EVENTS.ACCOUNT_REQUEST_SUBMITTED, {
-        message: `Thanks, ${request.name}! Your registration was submitted and is awaiting Super Admin approval.`,
-        recipientNames: [request.name],
-      });
-
+      // The Super Admin notification is raised server-side, so an anonymous
+      // visitor can no longer forge notifications to any role.
+      await apiPost("/public/account-requests", request);
       playAlertSound();
-
       setSubmitted(true);
-
-      push(
-        "Registration submitted — a Super Admin will review it shortly.",
-        "success",
-      );
-    } catch {
-      push("Could not submit your registration. Please try again.", "error");
+      push("Registration submitted — a Super Admin will review it shortly.", "success");
+    } catch (err) {
+      push(err.message || "Could not submit your registration. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -382,16 +361,19 @@ export default function Register() {
               accept="image/*"
               capture="user"
               className="hidden"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
-
                 if (!file) return;
-
                 const reader = new FileReader();
-
                 reader.onload = () => setPhoto(reader.result);
-
                 reader.readAsDataURL(file);
+                try {
+                  const { path } = await uploadFile("avatars", file);
+                  setPhotoPath(path);
+                } catch {
+                  setPhoto("");
+                  push("Photo upload failed. Please try again.", "error");
+                }
               }}
             />
 
@@ -401,16 +383,19 @@ export default function Register() {
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
-
                 if (!file) return;
-
                 const reader = new FileReader();
-
                 reader.onload = () => setPhoto(reader.result);
-
                 reader.readAsDataURL(file);
+                try {
+                  const { path } = await uploadFile("avatars", file);
+                  setPhotoPath(path);
+                } catch {
+                  setPhoto("");
+                  push("Photo upload failed. Please try again.", "error");
+                }
               }}
             />
           </div>
@@ -448,8 +433,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  
-                  
+
+
                   focus:ring-brand-100
                 "
               />
@@ -477,8 +462,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  
-                  
+
+
                   focus:ring-brand-100
                 "
               />
@@ -507,8 +492,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  
-                  
+
+
                   focus:ring-brand-100
                 "
               />
@@ -533,8 +518,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  
-                  
+
+
                   focus:ring-brand-100
                 "
               />
@@ -561,8 +546,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  
-                  
+
+
                   focus:ring-brand-100
                 "
               />
@@ -587,8 +572,8 @@ export default function Register() {
                   text-sm
                   outline-none
                   transition
-                  
-                  
+
+
                   focus:ring-brand-100
                 "
               />
@@ -637,8 +622,8 @@ export default function Register() {
                     text-sm
                     outline-none
                     transition
-                    
-                    
+
+
                     focus:ring-brand-100
                   "
                 >

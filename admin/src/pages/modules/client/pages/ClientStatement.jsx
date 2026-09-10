@@ -51,10 +51,7 @@ function readSavedPeriod() {
 
     const parsed = JSON.parse(raw);
 
-    if (
-      typeof parsed?.year === "number" &&
-      typeof parsed?.month === "number"
-    ) {
+    if (typeof parsed?.year === "number" && typeof parsed?.month === "number") {
       return parsed;
     }
   } catch {}
@@ -64,10 +61,7 @@ function readSavedPeriod() {
 
 function savePeriod(year, month) {
   try {
-    sessionStorage.setItem(
-      PERIOD_KEY,
-      JSON.stringify({ year, month })
-    );
+    sessionStorage.setItem(PERIOD_KEY, JSON.stringify({ year, month }));
   } catch {}
 }
 
@@ -75,19 +69,15 @@ export default function ClientStatement() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const clients = useLiveCollection("clients", "clients.json");
-  const orders = useLiveCollection("orders", "orders.json");
+  const clients = useLiveCollection("clients");
+  const orders = useLiveCollection("orders");
 
   const now = new Date();
   const saved = readSavedPeriod();
 
-  const [year, setYear] = useState(
-    saved?.year ?? now.getFullYear()
-  );
+  const [year, setYear] = useState(saved?.year ?? now.getFullYear());
 
-  const [month, setMonth] = useState(
-    saved?.month ?? now.getMonth()
-  );
+  const [month, setMonth] = useState(saved?.month ?? now.getMonth());
 
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -99,19 +89,15 @@ export default function ClientStatement() {
   const safeClients = clients || [];
   const safeOrders = orders || [];
 
-  const me =
-    safeClients.find((c) => c.name === user?.name) ||
-    safeClients[0];
+  const me = safeClients.find((c) => c.name === user?.name) || safeClients[0];
 
+  // `user.id` is a USER id ("U-005") while `order.clientId` is a CLIENT id
+  // ("C-001"), so that comparison never matched and only the name fallback
+  // worked. The server already scopes GET /orders to the caller's own client
+  // when the role is "client", so no ownership filter is needed here at all.
   const myOrders = useMemo(
-    () =>
-      safeOrders.filter(
-        (o) =>
-          (o.clientId === user?.id ||
-            o.clientName === user?.name) &&
-          !["cancelled", "rejected"].includes(o.status)
-      ),
-    [safeOrders, user?.id, user?.name]
+    () => safeOrders.filter((o) => !["cancelled", "rejected"].includes(o.status)),
+    [safeOrders]
   );
 
   const monthsWithData = useMemo(() => {
@@ -133,41 +119,29 @@ export default function ClientStatement() {
       myOrders.filter((o) => {
         const d = new Date(o.createdAt);
 
-        return (
-          d.getFullYear() === year &&
-          d.getMonth() === month
-        );
+        return d.getFullYear() === year && d.getMonth() === month;
       }),
-    [myOrders, year, month]
+    [myOrders, year, month],
   );
 
   const sorted = useMemo(
     () =>
       [...monthOrders].sort(
-        (a, b) =>
-          new Date(b.createdAt) -
-          new Date(a.createdAt)
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
       ),
-    [monthOrders]
+    [monthOrders],
   );
 
   const totalAmount = useMemo(
-    () =>
-      monthOrders.reduce(
-        (s, o) => s + Number(o.amount || 0),
-        0
-      ),
-    [monthOrders]
+    () => monthOrders.reduce((s, o) => s + Number(o.amount || 0), 0),
+    [monthOrders],
   );
 
   const daysEaten = useMemo(
     () =>
-      new Set(
-        monthOrders.map((o) =>
-          new Date(o.createdAt).toDateString()
-        )
-      ).size,
-    [monthOrders]
+      new Set(monthOrders.map((o) => new Date(o.createdAt).toDateString()))
+        .size,
+    [monthOrders],
   );
 
   const {
@@ -180,8 +154,7 @@ export default function ClientStatement() {
   const monthLabel = `${MONTH_NAMES[month]} ${year}`;
 
   const isCurrentPeriod =
-    year === now.getFullYear() &&
-    month === now.getMonth();
+    year === now.getFullYear() && month === now.getMonth();
 
   if (!clients || !orders) {
     return <Loader full label="Loading your statement..." />;
@@ -196,15 +169,14 @@ export default function ClientStatement() {
           minute: "2-digit",
         }),
         Order: o.id,
-        Items: o.items
-          ?.map((i) => `${i.qty}x ${i.name}`)
-          .join(", "),
+        Items: o.items?.map((i) => `${i.qty}x ${i.name}`).join(", "),
         "Amount (Tk)": o.amount,
         Status: o.status,
       })),
-      `${user?.name || "statement"}-${year}-${String(
-        month + 1
-      ).padStart(2, "0")}`
+      `${user?.name || "statement"}-${year}-${String(month + 1).padStart(
+        2,
+        "0",
+      )}`,
     );
   }
 
@@ -235,21 +207,16 @@ export default function ClientStatement() {
               .map(
                 (o) =>
                   `<tr>
-                    <td>${new Date(
-                      o.createdAt
-                    ).toLocaleDateString()}</td>
+                    <td>${new Date(o.createdAt).toLocaleDateString()}</td>
 
                     <td>${o.id}</td>
 
                     <td>${(o.items || [])
-                      .map(
-                        (i) =>
-                          `${i.qty}x ${i.name}`
-                      )
+                      .map((i) => `${i.qty}x ${i.name}`)
                       .join(", ")}</td>
 
                     <td>Tk ${o.amount}</td>
-                  </tr>`
+                  </tr>`,
               )
               .join("")}
           </tbody>
@@ -261,7 +228,7 @@ export default function ClientStatement() {
         </div>
 
         <div class="row total">
-          <span>Total Salary Deduction</span>
+          <span>Total</span>
           <span>Tk ${totalAmount}</span>
         </div>
       `,
@@ -292,8 +259,7 @@ export default function ClientStatement() {
           </h1>
 
           <p className="mt-1 max-w-2xl text-xs leading-5 text-ink-400 sm:text-sm">
-            All your meals and salary deductions in one place,
-            for {me?.name}.
+            All your meals and salary deductions in one place, for {me?.name}.
           </p>
         </div>
 
@@ -372,27 +338,17 @@ export default function ClientStatement() {
         <div className="w-full min-w-0">
           <div className="mb-3 flex items-center justify-between">
             <button
-              onClick={() =>
-                setYear((y) =>
-                  Math.max(MIN_YEAR, y - 1)
-                )
-              }
+              onClick={() => setYear((y) => Math.max(MIN_YEAR, y - 1))}
               disabled={year <= MIN_YEAR}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-2 text-ink-500 transition hover:bg-ink-100 disabled:opacity-30"
             >
               <ChevronLeft size={18} />
             </button>
 
-            <span className="px-2 text-lg font-bold text-ink-900">
-              {year}
-            </span>
+            <span className="px-2 text-lg font-bold text-ink-900">{year}</span>
 
             <button
-              onClick={() =>
-                setYear((y) =>
-                  Math.min(MAX_YEAR, y + 1)
-                )
-              }
+              onClick={() => setYear((y) => Math.min(MAX_YEAR, y + 1))}
               disabled={year >= MAX_YEAR}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg p-2 text-ink-500 transition hover:bg-ink-100 disabled:opacity-30"
             >
@@ -402,9 +358,7 @@ export default function ClientStatement() {
 
           <div className="grid grid-cols-3 gap-2">
             {MONTH_NAMES.map((m, idx) => {
-              const hasData = monthsWithData.has(
-                `${year}-${idx}`
-              );
+              const hasData = monthsWithData.has(`${year}-${idx}`);
 
               const isSelected = idx === month;
 
@@ -427,8 +381,8 @@ export default function ClientStatement() {
           </div>
 
           <p className="mt-3 text-center text-[10px] leading-4 text-ink-400 sm:text-[11px]">
-            Any month can be opened, even ones with no
-            orders yet — data-filled months are shown in bold.
+            Any month can be opened, even ones with no orders yet — data-filled
+            months are shown in bold.
           </p>
         </div>
       </Modal>
@@ -452,7 +406,7 @@ export default function ClientStatement() {
         />
 
         <StatCard
-          label="Salary Deduction"
+          label="Total Amount"
           value={`Tk ${totalAmount}`}
           Icon={Wallet}
           accent="amber"
@@ -462,9 +416,7 @@ export default function ClientStatement() {
           label="Avg per Meal"
           value={`Tk ${
             monthOrders.length
-              ? Math.round(
-                  totalAmount / monthOrders.length
-                )
+              ? Math.round(totalAmount / monthOrders.length)
               : 0
           }`}
           accent="sky"
@@ -486,29 +438,17 @@ export default function ClientStatement() {
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="text-xs uppercase text-ink-400">
               <tr>
-                <th className="whitespace-nowrap py-2">
-                  Date
-                </th>
+                <th className="whitespace-nowrap py-2">Date</th>
 
-                <th className="whitespace-nowrap py-2">
-                  Order
-                </th>
+                <th className="whitespace-nowrap py-2">Order</th>
 
-                <th className="py-2">
-                  Items
-                </th>
+                <th className="py-2">Items</th>
 
-                <th className="whitespace-nowrap py-2">
-                  Status
-                </th>
+                <th className="whitespace-nowrap py-2">Status</th>
 
-                <th className="whitespace-nowrap py-2 text-right">
-                  Deducted
-                </th>
+                <th className="whitespace-nowrap py-2 text-right">Deducted</th>
 
-                <th className="whitespace-nowrap py-2 text-right">
-                  Details
-                </th>
+                <th className="whitespace-nowrap py-2 text-right">Details</th>
               </tr>
             </thead>
 
@@ -516,9 +456,7 @@ export default function ClientStatement() {
               {pagedOrders.map((o) => (
                 <tr key={o.id}>
                   <td className="whitespace-nowrap py-2 text-ink-500">
-                    {new Date(
-                      o.createdAt
-                    ).toLocaleDateString()}
+                    {new Date(o.createdAt).toLocaleDateString()}
                   </td>
 
                   <td className="whitespace-nowrap py-2 font-medium text-ink-800">
@@ -527,21 +465,12 @@ export default function ClientStatement() {
 
                   <td className="max-w-[300px] py-2 text-ink-500">
                     <span className="block truncate">
-                      {o.items
-                        ?.map(
-                          (i) =>
-                            `${i.qty}x ${i.name}`
-                        )
-                        .join(", ")}
+                      {o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}
                     </span>
                   </td>
 
                   <td className="whitespace-nowrap py-2">
-                    <Badge
-                      tone={o.status}
-                    >
-                      {o.status}
-                    </Badge>
+                    <Badge tone={o.status}>{o.status}</Badge>
                   </td>
 
                   <td className="whitespace-nowrap py-2 text-right font-semibold text-brand-600">
@@ -550,11 +479,7 @@ export default function ClientStatement() {
 
                   <td className="whitespace-nowrap py-2 text-right">
                     <button
-                      onClick={() =>
-                        navigate(
-                          `/app/client/orders/${o.id}`
-                        )
-                      }
+                      onClick={() => navigate(`/app/client/orders/${o.id}`)}
                       className="inline-flex h-9 w-9 items-center justify-center rounded-lg p-1.5 text-ink-500 transition hover:bg-ink-100"
                     >
                       <Eye size={14} />
@@ -565,10 +490,7 @@ export default function ClientStatement() {
 
               {monthOrders.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="py-10 text-center text-ink-400"
-                  >
+                  <td colSpan={6} className="py-10 text-center text-ink-400">
                     No orders in {monthLabel}.
                   </td>
                 </tr>
@@ -584,11 +506,7 @@ export default function ClientStatement() {
           {pagedOrders.map((o) => (
             <button
               key={o.id}
-              onClick={() =>
-                navigate(
-                  `/app/client/orders/${o.id}`
-                )
-              }
+              onClick={() => navigate(`/app/client/orders/${o.id}`)}
               className="flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-ink-100 bg-ink-50/60 p-3 text-left transition active:scale-[0.995] hover:border-ink-200"
             >
               <div className="min-w-0 flex-1">
@@ -598,25 +516,16 @@ export default function ClientStatement() {
                   </p>
 
                   <div className="shrink-0">
-                    <Badge tone={o.status}>
-                      {o.status}
-                    </Badge>
+                    <Badge tone={o.status}>{o.status}</Badge>
                   </div>
                 </div>
 
                 <p className="mt-1 truncate text-xs text-ink-400">
-                  {o.items
-                    ?.map(
-                      (i) =>
-                        `${i.qty}x ${i.name}`
-                    )
-                    .join(", ")}
+                  {o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}
                 </p>
 
                 <p className="mt-1 text-xs text-ink-400">
-                  {new Date(
-                    o.createdAt
-                  ).toLocaleDateString()}
+                  {new Date(o.createdAt).toLocaleDateString()}
                 </p>
               </div>
 

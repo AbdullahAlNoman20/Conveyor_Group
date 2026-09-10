@@ -16,10 +16,7 @@ import {
   sanitizeText,
   sanitizeEmail,
 } from "../../../../components/utils/sanitize";
-import {
-  generatePassword,
-  deriveEmail,
-} from "../../../../components/utils/credentials";
+import { apiPost } from "../../../../components/services/api";
 import { useToast } from "../../../../components/hooks/useToast";
 import Button from "../../../../components/shared/Button";
 import FormField from "../../../../components/shared/FormField";
@@ -57,7 +54,7 @@ export default function SuperAdminClients() {
   const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
-    (async () => setClients(await dataStore.load("clients", "clients.json")))();
+    (async () => setClients(await dataStore.load("clients")))();
   }, []);
 
   const filtered = (clients || []).filter(
@@ -95,28 +92,26 @@ export default function SuperAdminClients() {
     const cleanName = sanitizeText(form.name, 100);
 
     if (editing) {
-      const next = await dataStore.update(
-        "clients",
-        (c) => c.id === editing.id,
-        {
-          ...form,
+      try {
+        // The server keeps the linked users row in sync in the same call.
+        const next = await dataStore.update("clients", (c) => c.id === editing.id, {
           name: cleanName,
-        },
-      );
-
-      setClients(next);
-
-      await dataStore.update("users", (u) => u.id === editing.userId, {
-        name: cleanName,
-        email: form.email ? sanitizeEmail(form.email) : undefined,
-        phone: sanitizeText(form.phone, 20),
-      });
-
-      setSaving(false);
-
-      push(`${cleanName} updated.`, "success");
-
-      setEditOpen(false);
+          employeeId: form.employeeId,
+          email: form.email ? sanitizeEmail(form.email) : undefined,
+          phone: sanitizeText(form.phone, 20),
+          department: form.department,
+          designation: form.designation,
+          employmentType: form.employmentType,
+          mealBenefit: form.mealBenefit,
+        });
+        setClients(next);
+        push(`${cleanName} updated.`, "success");
+        setEditOpen(false);
+      } catch (err) {
+        push(err.message, "error");
+      } finally {
+        setSaving(false);
+      }
       return;
     }
 
@@ -131,85 +126,44 @@ export default function SuperAdminClients() {
     const { id, action } = confirmTarget;
     const client = clients.find((c) => c.id === id);
 
-    if (action === "delete") {
-      const next = await dataStore.update("clients", (c) => c.id === id, {
-        status: "archived",
-        prevStatus: client.status,
-      });
+    // Every lifecycle action is one atomic server call now: it updates the
+    // client row, the linked login row, and revokes live sessions together.
+    const API_ACTION = {
+      delete: "archive",
+      restore: "restore",
+      suspend: "suspend",
+      activate: "activate",
+      reset: "reset-password",
+      reissue: "reissue-qr",
+      expire: "expire-qr",
+    };
 
-      setClients(next);
+    try {
+      const result = await apiPost(`/clients/${id}/actions`, { action: API_ACTION[action] });
 
-      if (client?.userId) {
-        await dataStore.update("users", (u) => u.id === client.userId, {
-          status: "suspended",
+      if (action === "reset") {
+        setConfirmBusy(false);
+        setConfirmTarget(null);
+        navigate(`/app/super-admin/welcome-email/${result.credentials.userId}`, {
+          state: result.credentials,
         });
+        return;
       }
 
-      push("Client moved to Recycle Bin — restore anytime.", "success");
-    } else if (action === "restore") {
-      const next = await dataStore.update("clients", (c) => c.id === id, {
-        status: client.prevStatus || "active",
-      });
-
-      setClients(next);
-
-      if (client?.userId) {
-        await dataStore.update("users", (u) => u.id === client.userId, {
-          status: "active",
-        });
-      }
-
-      push("Client restored.", "success");
-    } else if (action === "suspend") {
-      const next = await dataStore.update("clients", (c) => c.id === id, {
-        status: "suspended",
-      });
-
-      setClients(next);
-
-      if (client?.userId) {
-        await dataStore.update("users", (u) => u.id === client.userId, {
-          status: "suspended",
-        });
-      }
-
-      push("Client suspended.", "success");
-    } else if (action === "activate") {
-      const next = await dataStore.update("clients", (c) => c.id === id, {
-        status: "active",
-      });
-
-      setClients(next);
-
-      if (client?.userId) {
-        await dataStore.update("users", (u) => u.id === client.userId, {
-          status: "active",
-        });
-      }
-
-      push("Client reactivated.", "success");
-    } else if (action === "reset") {
-      const newPassword = generatePassword();
-
-      if (client?.userId) {
-        await dataStore.update("users", (u) => u.id === client.userId, {
-          password: newPassword,
-        });
-      }
-
-      setConfirmBusy(false);
-      setConfirmTarget(null);
-
-      navigate(`/app/super-admin/welcome-email/${client.userId}`, {
-        state: {
-          name: client.name,
-          email: client.email || deriveEmail(client.name),
-          password: newPassword,
-          role: `Client (${client.mealPlan})`,
-        },
-      });
-
-      return;
+      setClients(await dataStore.load("clients"));
+      push(
+        {
+          delete: "Client moved to Recycle Bin — restore anytime.",
+          restore: "Client restored.",
+          suspend: "Client suspended.",
+          activate: "Client reactivated.",
+          reissue: "New QR issued — the old printed card no longer works.",
+          expire: "QR card banned.",
+        }[action],
+        "success",
+      );
+    } catch (err) {
+      push(err.message, "error");
     }
 
     setConfirmBusy(false);
@@ -398,6 +352,17 @@ export default function SuperAdminClients() {
                             </Button>
                           )}
 
+                          {/* Reissue QR — kills the old printed card */}
+                          <Button
+                            variant="icon"
+                            title="Reissue QR (old card stops working)"
+                            onClick={() =>
+                              setConfirmTarget({ id: c.id, action: "reissue" })
+                            }
+                          >
+                            <RotateCcw size={14} />
+                          </Button>
+
                           {/* Delete */}
                           <Button
                             variant="icon"
@@ -568,28 +533,14 @@ export default function SuperAdminClients() {
               </select>
             </FormField>
 
-            {/* Meal Plan */}
-            <FormField
-              label="Meal Plan"
-              hint="Controls whether they see the fixed daily meal or the full menu at order time"
-            >
-              <select
-                value={form.mealPlan}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    mealPlan: e.target.value,
-                  }))
-                }
-                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none   focus:ring-brand-100"
-              >
-                <option>Fixed Company Meal</option>
-                <option>Custom Menu</option>
-                <option>Complimentary Meal</option>
-              </select>
+            {/* Meal Plan — only Fixed Company Meal is supported. */}
+            <FormField label="Meal Plan">
+              <div className="flex items-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-600">
+                Fixed Company Meal
+              </div>
             </FormField>
 
-            {/* Meal Benefit */}
+            {/* Meal Benefit — wallet/monthly-bill fields are gone from the DB */}
             <div className="sm:col-span-2">
               <FormField label="Meal Benefit">
                 <select
@@ -653,6 +604,9 @@ export default function SuperAdminClients() {
 
               {confirmTarget.action === "reset" &&
                 "Reset this client's password?"}
+
+              {confirmTarget.action === "reissue" &&
+                "Issue a new QR? The client's currently printed card will stop working immediately."}
             </p>
 
             {/* Confirm Buttons */}

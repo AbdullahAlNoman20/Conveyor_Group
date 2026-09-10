@@ -5,7 +5,7 @@ const SuperAdminClients = lazy(() => import("./pages/SuperAdminClients"));
 const SuperAdminMenu = lazy(() => import("./pages/SuperAdminMenu"));
 const MenuItemForm = lazy(() => import("./pages/MenuItemForm"));
 const StaffManagement = lazy(() => import("./pages/StaffManagement"));
-const StaffProfileView = lazy(() => import("./pages/StaffProfileView"));
+
 const FinancialDashboard = lazy(() => import("./pages/FinancialDashboard"));
 const AccountRequests = lazy(() => import("./pages/AccountRequests"));
 const AccountRequestDetail = lazy(() => import("./pages/AccountRequestDetail"));
@@ -29,37 +29,9 @@ const SuperAdminRoutes = [
   { path: "recycle-bin", element: <RecycleBin /> },
   { path: "system-backup", element: <SystemBackup /> },
   { path: "client-statements", element: <ClientStatements /> },
-  {
-    path: "managers",
-    element: (
-      <StaffManagement
-        title="Manager Management"
-        storageKey="managers"
-        seedFile="managers.json"
-        idPrefix="MG"
-        showEmail
-        loginRole="manager"
-        routeType="managers"
-      />
-    ),
-  },
-  {
-    path: "kitchen-staff",
-    element: (
-      <StaffManagement
-        title="Kitchen Staff Management"
-        storageKey="kitchenStaff"
-        seedFile="kitchen-staff.json"
-        idPrefix="KS"
-        showEmail={false}
-        roleField
-        loginRole="kitchen_head"
-        routeType="kitchen-staff"
-      />
-    ),
-  },
+  { path: "managers", element: <StaffManagement title="Manager Management" /> },
+
   { path: "staff/new", element: <StaffForm /> },
-  { path: "staff/:id", element: <StaffProfileView /> },
   { path: "menu", element: <SuperAdminMenu /> },
   { path: "menu/new", element: <MenuItemForm /> },
   { path: "menu/:id", element: <MenuItemForm /> },

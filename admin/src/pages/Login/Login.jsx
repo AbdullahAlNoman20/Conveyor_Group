@@ -9,10 +9,22 @@ import FormField from "../../components/shared/FormField";
 import Loader from "../../components/shared/Loader";
 import AvatarImage from "../../components/shared/AvatarImage";
 import { ROLE_HOME_ROUTE, ROLE_LABELS } from "../../components/constants/roles";
-import { dataStore } from "../../components/services/dataStore";
 import logo from "../../assets/logo.jpeg";
 
+// Dev-only. These are the accounts scripts/seed.ts creates — hardcoded on
+// purpose so the login page never has to fetch a user list from the API
+// (that endpoint used to expose every account in the database publicly).
+const SHOW_DEMO_ACCOUNTS = import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === "true";
 const DEMO_PASSWORD = "Demo@123";
+
+const SEED_ACCOUNTS = [
+  { id: "U-001", name: "Rafiq Ahmed", email: "superadmin@conveyorgroup.com", role: "super_admin" },
+  { id: "U-002", name: "Nadia Islam", email: "manager@conveyorgroup.com", role: "manager" },
+  { id: "U-003", name: "Arif Hasan", email: "arif.manager@conveyorgroup.com", role: "manager" },
+  { id: "U-005", name: "Farzana Karim", email: "client@conveyorgroup.com", role: "client" },
+  { id: "U-006", name: "Tanvir Rahman", email: "tanvir.rahman@conveyorgroup.com", role: "client" },
+  { id: "U-007", name: "Sabrina Yasmin", email: "sabrina.yasmin@conveyorgroup.com", role: "client" },
+];
 
 export default function Login() {
   const { user, login } = useAuth();
@@ -31,10 +43,7 @@ export default function Login() {
   const [demoUsers, setDemoUsers] = useState([]);
 
   useEffect(() => {
-    (async () => {
-      const users = await dataStore.load("users", "users.json");
-      setDemoUsers(users.filter((u) => u.status === "active"));
-    })();
+    setDemoUsers(SHOW_DEMO_ACCOUNTS ? SEED_ACCOUNTS : []);
   }, []);
 
   async function handleSubmit(e) {
@@ -129,13 +138,13 @@ export default function Login() {
 
         {/* Main Grid */}
         <div
-          className="
-            grid w-full max-w-5xl
+          className={`
+            grid w-full
+            ${SHOW_DEMO_ACCOUNTS ? "max-w-5xl lg:grid-cols-2" : "max-w-md"}
             grid-cols-1
             gap-4
             sm:gap-6
-            lg:grid-cols-2
-          "
+          `}
         >
           {/* ================= LOGIN CARD ================= */}
           <div
@@ -190,8 +199,8 @@ export default function Login() {
                     text-sm
                     outline-none
                     transition
-                    
-                    
+
+
                     focus:ring-brand-100
                   "
                   placeholder="you@conveyorgroup.com"
@@ -225,8 +234,8 @@ export default function Login() {
                       text-sm
                       outline-none
                       transition
-                      
-                      
+
+
                       focus:ring-brand-100
                     "
                     placeholder="••••••••"
@@ -293,7 +302,8 @@ export default function Login() {
 
           {/* ================= TESTING ACCOUNTS ================= */}
           <div
-            className="
+            className={`
+              ${SHOW_DEMO_ACCOUNTS ? "" : "hidden"}
               w-full min-w-0
               rounded-2xl
               border-2 border-dashed border-amber-400/60
@@ -301,7 +311,7 @@ export default function Login() {
               p-5
               shadow-2xl
               sm:p-6
-            "
+            `}
           >
             {/* Header */}
             <div className="mb-3 flex items-center gap-2 text-amber-600 sm:mb-4">
@@ -313,8 +323,9 @@ export default function Login() {
             </div>
 
             <p className="mb-4 text-xs leading-relaxed text-ink-500">
-              Click any account below to auto-fill its login credentials
-              (design/testing phase — no real backend is connected yet).
+              Click any account to auto-fill its credentials. These are the
+              seeded development accounts — set VITE_ENABLE_DEMO_ACCOUNTS=false
+              to hide this panel.
             </p>
 
             {/* Demo Users */}
@@ -383,7 +394,7 @@ export default function Login() {
 
               {demoUsers.length === 0 && (
                 <p className="py-3 text-center text-xs text-ink-400">
-                  Loading testing accounts...
+                  Testing accounts are disabled.
                 </p>
               )}
             </div>

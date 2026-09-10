@@ -1,137 +1,127 @@
-import { api } from "./api";
+// admin/src/components/services/dataStore.js
+import { io } from "socket.io-client";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "./api";
 
-const NS = "cccms";
-
-const SEED_VERSION = "2";
-const VERSION_KEY = `${NS}:seed-version`;
-
-function ensureCurrentSeedVersion() {
-  try {
-    const stored = localStorage.getItem(VERSION_KEY);
-    if (stored !== SEED_VERSION) {
-      Object.keys(localStorage)
-        .filter((k) => k.startsWith(`${NS}:`) && k !== VERSION_KEY)
-        .forEach((k) => localStorage.removeItem(k));
-      localStorage.setItem(VERSION_KEY, SEED_VERSION);
-    }
-  } catch {}
-}
-ensureCurrentSeedVersion();
-
-function storageKey(key) {
-  return `${NS}:${key}`;
-}
-
-function readLocal(key) {
-  try {
-    const raw = localStorage.getItem(storageKey(key));
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeLocal(key, value) {
-  try {
-    localStorage.setItem(storageKey(key), JSON.stringify(value));
-    notify(key);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
+/**
+ * Same public surface as the old localStorage store (load/save/insert/update/
+ * remove/subscribe), so no screen had to be restructured. Updates now arrive
+ * as Socket.IO pushes instead of localStorage events — no polling anywhere.
+ */
 const EVENT_NAME = "cccms:datachange";
+
+export const socket = io(import.meta.env.VITE_SOCKET_URL || undefined, {
+  path: "/socket.io",
+  withCredentials: true,
+  transports: ["websocket", "polling"],
+});
 
 function notify(key) {
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { key } }));
 }
 
+socket.on("data:changed", ({ collection }) => notify(collection));
+
 function subscribe(key, callback) {
-  function onSameTabChange(e) {
+  function onChange(e) {
     if (e.detail?.key === key) callback();
   }
-  function onCrossTabChange(e) {
-    if (e.key === storageKey(key)) callback();
-  }
-  window.addEventListener(EVENT_NAME, onSameTabChange);
-  window.addEventListener("storage", onCrossTabChange);
-  return () => {
-    window.removeEventListener(EVENT_NAME, onSameTabChange);
-    window.removeEventListener("storage", onCrossTabChange);
-  };
+  window.addEventListener(EVENT_NAME, onChange);
+  return () => window.removeEventListener(EVENT_NAME, onChange);
 }
 
+const ADAPTERS = {
+  // Reads go through /public/* so the Home page, MenuDetail and the token
+  // board work without a login. Writes stay on the authenticated routes.
+  menu: {
+    get: () => apiGet("/public/menu"),
+    insert: (r) => apiPost("/menu", r),
+    updateById: (id, patch) => apiPatch(`/menu/${id}`, patch),
+    removeById: (id) => apiDelete(`/menu/${id}`),
+  },
+  weeklyMenu: {
+    get: () => apiGet("/public/weekly-menu"),
+    save: (list) => apiPut("/menu/weekly/plan", { days: list }),
+  },
+  board: { get: () => apiGet("/public/board") },
+  clients: {
+    get: async () => (await apiGet("/clients?status=all&pageSize=200")).items,
+    insert: (r) => apiPost("/clients", r),
+    updateById: (id, patch) => apiPatch(`/clients/${id}`, patch),
+  },
+  orders: { get: async () => (await apiGet("/orders?pageSize=200")).items },
+  notifications: { get: async () => (await apiGet("/notifications")).items },
+  accountRequests: { get: async () => (await apiGet("/account-requests?pageSize=200")).items },
+  managers: {
+    get: () => apiGet("/staff/managers"),
+    insert: (r) => apiPost("/staff/managers", r),
+    removeById: (id) => apiDelete(`/staff/managers/${id}`),
+  },
+  settings: { get: () => apiGet("/public/settings") },
+  mealLimit: { get: () => apiGet("/public/meal-limit") },
+};
+
+function adapterFor(key) {
+  const a = ADAPTERS[key];
+  if (!a) throw new Error(`dataStore: no adapter registered for "${key}"`);
+  return a;
+}
+
+const cache = new Map();
+
 export const dataStore = {
-  async load(key, file) {
-    const existing = readLocal(key);
-    if (existing) return existing;
-
+  async load(key) {
     try {
-      const { data } = await api.get(`/${file}`);
-
-      if (typeof data === "string") {
-        throw new Error(`Seed file "${file}" did not return JSON`);
-      }
-      writeLocal(key, data);
+      const data = await adapterFor(key).get();
+      cache.set(key, data);
       return data;
     } catch (err) {
-      console.error(`dataStore: failed to load seed for "${key}"`, err);
-      return [];
+      if (!err?.silent) console.error(`dataStore: failed to load "${key}"`, err);
+      return cache.get(key) ?? [];
     }
   },
 
-  /** Overwrites the entire collection for `key`. */
   async save(key, value) {
-    return writeLocal(key, value);
+    const a = adapterFor(key);
+    if (!a.save) throw new Error(`dataStore: "${key}" is not bulk-writable`);
+    const next = await a.save(value);
+    cache.set(key, next);
+    notify(key);
+    return next;
   },
 
-  /** Appends one record to the collection for `key`. */
   async insert(key, record) {
-    const list = readLocal(key) || [];
-    const next = [...list, record];
-    writeLocal(key, next);
-    return next;
+    await adapterFor(key).insert(record);
+    notify(key);
+    return this.load(key);
   },
 
-  /** Updates the record matching `predicate` with `patch`. */
+  // Predicate form kept for call-site compatibility: the row is matched
+  // client-side, then patched by id on the server.
   async update(key, predicate, patch) {
-    const list = readLocal(key) || [];
-    const next = list.map((item) =>
-      predicate(item) ? { ...item, ...patch } : item,
-    );
-    writeLocal(key, next);
-    return next;
+    const a = adapterFor(key);
+    const list = cache.get(key) ?? (await this.load(key));
+    const target = list.find(predicate);
+    if (!target) return list;
+    await a.updateById(target.id, patch);
+    notify(key);
+    return this.load(key);
   },
 
-  /** Removes records matching `predicate`. */
   async remove(key, predicate) {
-    const list = readLocal(key) || [];
-    const next = list.filter((item) => !predicate(item));
-    writeLocal(key, next);
-    return next;
+    const a = adapterFor(key);
+    const list = cache.get(key) ?? (await this.load(key));
+    const target = list.find(predicate);
+    if (!target) return list;
+    await a.removeById(target.id);
+    notify(key);
+    return this.load(key);
   },
 
-  /** Forces a reseed from the JSON file, discarding local edits for `key`. */
-  async reset(key, file) {
-    try {
-      const { data } = await api.get(`/${file}`);
-      if (typeof data === "string") {
-        throw new Error(`Seed file "${file}" did not return JSON`);
-      }
-      writeLocal(key, data);
-      return data;
-    } catch (err) {
-      console.error(`dataStore: failed to reset "${key}"`, err);
-      return [];
-    }
+  async reset(key) {
+    cache.delete(key);
+    return this.load(key);
   },
 
-  clearAll() {
-    Object.keys(localStorage)
-      .filter((k) => k.startsWith(`${NS}:`))
-      .forEach((k) => localStorage.removeItem(k));
-  },
-
+  clearAll() { cache.clear(); },
   subscribe,
 };

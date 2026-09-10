@@ -1,7 +1,7 @@
 // FILE: src/pages/modules/manager/pages/MealPlanner.jsx
 
 import { useEffect, useState } from "react";
-import { CalendarRange, Save, Copy } from "lucide-react";
+import { CalendarRange, Save } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import { useToast } from "../../../../components/hooks/useToast";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
@@ -16,7 +16,7 @@ export default function MealPlanner() {
 
   useEffect(() => {
     (async () => {
-      const data = await dataStore.load("weeklyMenu", "weekly-menu.json");
+      const data = await dataStore.load("weeklyMenu");
       setWeekly(data);
       setDraft(data);
     })();
@@ -40,16 +40,17 @@ export default function MealPlanner() {
   }
 
   async function save() {
-    await dataStore.save("weeklyMenu", draft);
-    setWeekly(draft);
-    push(
-      "Weekly menu updated. Fixed Meal clients will see these choices automatically.",
-      "success",
-    );
-  }
-
-  function duplicatePrevious() {
-    push("Previous week's menu duplicated into this week (mock).", "info");
+    try {
+      const next = await dataStore.save("weeklyMenu", draft);
+      setWeekly(next);
+      setDraft(next);
+      push(
+        "Weekly menu updated. Fixed Meal clients will see these choices automatically.",
+        "success",
+      );
+    } catch (err) {
+      push(err.message || "Could not save the weekly menu.", "error");
+    }
   }
 
   return (
@@ -73,16 +74,7 @@ export default function MealPlanner() {
           </div>
 
           <div className="flex w-full gap-2 sm:w-auto">
-            <button
-              onClick={duplicatePrevious}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50 sm:flex-none sm:px-4 sm:text-sm"
-            >
-              <Copy size={16} />
-              <span className="hidden xs:inline sm:inline">
-                Duplicate Previous Week
-              </span>
-              <span className="xs:hidden sm:hidden">Duplicate</span>
-            </button>
+
 
             <button
               onClick={save}

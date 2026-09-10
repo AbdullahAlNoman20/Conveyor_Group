@@ -14,8 +14,8 @@ import Loader from "../../../../components/shared/Loader";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 
 export default function SuperAdminDashboard() {
-  const clients = useLiveCollection("clients", "clients.json");
-  const orders = useLiveCollection("orders", "orders.json");
+  const clients = useLiveCollection("clients");
+  const orders = useLiveCollection("orders");
 
   if (!clients || !orders) return <Loader full label="Loading dashboard..." />;
 
@@ -24,12 +24,10 @@ export default function SuperAdminDashboard() {
   const todayStr = new Date().toDateString();
 
   const todaysOrders = orders.filter(
-    (o) => new Date(o.createdAt).toDateString() === todayStr
+    (o) => new Date(o.createdAt).toDateString() === todayStr,
   );
 
-  const dinersToday = [
-    ...new Set(todaysOrders.map((o) => o.clientName)),
-  ];
+  const dinersToday = [...new Set(todaysOrders.map((o) => o.clientName))];
 
   const salaryToday = todaysOrders.reduce((s, o) => s + o.amount, 0);
 
@@ -39,8 +37,7 @@ export default function SuperAdminDashboard() {
     const d = new Date(o.createdAt);
 
     return (
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear()
+      d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
     );
   });
 
@@ -59,10 +56,8 @@ export default function SuperAdminDashboard() {
 
     const count = new Set(
       orders
-        .filter(
-          (o) => new Date(o.createdAt).toDateString() === dayStr
-        )
-        .map((o) => o.clientName)
+        .filter((o) => new Date(o.createdAt).toDateString() === dayStr)
+        .map((o) => o.clientName),
     ).size;
 
     return {
@@ -72,10 +67,7 @@ export default function SuperAdminDashboard() {
   });
 
   const recentDiners = [...todaysOrders]
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt) - new Date(a.createdAt)
-    )
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 8);
 
   return (
@@ -141,10 +133,7 @@ export default function SuperAdminDashboard() {
                   bottom: 5,
                 }}
               >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
 
                 <XAxis
                   dataKey="day"
@@ -162,11 +151,7 @@ export default function SuperAdminDashboard() {
 
                 <Tooltip />
 
-                <Bar
-                  dataKey="diners"
-                  fill="#eb2a2d"
-                  radius={[4, 4, 0, 0]}
-                />
+                <Bar dataKey="diners" fill="#eb2a2d" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -174,9 +159,7 @@ export default function SuperAdminDashboard() {
 
         {/* This Month */}
         <div className="min-w-0 rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
-          <h2 className="mb-3 text-sm font-bold text-ink-700">
-            This Month
-          </h2>
+          <h2 className="mb-3 text-sm font-bold text-ink-700">This Month</h2>
 
           <div className="flex h-[220px] min-w-0 flex-col items-center justify-center gap-2 px-2 text-center">
             <p className="max-w-full break-words text-3xl font-extrabold text-brand-600 sm:text-4xl">
@@ -184,8 +167,7 @@ export default function SuperAdminDashboard() {
             </p>
 
             <p className="text-xs leading-5 text-ink-500 sm:text-sm">
-              total salary deducted so far,{" "}
-              {monthOrders.length} orders
+              total salary deducted so far, {monthOrders.length} orders
             </p>
           </div>
         </div>
@@ -206,11 +188,7 @@ export default function SuperAdminDashboard() {
               className="flex min-w-0 items-center gap-2 rounded-lg bg-ink-50 px-2.5 py-2.5 text-sm sm:gap-3 sm:px-3"
             >
               {/* Avatar */}
-              <AvatarImage
-                name={o.clientName}
-                size={32}
-                className="shrink-0"
-              />
+              <AvatarImage name={o.clientName} size={32} className="shrink-0" />
 
               {/* Client Name */}
               <span className="min-w-0 flex-1 truncate font-medium text-ink-800">

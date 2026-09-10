@@ -1,19 +1,10 @@
 // FILE: src/components/shared/CompletedOrderSteps.jsx
 import { Check } from "lucide-react";
 
-// Since orders now resolve instantly (no manager-approval waiting period),
-// every step in the flow is already true by the time the client sees this
-// order — but the SRS still wants the full step list VISIBLE, each one
-// marked done, rather than collapsing to a single "Completed" badge. This
-// mirrors the shape of the old OrderPipeline.ORDER_STEPS list.
-const STEPS = [
-  "Order Placed",
-  "Manager Approved",
-  "Kitchen Accepted",
-  "Prepared",
-  "Ready",
-  "Completed",
-];
+// The approval pipeline is gone: the fixed meal is pre-made, so an order is
+// confirmed and ready the moment it's placed. These three steps are all that
+// actually happen now.
+const STEPS = ["Order Placed", "Confirmed", "Ready for Collection"];
 
 export default function CompletedOrderSteps() {
   return (
