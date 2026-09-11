@@ -2,7 +2,9 @@
 import * as XLSX from "xlsx";
 
 export function exportToExcel(rows, filename, sheetName = "Sheet1") {
-  const worksheet = XLSX.utils.json_to_sheet(rows);
+  // An empty array produces a header-less file that reads back as nothing, so
+  // fall back to one blank record to keep the columns visible.
+  const worksheet = XLSX.utils.json_to_sheet(rows?.length ? rows : [{}]);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   XLSX.writeFile(

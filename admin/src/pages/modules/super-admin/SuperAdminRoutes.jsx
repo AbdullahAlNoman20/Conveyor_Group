@@ -11,6 +11,7 @@ const AccountRequests = lazy(() => import("./pages/AccountRequests"));
 const AccountRequestDetail = lazy(() => import("./pages/AccountRequestDetail"));
 const ClientProfileView = lazy(() => import("./pages/ClientProfileView"));
 const CreateClient = lazy(() => import("./pages/CreateClient"));
+const BulkImportClients = lazy(() => import("./pages/BulkImportClients"));
 const WelcomeEmailPage = lazy(() => import("./pages/WelcomeEmailPage"));
 const RecycleBin = lazy(() => import("./pages/RecycleBin"));
 const SystemBackup = lazy(() => import("./pages/SystemBackup"));
@@ -24,6 +25,7 @@ const SuperAdminRoutes = [
   { path: "profile", element: <SuperAdminProfile /> },
   { path: "clients", element: <SuperAdminClients /> },
   { path: "clients/new", element: <CreateClient /> },
+  { path: "clients/import", element: <BulkImportClients /> },
   { path: "clients/:id", element: <ClientProfileView /> },
   { path: "welcome-email/:userId", element: <WelcomeEmailPage /> },
   { path: "account-requests/:id", element: <AccountRequestDetail /> },

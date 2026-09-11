@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
 import { requireRole } from "../middleware/rbac.js";
 import {
-  clientActionSchema, clientListQuery, createClientSchema,
+  bulkImportSchema, clientActionSchema, clientListQuery, createClientSchema,
   updateClientSchema, updateOwnProfileSchema,
 } from "../schemas/index.js";
 import * as clientService from "../services/client.service.js";
@@ -79,6 +79,24 @@ export default async function clientRoutes(app: FastifyInstance) {
         },
       },
     };
+  });
+
+  app.post("/bulk-import", {
+    preHandler: [requireRole("super_admin")],
+    // Hashing 500 passwords with argon2id is genuinely expensive, so this
+    // endpoint gets a far tighter budget than an ordinary write.
+    config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+  }, async (req) => {
+    const body = bulkImportSchema.parse(req.body);
+    const result = await clientService.bulkImportClients(body.rows);
+
+    await audit(req, {
+      action: "client.bulk_imported",
+      entity: "clients",
+      after: { created: result.created, skipped: result.skipped },
+    });
+
+    return { success: true, data: result };
   });
 
   app.patch<{ Params: { id: string } }>("/:id", { preHandler: [requireRole("super_admin")] }, async (req) => {

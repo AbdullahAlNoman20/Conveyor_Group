@@ -10,6 +10,7 @@ import {
   IdCard,
   RotateCcw,
   Archive,
+  FileSpreadsheet,
 } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import {
@@ -201,7 +202,7 @@ export default function SuperAdminClients() {
           </div>
 
           {/* Buttons */}
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <div className="grid grid-cols-1 gap-2 xs:grid-cols-3 sm:flex sm:w-auto">
             <Button
               variant="secondary"
               icon={Archive}
@@ -209,6 +210,15 @@ export default function SuperAdminClients() {
               className="w-full justify-center sm:w-auto"
             >
               {showArchived ? "Show Active" : "Recycle Bin"}
+            </Button>
+
+            <Button
+              variant="secondary"
+              icon={FileSpreadsheet}
+              onClick={() => navigate("/app/super-admin/clients/import")}
+              className="w-full justify-center sm:w-auto"
+            >
+              Import Excel
             </Button>
 
             <Button

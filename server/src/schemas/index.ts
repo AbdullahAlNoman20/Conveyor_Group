@@ -15,6 +15,9 @@ export const changePasswordSchema = z.object({
   newPassword: strongPassword,
 });
 
+// No current password: the temporary one is the user's own email address.
+export const initialPasswordSchema = z.object({ newPassword: strongPassword });
+
 /* clients */
 const clientBase = z.object({
   name: reqText(100),
@@ -40,6 +43,32 @@ export const updateClientSchema = clientBase.partial();
 export const updateOwnProfileSchema = z.object({
   name: reqText(100).optional(),
   photoPath: text(255).optional(),
+});
+
+/**
+ * Bulk import. Rows are parsed from the spreadsheet in the browser and sent as
+ * JSON; every row is re-validated here because a client-side parse is only a
+ * convenience, never a trust boundary.
+ */
+export const bulkImportSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        // Preserved so failures can be reported against the user's own row
+        // numbering rather than an index into a filtered array.
+        rowNumber: z.coerce.number().int().min(1),
+        name: text(100),
+        employeeId: text(30),
+        email: text(254),
+        phone: text(20).optional(),
+        department: text(60),
+        designation: text(60).optional(),
+        employmentType: text(40).optional(),
+        mealBenefit: text(40).optional(),
+      }),
+    )
+    .min(1)
+    .max(500),
 });
 
 export const clientListQuery = z.object({

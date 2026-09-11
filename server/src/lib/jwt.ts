@@ -16,9 +16,15 @@ export interface AccessClaims extends JWTPayload {
   sub: string;
   role: Role;
   sid: string;
+  /**
+   * "password change required". Carried in the token so the guard costs no DB
+   * round-trip per request. Changing the password revokes every session, so a
+   * stale `true` can never outlive the change.
+   */
+  pwc?: boolean;
 }
 
-export const signAccessToken = (c: { sub: string; role: Role; sid: string }) =>
+export const signAccessToken = (c: { sub: string; role: Role; sid: string; pwc?: boolean }) =>
   new SignJWT(c).setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuedAt().setIssuer(ISS).setAudience(AUD)
     .setExpirationTime(env.ACCESS_TOKEN_TTL).sign(ACCESS_KEY);

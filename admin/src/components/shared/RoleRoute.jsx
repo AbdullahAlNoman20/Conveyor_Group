@@ -13,6 +13,11 @@ export default function RoleRoute({ allowedRoles = [], children }) {
 
   if (loading) return <Loader full label="Checking your session..." />;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+
+  // A bulk-imported account's temporary password is its own email address, so
+  // nothing is reachable until a real one is set. The server enforces this too.
+  if (user.mustChangePassword) return <Navigate to="/set-password" replace />;
+
   if (!allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;
   }

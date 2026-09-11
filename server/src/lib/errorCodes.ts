@@ -10,6 +10,9 @@ export const ERROR_CODES = {
   TOKEN_EXPIRED: "Your session expired. Please sign in again.",
   CSRF_FAILED: "Request could not be verified. Please refresh and try again.",
   WEAK_PASSWORD: "Password must be at least 10 characters with upper, lower and a digit.",
+  PASSWORD_CHANGE_REQUIRED: "Set a new password before using the system.",
+  IMPORT_EMPTY: "No valid rows found in that file.",
+  IMPORT_TOO_LARGE: "Too many rows — import at most 500 employees per file.",
 
   ORDER_ALREADY_PLACED: "Only one meal per day is allowed — today's meal is already collected.",
   MEAL_LIMIT_REACHED: "Today's meal limit has been reached. Please contact the Manager.",

@@ -12,8 +12,12 @@ import { markOrphan, signedUrl } from "../storage/supabase.js";
 import { revokeAllForUser } from "./auth.service.js";
 import { emitCollectionChanged } from "../sockets/index.js";
 import type { Pagination } from "../lib/pagination.js";
+import { ENUMS } from "../db/schema.js";
+import { logger } from "../lib/logger.js";
 
 const FIXED_MEAL_PLAN = "Fixed Company Meal";
+const EMPLOYMENT_TYPES: readonly string[] = ENUMS.EMPLOYMENT_TYPES;
+const MEAL_BENEFITS: readonly string[] = ENUMS.MEAL_BENEFITS;
 
 export async function toPublicClient(c: ClientRow) {
   return {
@@ -121,6 +125,166 @@ export async function createClientWithLogin(input: {
 
   emitCollectionChanged("clients", ["super_admin", "manager"]);
   return { client, email, password, userId };
+}
+
+export interface BulkImportRow {
+  rowNumber: number;
+  name: string;
+  employeeId: string;
+  email: string;
+  phone?: string;
+  department?: string;
+  designation?: string;
+  employmentType?: string;
+  mealBenefit?: string;
+}
+
+export interface BulkImportOutcome {
+  rowNumber: number;
+  name: string;
+  employeeId: string;
+  email: string;
+  status: "created" | "skipped";
+  error?: string;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Creates many clients from a spreadsheet in one pass.
+ *
+ * Each row gets its own transaction on purpose: one bad row (a duplicate ID
+ * slipped in halfway down the file) must not discard the two hundred good rows
+ * above it. Every failure is reported back with its original row number so the
+ * Super Admin can fix exactly those lines and re-upload.
+ *
+ * The temporary password is the employee's own email address, and every
+ * account is flagged `mustChangePassword`, so the session can reach nothing
+ * but the set-password screen until a real one is chosen.
+ */
+export async function bulkImportClients(rows: BulkImportRow[]): Promise<{
+  created: number;
+  skipped: number;
+  results: BulkImportOutcome[];
+}> {
+  const results: BulkImportOutcome[] = [];
+
+  // Duplicates *within the file itself* are caught here — the database can't
+  // see them until the first of the pair is already committed.
+  const seenEmails = new Set<string>();
+  const seenEmployeeIds = new Set<string>();
+
+  for (const raw of rows) {
+    const name = sanitizeText(raw.name, 100);
+    const employeeId = sanitizeText(raw.employeeId, 30);
+    const email = sanitizeEmail(raw.email);
+    const department = sanitizeText(raw.department, 60);
+
+    const outcome: BulkImportOutcome = {
+      rowNumber: raw.rowNumber,
+      name,
+      employeeId,
+      email,
+      status: "skipped",
+    };
+
+    const reject = (error: string) => {
+      outcome.error = error;
+      results.push(outcome);
+    };
+
+    if (!name) { reject("Full Name is required."); continue; }
+    if (!employeeId) { reject("Employee ID is required."); continue; }
+    if (!email) { reject("Email is required."); continue; }
+    if (!EMAIL_RE.test(email)) { reject("Email address is not valid."); continue; }
+    if (!department) { reject("Department is required."); continue; }
+
+    if (seenEmployeeIds.has(employeeId.toLowerCase())) {
+      reject("Duplicate Employee ID within this file."); continue;
+    }
+    if (seenEmails.has(email)) {
+      reject("Duplicate email within this file."); continue;
+    }
+
+    if (await clientRepo.byEmployeeId(employeeId)) {
+      reject("This Employee ID is already registered."); continue;
+    }
+    if (await userRepo.emailExists(email)) {
+      reject("This email address is already in use."); continue;
+    }
+
+    const employmentType = EMPLOYMENT_TYPES.includes(raw.employmentType as never)
+      ? (raw.employmentType as string)
+      : "Company Employee";
+
+    const mealBenefit = MEAL_BENEFITS.includes(raw.mealBenefit as never)
+      ? (raw.mealBenefit as string)
+      : "Self Paid";
+
+    try {
+      // The email doubles as the temporary password, hashed exactly like any
+      // other so it is never recoverable from the database.
+      const passwordHash = await hashPassword(email);
+      const clientId = genId("C");
+      const userId = await userRepo.nextSequentialId();
+      const phone = sanitizeText(raw.phone, 20) || null;
+      const designation = sanitizeText(raw.designation, 60) || null;
+
+      await db.transaction(async (tx) => {
+        await tx.insert(users).values({
+          id: userId,
+          name,
+          email,
+          phone,
+          passwordHash,
+          role: "client",
+          status: "active",
+          department,
+          designation,
+          employeeId,
+          employmentType,
+          mealPlan: FIXED_MEAL_PLAN,
+          mealBenefit,
+          avatarColor: "#059669",
+          mustChangePassword: true,
+        });
+
+        await tx.insert(clients).values({
+          id: clientId,
+          userId,
+          name,
+          employeeId,
+          email,
+          phone,
+          department,
+          designation,
+          employmentType,
+          mealPlan: FIXED_MEAL_PLAN,
+          mealBenefit,
+          // Bulk-imported Complimentary employees are approved off-system, so
+          // no supporting document is collected here.
+          supportingDocumentPath: null,
+          supportingDocumentName: null,
+          qrStatus: "active",
+          qrToken: genId("QR"),
+          status: "active",
+        });
+      });
+
+      outcome.status = "created";
+      results.push(outcome);
+      seenEmployeeIds.add(employeeId.toLowerCase());
+      seenEmails.add(email);
+    } catch (err) {
+      logger.error({ err, rowNumber: raw.rowNumber }, "bulk import row failed");
+      reject("Could not create this account. Please check the values and retry.");
+    }
+  }
+
+  const created = results.filter((r) => r.status === "created").length;
+  if (created > 0) emitCollectionChanged("clients", ["super_admin", "manager"]);
+
+  return { created, skipped: results.length - created, results };
 }
 
 export async function updateClient(id: string, patch: Record<string, unknown>) {

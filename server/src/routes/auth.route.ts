@@ -1,7 +1,7 @@
 // backend/src/routes/auth.route.ts
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { env } from "../config/env.js";
-import { changePasswordSchema, loginSchema } from "../schemas/index.js";
+import { changePasswordSchema, initialPasswordSchema, loginSchema } from "../schemas/index.js";
 import * as authService from "../services/auth.service.js";
 import { ACCESS_COOKIE, CSRF_COOKIE, REFRESH_COOKIE, authenticate } from "../middleware/auth.js";
 import { verifyAccessToken } from "../lib/jwt.js";
@@ -94,6 +94,22 @@ export default async function authRoutes(app: FastifyInstance) {
 
   app.get("/me", { preHandler: [authenticate] },
     async (req) => ({ success: true, data: await authService.publicUser(req.auth!.userId) }));
+
+  /**
+   * First-login password set for bulk-imported accounts. Reachable while the
+   * session is otherwise locked down, and deliberately does not ask for the
+   * current password — it is the user's own email address.
+   */
+  app.post("/password/initial", {
+    preHandler: [authenticate],
+    config: { rateLimit: { max: 10, timeWindow: "15 minutes" } },
+  }, async (req, reply) => {
+    const body = initialPasswordSchema.parse(req.body);
+    await authService.setInitialPassword(req.auth!.userId, body.newPassword);
+    clearSessionCookies(reply);
+    await audit(req, { action: "auth.initial_password_set", entity: "users", entityId: req.auth!.userId });
+    return { success: true, data: { changed: true } };
+  });
 
   app.post("/password", {
     preHandler: [authenticate],

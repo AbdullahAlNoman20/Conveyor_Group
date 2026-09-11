@@ -41,6 +41,7 @@ export async function publicUser(id: string) {
     mealBenefit: u.mealBenefit,
     avatarColor: u.avatarColor,
     photo: await signedUrl(u.photoPath),
+    // Drives the forced set-password redirect on the client.
     mustChangePassword: u.mustChangePassword,
     clientId: client?.id ?? null,
   };
@@ -67,7 +68,13 @@ export async function login(email: string, password: string, meta: { ip: string;
 
 export async function issueSession(userId: string, role: Role, meta: { ip: string; ua?: string }): Promise<SessionBundle> {
   const sid = uuid();
-  const accessToken = await signAccessToken({ sub: userId, role, sid });
+  const user = await userRepo.byId(userId);
+  const accessToken = await signAccessToken({
+    sub: userId,
+    role,
+    sid,
+    pwc: user?.mustChangePassword === true,
+  });
   const refreshToken = await signRefreshToken(userId, sid);
 
   await db.insert(refreshTokens).values({
@@ -129,6 +136,31 @@ export async function revokeAllForUser(userId: string): Promise<void> {
     .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)))
     .returning({ id: refreshTokens.id });
   await Promise.all(rows.map((r) => redis.setex(`session:revoked:${r.id}`, 3600, "1")));
+}
+
+/**
+ * First-login password set. Only callable while `mustChangePassword` is true,
+ * because the current password is the user's own email address — asking them
+ * to re-type it would be theatre, not verification.
+ */
+export async function setInitialPassword(userId: string, next: string): Promise<void> {
+  const user = await userRepo.byId(userId);
+  if (!user) throw unauthorized();
+  if (!user.mustChangePassword) {
+    throw new AppError("VALIDATION_ERROR", 409, {}, "Your password has already been set.");
+  }
+  // Rejecting the email as the new password stops the temporary credential
+  // from simply being re-confirmed.
+  if (next.trim().toLowerCase() === user.email.toLowerCase()) {
+    throw new AppError(
+      "WEAK_PASSWORD",
+      422,
+      {},
+      "Choose a password that isn't your email address.",
+    );
+  }
+  await userRepo.patch(userId, { passwordHash: await hashPassword(next), mustChangePassword: false });
+  await revokeAllForUser(userId);
 }
 
 export async function changePassword(userId: string, current: string, next: string): Promise<void> {

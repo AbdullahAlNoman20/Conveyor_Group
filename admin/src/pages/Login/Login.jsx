@@ -87,6 +87,13 @@ export default function Login() {
     // redirecting would trap the user in a loop.
     if (!mountedWithSession.current && !justSignedIn.current) return;
 
+    // Imported accounts land on the set-password screen instead of a dashboard
+    // they aren't allowed to load yet.
+    if (user.mustChangePassword) {
+      navigate("/set-password", { replace: true });
+      return;
+    }
+
     const roleHome = ROLE_HOME_ROUTE[user.role] || "/";
     const requestedFrom = location.state?.from?.pathname;
 

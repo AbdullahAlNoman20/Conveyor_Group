@@ -4,6 +4,7 @@ import Root from "./Root";
 import Home from "./pages/Home/Home";
 import MenuDetail from "./pages/Menu/MenuDetail";
 import Login from "./pages/Login/Login";
+import SetPassword from "./pages/SetPassword/SetPassword";
 import Register from "./pages/Register/Register";
 import KitchenBoard from "./pages/Board/KitchenBoard";
 import Unauthorized from "./components/shared/Unauthorized";
@@ -27,6 +28,7 @@ const Router = createBrowserRouter([
       { index: true, element: <Home /> },
       { path: "menu/:id", element: <MenuDetail /> },
       { path: "login", element: <Login /> },
+      { path: "set-password", element: <SetPassword /> },
       { path: "register", element: <Register /> },
       { path: "unauthorized", element: <Unauthorized /> },
       { path: "kitchen/board", element: <KitchenBoard /> },
