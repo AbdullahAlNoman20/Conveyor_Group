@@ -8,7 +8,14 @@ import { unauthorized } from "../lib/errors.js";
 import { audit } from "../middleware/audit.js";
 
 function setSessionCookies(reply: FastifyReply, s: authService.SessionBundle): void {
-  const base = { domain: env.COOKIE_DOMAIN, secure: env.COOKIE_SECURE, sameSite: "strict" as const, path: "/" };
+  // `domain` is omitted entirely when blank — setting it to "" makes the
+  // cookie unusable, and cross-subdomain deploys must not pin a domain.
+  const base = {
+    ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}),
+    secure: env.COOKIE_SECURE,
+    sameSite: env.COOKIE_SAMESITE,
+    path: "/",
+  };
   reply.setCookie(ACCESS_COOKIE, s.accessToken, { ...base, httpOnly: true, maxAge: 15 * 60 });
   reply.setCookie(REFRESH_COOKIE, s.refreshToken, {
     ...base, httpOnly: true, path: "/api/v1/auth", maxAge: env.REFRESH_TOKEN_TTL_DAYS * 86_400,
@@ -20,7 +27,7 @@ function setSessionCookies(reply: FastifyReply, s: authService.SessionBundle): v
 }
 
 function clearSessionCookies(reply: FastifyReply): void {
-  const base = { domain: env.COOKIE_DOMAIN, path: "/" };
+  const base = { ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}), path: "/" };
   reply.clearCookie(ACCESS_COOKIE, base);
   reply.clearCookie(REFRESH_COOKIE, { ...base, path: "/api/v1/auth" });
   reply.clearCookie(CSRF_COOKIE, base);

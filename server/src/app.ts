@@ -10,7 +10,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { ZodError } from "zod";
 import { randomUUID } from "node:crypto";
-import { env, isProd } from "./config/env.js";
+import { ALLOWED_ORIGINS, env, isProd } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { redis } from "./lib/redis.js";
 import { AppError } from "./lib/errors.js";
@@ -34,7 +34,7 @@ export async function buildApp(): Promise<FastifyInstance> {
       directives: {
         defaultSrc: ["'self'"],
         imgSrc: ["'self'", "data:", "blob:", new URL(env.SUPABASE_URL).origin],
-        connectSrc: ["'self'", env.APP_PUBLIC_URL, "ws:", "wss:"],
+        connectSrc: ["'self'", ...ALLOWED_ORIGINS, "ws:", "wss:"],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         frameAncestors: ["'none'"],
@@ -47,7 +47,14 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await app.register(cors, {
-    origin: env.APP_PUBLIC_URL, // single explicit origin, never "*"
+    // Explicit allow-list, never "*" — credentials mode forbids the wildcard.
+    origin: (origin, cb) => {
+      if (!origin || ALLOWED_ORIGINS.includes(origin.replace(/\/$/, ""))) {
+        cb(null, true);
+        return;
+      }
+      cb(new Error("Origin not allowed"), false);
+    },
     credentials: true,
     allowedHeaders: ["content-type", "x-csrf-token"],
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],

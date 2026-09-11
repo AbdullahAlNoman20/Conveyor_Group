@@ -2,7 +2,7 @@
 import { Server as SocketServer } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import type { FastifyInstance } from "fastify";
-import { env } from "../config/env.js";
+import { ALLOWED_ORIGINS } from "../config/env.js";
 import { logger } from "../lib/logger.js";
 import { redisPub, redisSub } from "../lib/redis.js";
 import { verifyAccessToken } from "../lib/jwt.js";
@@ -29,7 +29,7 @@ function parseCookies(raw = ""): Record<string, string> {
 export function initSockets(app: FastifyInstance): SocketServer {
   io = new SocketServer(app.server, {
     path: "/socket.io",
-    cors: { origin: env.APP_PUBLIC_URL, credentials: true },
+    cors: { origin: ALLOWED_ORIGINS, credentials: true },
     pingInterval: 25_000,
     pingTimeout: 20_000,
     maxHttpBufferSize: 1e5,

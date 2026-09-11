@@ -38,7 +38,13 @@ const WEEK = [
 ];
 
 async function main(): Promise<void> {
-  if (env.NODE_ENV === "production") throw new Error("Refusing to seed a production database.");
+  // Guarded rather than banned: a fresh deploy needs one seeded Super Admin to
+  // log in with at all. ALLOW_PROD_SEED is set for that single run, then removed.
+  if (env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "true") {
+    throw new Error(
+      "Refusing to seed a production database. Set ALLOW_PROD_SEED=true for a one-off first seed.",
+    );
+  }
 
   // Fail loudly and immediately if the DB isn't reachable, instead of dying
   // silently inside the transaction.

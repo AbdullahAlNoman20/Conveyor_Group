@@ -7,7 +7,10 @@ import * as schema from "./schema.js";
 
 export const sqlClient = postgres(env.DATABASE_URL, {
   max: env.DATABASE_POOL_MAX,
-  ssl: env.DATABASE_SSL ? "require" : false,
+  // Render's managed Postgres terminates TLS with its own CA, so plain
+  // "require" (which also verifies the chain) fails. This encrypts without
+  // demanding a locally-trusted certificate.
+  ssl: env.DATABASE_SSL ? { rejectUnauthorized: false } : false,
   idle_timeout: 30,
   connect_timeout: 10,
   prepare: false, // required for PgBouncer transaction mode

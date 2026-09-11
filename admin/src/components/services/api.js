@@ -4,7 +4,9 @@ import axios from "axios";
 // Cookies carry the session (httpOnly + SameSite=Strict), so withCredentials
 // must be on. CSRF uses a double-submit token: the readable `cccms_csrf`
 // cookie is echoed back in the x-csrf-token header on every write.
-const BASE_URL = import.meta.env.VITE_API_URL || "/api/v1";
+// A trailing slash in the env var turns every path into a double slash, which
+// Fastify 404s on.
+const BASE_URL = (import.meta.env.VITE_API_URL || "/api/v1").replace(/\/+$/, "");
 
 export const api = axios.create({
   baseURL: BASE_URL,

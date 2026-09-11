@@ -22,7 +22,9 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   HOST: z.string().default("0.0.0.0"),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
-  APP_PUBLIC_URL: z.url(),
+  // Comma-separated allow-list so localhost and the deployed frontend can both
+  // be permitted during a rollout.
+  APP_PUBLIC_URL: z.string().min(1),
 
   DATABASE_URL: z.string().min(1),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(20),
@@ -34,8 +36,13 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
-  COOKIE_DOMAIN: z.string().default("localhost"),
+  // Blank on purpose in production: the frontend and API live on different
+  // Render subdomains, so a Domain attribute would make the cookie unusable.
+  COOKIE_DOMAIN: z.string().default(""),
   COOKIE_SECURE: envBool(false),
+  // Cross-site cookies need SameSite=None + Secure. "strict" only works when
+  // both apps share one origin.
+  COOKIE_SAMESITE: z.enum(["strict", "lax", "none"]).default("strict"),
 
   SUPABASE_URL: z.url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
@@ -60,6 +67,18 @@ if (!parsed.success) {
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === "production";
 
-if (isProd && !env.COOKIE_SECURE) {
-  throw new Error("COOKIE_SECURE must be true in production (HTTPS only).");
+export const ALLOWED_ORIGINS = env.APP_PUBLIC_URL.split(",")
+  .map((o) => o.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+if (!ALLOWED_ORIGINS.length) {
+  throw new Error("APP_PUBLIC_URL must contain at least one origin.");
+}
+
+if (isProd) {
+  if (!env.COOKIE_SECURE) throw new Error("COOKIE_SECURE must be true in production (HTTPS only).");
+  // SameSite=None without Secure is rejected outright by every modern browser.
+  if (env.COOKIE_SAMESITE === "none" && !env.COOKIE_SECURE) {
+    throw new Error("COOKIE_SAMESITE=none requires COOKIE_SECURE=true.");
+  }
 }
