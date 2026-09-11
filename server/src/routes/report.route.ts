@@ -8,6 +8,7 @@ import { getMealLimitStatus } from "../services/mealLimit.service.js";
 import { orderRepo } from "../repositories/order.repo.js";
 import { hydrateOrders, todaysFixedMeal } from "../services/order.service.js";
 import { getOwnClient } from "../services/client.service.js";
+import { dailyRegister, todayStatusFor } from "../services/attendance.service.js";
 import { badRequest } from "../lib/errors.js";
 
 export default async function reportRoutes(app: FastifyInstance) {
@@ -35,6 +36,7 @@ export default async function reportRoutes(app: FastifyInstance) {
         data: {
           spend: await reports.clientSpend(me.id),
           totalDue: await reports.clientDue(me.id),
+          attendance: await todayStatusFor(me),
           qrStatus: me.qrStatus,
           mealPlan: me.mealPlan,
           todaysFixedMeal: fixedMeal,
@@ -43,12 +45,24 @@ export default async function reportRoutes(app: FastifyInstance) {
       };
     }
 
-    const [totals, last7, mealLimit] = await Promise.all([
-      reports.dashboardTotals(), reports.dinersLast7Days(), getMealLimitStatus(),
+    const [totals, last7, mealLimit, register] = await Promise.all([
+      reports.dashboardTotals(),
+      reports.dinersLast7Days(),
+      getMealLimitStatus(),
+      dailyRegister(),
     ]);
     const { rows } = await orderRepo.list({
       from: new Date().toISOString().slice(0, 10), page: 1, pageSize: 10,
     });
-    return { success: true, data: { totals, last7, mealLimit, todaysOrders: await hydrateOrders(rows) } };
+    return {
+      success: true,
+      data: {
+        totals,
+        last7,
+        mealLimit,
+        attendance: register.summary,
+        todaysOrders: await hydrateOrders(rows),
+      },
+    };
   });
 }

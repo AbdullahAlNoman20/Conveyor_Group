@@ -25,6 +25,7 @@ import {
   hasCameraSupport,
 } from "../../../../components/utils/device";
 import { createInstantFixedMealOrder } from "../../../../components/services/selfOrder";
+import MealAttendanceCard from "../../../../components/shared/MealAttendanceCard";
 import { dataStore } from "../../../../components/services/dataStore";
 import { apiGet } from "../../../../components/services/api";
 
@@ -129,8 +130,13 @@ export default function ClientDashboard() {
         </p>
       </div>
 
+      <MealAttendanceCard
+        attendance={dash.attendance}
+        onChange={(next) => setDash((d) => ({ ...d, attendance: next }))}
+      />
+
       <div className="grid gap-3 sm:grid-cols-2">
-        {isFixedMealClient && (
+        {isFixedMealClient && dash.attendance?.canOrder && (
           <button
             type="button"
             onClick={openScanner}

@@ -4,7 +4,11 @@ import { db } from "../db/index.js";
 import { env } from "../config/env.js";
 import { AppError } from "../lib/errors.js";
 
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+import { businessDate } from "../lib/clock.js";
+
+// Re-exported under the old name so every existing call site keeps working,
+// but now zone-aware instead of UTC.
+export const todayISO = businessDate;
 
 export interface MealLimitStatus { date: string; dailyLimit: number; served: number; remaining: number }
 

@@ -268,6 +268,29 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const ATTENDANCE_STATUS = ["pending", "cancelled", "collected", "no_show"] as const;
+
+export const mealAttendance = pgTable("meal_attendance", {
+  date: date("date").notNull(),
+  clientId: text("client_id").notNull().references(() => clients.id, { onDelete: "restrict" }),
+  clientName: text("client_name").notNull(),
+  employeeId: text("employee_id"),
+  department: text("department"),
+  status: text("status").notNull().default("pending"),
+  orderId: text("order_id").references(() => orders.id, { onDelete: "set null" }),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  charged: boolean("charged").notNull().default(false),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.date, t.clientId] }),
+  index("meal_attendance_date_status_idx").on(t.date, t.status),
+  index("meal_attendance_client_idx").on(t.clientId, t.date),
+  check("meal_attendance_status_chk", inList("status", ATTENDANCE_STATUS)),
+]);
+
 export const storageObjects = pgTable("storage_objects", {
   path: text("path").primaryKey(),
   bucket: text("bucket").notNull(),
@@ -280,6 +303,7 @@ export const storageObjects = pgTable("storage_objects", {
 ]);
 
 export const ENUMS = {
+  ATTENDANCE_STATUS,
   ROLES, USER_STATUS, CLIENT_STATUS, QR_STATUS, MEAL_PLANS, MEAL_BENEFITS,
   EMPLOYMENT_TYPES, MENU_CATEGORIES, ORDER_STATUS, ORDER_TYPES, PRIORITIES,
   PAYMENT_METHODS, REQUEST_STATUS, DAYS,

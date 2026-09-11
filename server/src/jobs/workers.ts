@@ -8,6 +8,7 @@ import { storageObjects } from "../db/schema.js";
 import { hardDelete } from "../storage/supabase.js";
 import { refreshDashboardViews } from "../services/report.service.js";
 import { getMealLimitStatus } from "../services/mealLimit.service.js";
+import { sweepNoShows } from "../services/attendance.service.js";
 import { QUEUES } from "./queue.js";
 
 const connection = redis;
@@ -33,6 +34,12 @@ export function startWorkers(): void {
   workers.push(new Worker(QUEUES.dailyMealRollover, async () => {
     // Materialises today's meal_limits row so the first scan of the day is fast.
     logger.info({ status: await getMealLimitStatus() }, "daily meal limit rolled over");
+  }, { connection, concurrency: 1 }));
+
+  // Charges everyone who neither cancelled nor collected today's meal.
+  workers.push(new Worker(QUEUES.noShowSweep, async () => {
+    const result = await sweepNoShows();
+    logger.info({ result }, "no-show sweep finished");
   }, { connection, concurrency: 1 }));
 
   // No SMTP is wired yet — the job exists so adding a provider later needs

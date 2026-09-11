@@ -10,6 +10,7 @@ import {
   HardDriveDownload,
   FileText,
   UserCircle,
+  ClipboardCheck,
 } from "lucide-react";
 
 const navGroups = [
@@ -28,7 +29,7 @@ const navGroups = [
       { to: "/app/super-admin/account-requests", label: "Account Requests", Icon: UserPlus },
       { to: "/app/super-admin/recycle-bin", label: "Recycle Bin", Icon: Archive },
     ],
-  }, 
+  },
   {
     title: "Restaurant",
     items: [{ to: "/app/super-admin/menu", label: "Menu Management", Icon: UtensilsCrossed }],
@@ -37,6 +38,7 @@ const navGroups = [
     title: "Finance & Data",
     items: [
       { to: "/app/super-admin/financial-dashboard", label: "Who Ate / Salary Summary", Icon: Wallet },
+      { to: "/app/super-admin/attendance", label: "Daily Attendance", Icon: ClipboardCheck },
       { to: "/app/super-admin/client-statements", label: "Client Statements", Icon: FileText },
       { to: "/app/super-admin/system-backup", label: "System Backup", Icon: HardDriveDownload },
     ],

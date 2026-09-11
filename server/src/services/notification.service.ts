@@ -12,6 +12,8 @@ export const SOCKET_EVENTS = {
   FOOD_READY: "order:ready",
   ORDER_SUBMITTED: "order:submitted",
   ORDER_STATUS_CHANGED: "order:status_changed",
+  MEAL_CANCELLED: "meal:cancelled",
+  NO_SHOW_SWEEP: "meal:no_show_sweep",
 } as const;
 
 export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];

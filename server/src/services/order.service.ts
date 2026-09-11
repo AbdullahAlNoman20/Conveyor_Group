@@ -35,6 +35,8 @@ export async function todaysFixedMeal() {
   return { day: dayName, name, price: item ? Number(item.price) : 0, menuItemId: item?.id ?? null };
 }
 
+import { assertNotCancelled, clearCollection, markCollected } from "./attendance.service.js";
+
 function assertOrderable(client: ClientRow): void {
   if (client.status !== "active") throw new AppError("ACCOUNT_SUSPENDED", 403);
   if (client.qrStatus !== "active") throw new AppError("EXPIRED_QR", 403);
@@ -67,12 +69,15 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
       `${args.client.name.split(" ")[0]} has already collected today's meal — only one meal per day is allowed.`);
   }
 
+  // Someone who opted out before the cutoff has no meal waiting for them.
+  await assertNotCancelled(args.client.id, orderDate);
+
   const meal = await todaysFixedMeal();
   const isComplimentary = args.client.mealBenefit === "Complimentary";
   // The price comes from the menu row, never from the request body.
   const amount = isComplimentary ? 0 : meal.price;
 
-  return db.transaction(async (tx) => {
+  const created = await db.transaction(async (tx) => {
     await consumeMealSlot(orderDate);
 
     const [row] = await tx.insert(orders).values({
@@ -117,6 +122,12 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
 
     return row!;
   }).catch(rethrowDuplicate);
+
+  // Recorded outside the transaction on purpose: a failure here must not roll
+  // back a meal the client has already been handed.
+  await markCollected(args.client, created.id, amount, orderDate);
+
+  return created;
 }
 
 /**
@@ -220,6 +231,11 @@ export async function changeStatus(orderId: string, next: string): Promise<Order
 
     return row!;
   });
+
+  // The day reverts to pending, so the nightly sweep can still catch it.
+  if (next === "cancelled" || next === "rejected") {
+    await clearCollection(current.clientId, current.orderDate);
+  }
 
   if (next === "ready") {
     const client = await clientRepo.byId(updated.clientId);

@@ -50,6 +50,16 @@ const schema = z.object({
   SIGNED_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(2097152),
 
+  // Every business-day boundary (the one-meal-per-day rule, the cancellation
+  // cutoff, the nightly sweep) is evaluated in this zone, not UTC. Without it,
+  // midnight-to-6am local traffic is booked against the previous day.
+  APP_TIMEZONE: z.string().default("Asia/Dhaka"),
+  // Local hour after which today's meal can no longer be cancelled.
+  MEAL_CANCEL_CUTOFF_HOUR: z.coerce.number().int().min(0).max(23).default(6),
+  // Local hour at which uncollected, uncancelled meals become chargeable
+  // no-shows. Must be comfortably after the cafeteria closes.
+  MEAL_NOSHOW_SWEEP_HOUR: z.coerce.number().int().min(0).max(23).default(22),
+
   DEFAULT_DAILY_MEAL_LIMIT: z.coerce.number().int().positive().default(300),
   SELF_ORDER_STATION_CODE: z.string().min(6).default("CONVEYOR-SELF-ORDER-STATION-01"),
   SEED_ADMIN_EMAIL: z.email().default("superadmin@conveyorgroup.com"),

@@ -16,6 +16,7 @@ const RecycleBin = lazy(() => import("./pages/RecycleBin"));
 const SystemBackup = lazy(() => import("./pages/SystemBackup"));
 const ClientStatements = lazy(() => import("./pages/ClientStatements"));
 const StaffForm = lazy(() => import("./pages/StaffForm"));
+const MealAttendance = lazy(() => import("../manager/pages/MealAttendance"));
 const SuperAdminProfile = lazy(() => import("./pages/SuperAdminProfile"));
 
 const SuperAdminRoutes = [
@@ -29,6 +30,7 @@ const SuperAdminRoutes = [
   { path: "recycle-bin", element: <RecycleBin /> },
   { path: "system-backup", element: <SystemBackup /> },
   { path: "client-statements", element: <ClientStatements /> },
+  { path: "attendance", element: <MealAttendance /> },
   { path: "managers", element: <StaffManagement title="Manager Management" /> },
 
   { path: "staff/new", element: <StaffForm /> },

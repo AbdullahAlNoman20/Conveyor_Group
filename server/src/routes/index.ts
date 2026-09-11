@@ -14,6 +14,7 @@ import reportRoutes from "./report.route.js";
 import settingsRoutes from "./settings.route.js";
 import uploadRoutes from "./upload.route.js";
 import backupRoutes from "./backup.route.js";
+import attendanceRoutes from "./attendance.route.js";
 
 export default async function registerRoutes(app: FastifyInstance) {
   await app.register(healthRoutes);
@@ -32,5 +33,6 @@ export default async function registerRoutes(app: FastifyInstance) {
     await v1.register(settingsRoutes, { prefix: "/settings" });
     await v1.register(uploadRoutes, { prefix: "/uploads" });
     await v1.register(backupRoutes, { prefix: "/backup" });
+    await v1.register(attendanceRoutes, { prefix: "/attendance" });
   }, { prefix: "/api/v1" });
 }

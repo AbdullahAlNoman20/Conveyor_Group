@@ -8,6 +8,7 @@ import {
   Monitor,
   FileText,
   UserCircle,
+  ClipboardCheck,
 } from "lucide-react";
 
 const navGroups = [
@@ -22,6 +23,7 @@ const navGroups = [
     title: "Operations",
     items: [
       { to: "/app/manager/scan-qr", label: "Scan QR — Order", Icon: ScanLine },
+      { to: "/app/manager/attendance", label: "Daily Attendance", Icon: ClipboardCheck },
       { to: "/kitchen/board", label: "Token Display Board", Icon: Monitor },
     ],
   },
