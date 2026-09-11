@@ -31,3 +31,12 @@ export async function authenticate(req: FastifyRequest, _reply: FastifyReply): P
 
   req.auth = { userId: claims.sub, role: claims.role, sid: claims.sid };
 }
+
+/** Attaches auth when a valid session exists, but never rejects. */
+export async function optionalAuth(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+  try {
+    await authenticate(req, reply);
+  } catch {
+    req.auth = undefined;
+  }
+}

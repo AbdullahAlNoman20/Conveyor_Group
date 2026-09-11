@@ -32,6 +32,7 @@ export function AuthProvider({ children }) {
     })();
 
     function onExpired() {
+      clearCsrfToken();
       localStorage.removeItem(SESSION_KEY);
       setUser(null);
     }
@@ -71,6 +72,7 @@ export function AuthProvider({ children }) {
     try {
       await apiPost("/auth/logout");
     } catch { /* cookie may already be gone */ }
+    clearCsrfToken();
     localStorage.removeItem(SESSION_KEY);
     setUser(null);
   }

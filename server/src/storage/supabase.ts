@@ -52,7 +52,7 @@ export interface UploadResult { path: string; bytes: number; mime: string }
 
 // Validated by MAGIC BYTES (never the client's MIME), EXIF stripped, re-encoded.
 export async function uploadAsset(opts: {
-  kind: AssetKind; stream: Readable; ownerEntity?: string; ownerId?: string;
+  kind: AssetKind; stream: Readable; ownerEntity?: string; ownerId?: string | null;
 }): Promise<UploadResult> {
   assertClosed();
 

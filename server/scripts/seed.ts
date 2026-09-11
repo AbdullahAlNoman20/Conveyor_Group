@@ -124,4 +124,7 @@ main()
   .finally(async () => {
     await closeDb().catch(() => undefined);
     await closeRedis().catch(() => undefined);
+    // The Redis client keeps a reconnect timer alive, which would hang the
+    // process when seeding a remote database from a machine with no Redis.
+    process.exit(process.exitCode ?? 0);
   });
