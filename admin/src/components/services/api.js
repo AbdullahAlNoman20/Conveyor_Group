@@ -1,9 +1,6 @@
 // admin/src/components/services/api.js
 import axios from "axios";
 
-// Cookies carry the session (httpOnly + SameSite=Strict), so withCredentials
-// must be on. CSRF uses a double-submit token: the readable `cccms_csrf`
-// cookie is echoed back in the x-csrf-token header on every write.
 // A trailing slash in the env var turns every path into a double slash, which
 // Fastify 404s on.
 const BASE_URL = (import.meta.env.VITE_API_URL || "/api/v1").replace(/\/+$/, "");
@@ -18,7 +15,10 @@ export const api = axios.create({
 const CSRF_KEY = "cccms:csrf";
 
 function readCookie(name) {
-  return document.cookie.split("; ").find((r) => r.startsWith(`${name}=`))?.split("=")[1];
+  return document.cookie
+    .split("; ")
+    .find((r) => r.startsWith(`${name}=`))
+    ?.split("=")[1];
 }
 
 /**
@@ -30,7 +30,7 @@ function readCookie(name) {
  * API, so the server-side comparison stays valid — the client just has to
  * remember the value it was handed at login instead of reading it back.
  *
- * Same-origin deploys keep working via the cookie fallback.
+ * Same-origin deploys keep working through the cookie fallback.
  */
 export function setCsrfToken(token) {
   if (!token) return;
@@ -66,31 +66,37 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Every response that mints a new token carries it in the body — capture it
-// centrally so login and refresh both stay in sync.
-api.interceptors.response.use((res) => {
-  const token = res?.data?.data?.csrfToken;
-  if (token) setCsrfToken(token);
-  return res;
-});
-
 // Single-flight refresh: a burst of 401s triggers exactly one /auth/refresh.
 let refreshing = null;
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    // Every response that mints a new token carries it in the body, so login
+    // and refresh both stay in sync from one place.
+    const token = res?.data?.data?.csrfToken;
+    if (token) setCsrfToken(token);
+    return res;
+  },
   async (error) => {
     const original = error.config || {};
     const status = error.response?.status;
     const code = error.response?.data?.error?.code;
 
-    // Never try to refresh the refresh call itself, and never refresh after a
-    // logout — that would resurrect the session the user just ended.
+    // A 401 on /auth/me simply means "not signed in yet" — it's how the app
+    // probes for an existing session on boot, not a failure worth logging.
+    if (status === 401 && (original.url || "").includes("/auth/me")) {
+      return Promise.reject({ code: "UNAUTHENTICATED", status, silent: true, message: "" });
+    }
+
+    // Never try to refresh an auth call itself — that would resurrect a
+    // session the user just ended.
     const isAuthCall = (original.url || "").includes("/auth/");
 
     if (status === 401 && code === "TOKEN_EXPIRED" && !original.__retried && !isAuthCall) {
       original.__retried = true;
-      refreshing ??= api.post("/auth/refresh").finally(() => { refreshing = null; });
+      refreshing ??= api.post("/auth/refresh").finally(() => {
+        refreshing = null;
+      });
       try {
         await refreshing;
         return api(original);
@@ -98,12 +104,6 @@ api.interceptors.response.use(
         clearCsrfToken();
         window.dispatchEvent(new CustomEvent("cccms:session-expired"));
       }
-    }
-
-    // A 401 on /auth/me simply means "not signed in yet" — it's how the app
-    // probes for an existing session on boot, not a failure worth logging.
-    if (status === 401 && (original.url || "").includes("/auth/me")) {
-      return Promise.reject({ code: "UNAUTHENTICATED", status, silent: true, message: "" });
     }
 
     return Promise.reject({

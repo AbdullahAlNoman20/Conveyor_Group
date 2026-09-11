@@ -1,6 +1,6 @@
 // admin/src/components/context/AuthContext.jsx
 import { createContext, useEffect, useMemo, useState } from "react";
-import { apiGet, apiPost } from "../services/api";
+import { apiGet, apiPost, clearCsrfToken } from "../services/api";
 import { ROLES } from "../constants/roles";
 
 export const AuthContext = createContext(null);
@@ -18,12 +18,14 @@ export function AuthProvider({ children }) {
         // localStorage is only a first-paint hint; the cookie is the truth.
         const raw = localStorage.getItem(SESSION_KEY);
         if (raw) setUser(JSON.parse(raw));
+
         const fresh = await apiGet("/auth/me");
         if (fresh && VALID_ROLES.includes(fresh.role)) {
           localStorage.setItem(SESSION_KEY, JSON.stringify(fresh));
           setUser(fresh);
         }
       } catch {
+        clearCsrfToken();
         localStorage.removeItem(SESSION_KEY);
         setUser(null);
       } finally {
@@ -36,11 +38,13 @@ export function AuthProvider({ children }) {
       localStorage.removeItem(SESSION_KEY);
       setUser(null);
     }
+
     window.addEventListener("cccms:session-expired", onExpired);
     return () => window.removeEventListener("cccms:session-expired", onExpired);
   }, []);
 
-  // Photo/name change elsewhere refreshes the header avatar without a re-login.
+  // A photo or name change elsewhere refreshes the header avatar without
+  // forcing a re-login.
   useEffect(() => {
     async function resync() {
       try {
@@ -49,8 +53,11 @@ export function AuthProvider({ children }) {
           localStorage.setItem(SESSION_KEY, JSON.stringify(fresh));
           setUser(fresh);
         }
-      } catch { /* handled by the expiry listener */ }
+      } catch {
+        /* a stale session is handled by the expiry listener above */
+      }
     }
+
     window.addEventListener("cccms:profile-updated", resync);
     return () => window.removeEventListener("cccms:profile-updated", resync);
   }, []);
@@ -63,7 +70,7 @@ export function AuthProvider({ children }) {
       return { success: true, user: data.user };
     } catch (err) {
       // Wording comes from the server's error registry, so the messages the
-      // user sees are identical to the old local checks.
+      // user sees match what the local checks used to show.
       return { success: false, message: err.message, code: err.code };
     }
   }
