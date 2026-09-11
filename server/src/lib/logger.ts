@@ -14,5 +14,7 @@ export const logger = pino({
     ],
     censor: "[REDACTED]",
   },
-  transport: isProd ? undefined : { target: "pino-pretty", options: { colorize: true } },
+  // pino-pretty is a devDependency and isn't installed in production builds,
+  // so the transport must only be wired up outside production.
+  ...(isProd ? {} : { transport: { target: "pino-pretty", options: { colorize: true } } }),
 });
