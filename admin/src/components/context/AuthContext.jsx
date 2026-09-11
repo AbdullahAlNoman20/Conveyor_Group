@@ -69,12 +69,19 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    try {
-      await apiPost("/auth/logout");
-    } catch { /* cookie may already be gone */ }
+    // Clear locally FIRST so the UI can never end up showing a signed-in state
+    // after a failed network call.
     clearCsrfToken();
     localStorage.removeItem(SESSION_KEY);
     setUser(null);
+
+    try {
+      await apiPost("/auth/logout");
+    } catch (err) {
+      // The cookies live on the API origin, so if this call didn't land the
+      // browser may still hold a valid session. Surfacing it beats pretending.
+      console.error("logout request failed — session may still be active", err);
+    }
   }
 
   const value = useMemo(() => ({ user, loading, login, logout }), [user, loading]);

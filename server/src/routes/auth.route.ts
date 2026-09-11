@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import { changePasswordSchema, loginSchema } from "../schemas/index.js";
 import * as authService from "../services/auth.service.js";
 import { ACCESS_COOKIE, CSRF_COOKIE, REFRESH_COOKIE, authenticate } from "../middleware/auth.js";
+import { verifyAccessToken } from "../lib/jwt.js";
 import { unauthorized } from "../lib/errors.js";
 import { audit } from "../middleware/audit.js";
 
@@ -26,11 +27,23 @@ function setSessionCookies(reply: FastifyReply, s: authService.SessionBundle): v
   });
 }
 
+/**
+ * A cookie is only removed when EVERY attribute matches the one that set it —
+ * domain, path, secure and sameSite included. Clearing with just a path left
+ * the session cookie alive on cross-site deploys, so /auth/me kept returning
+ * 200 and the user was silently signed back in.
+ */
 function clearSessionCookies(reply: FastifyReply): void {
-  const base = { ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}), path: "/" };
-  reply.clearCookie(ACCESS_COOKIE, base);
-  reply.clearCookie(REFRESH_COOKIE, { ...base, path: "/api/v1/auth" });
-  reply.clearCookie(CSRF_COOKIE, base);
+  const base = {
+    ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}),
+    secure: env.COOKIE_SECURE,
+    sameSite: env.COOKIE_SAMESITE,
+    path: "/",
+  };
+
+  reply.clearCookie(ACCESS_COOKIE, { ...base, httpOnly: true });
+  reply.clearCookie(REFRESH_COOKIE, { ...base, httpOnly: true, path: "/api/v1/auth" });
+  reply.clearCookie(CSRF_COOKIE, { ...base, httpOnly: false });
 }
 
 export default async function authRoutes(app: FastifyInstance) {
@@ -54,10 +67,28 @@ export default async function authRoutes(app: FastifyInstance) {
     return { success: true, data: { user: session.user, csrfToken: session.csrfToken } };
   });
 
-  app.post("/logout", { preHandler: [authenticate] }, async (req, reply) => {
-    await authService.revokeSession(req.auth!.sid);
+  /**
+   * Deliberately NOT behind `authenticate`: an expired or already-revoked
+   * token would make logout fail with a 401, leaving the cookies in place —
+   * exactly the state the user is trying to get out of. Cookies are always
+   * cleared; the session row is revoked when a token is still readable.
+   */
+  app.post("/logout", async (req, reply) => {
+    const token = req.cookies?.[ACCESS_COOKIE];
+    if (token) {
+      try {
+        const claims = await verifyAccessToken(token);
+        await authService.revokeSession(claims.sid);
+        await audit(req, { action: "auth.logout", entity: "users", entityId: claims.sub });
+      } catch {
+        // Token unreadable — nothing to revoke, but still clear the cookies.
+      }
+    }
+
+    const refreshToken = req.cookies?.[REFRESH_COOKIE];
+    if (refreshToken) await authService.revokeByRefreshToken(refreshToken).catch(() => undefined);
+
     clearSessionCookies(reply);
-    await audit(req, { action: "auth.logout", entity: "users", entityId: req.auth!.userId });
     return { success: true, data: { loggedOut: true } };
   });
 

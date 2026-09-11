@@ -84,13 +84,18 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const code = error.response?.data?.error?.code;
 
-    if (status === 401 && code === "TOKEN_EXPIRED" && !original.__retried) {
+    // Never try to refresh the refresh call itself, and never refresh after a
+    // logout — that would resurrect the session the user just ended.
+    const isAuthCall = (original.url || "").includes("/auth/");
+
+    if (status === 401 && code === "TOKEN_EXPIRED" && !original.__retried && !isAuthCall) {
       original.__retried = true;
       refreshing ??= api.post("/auth/refresh").finally(() => { refreshing = null; });
       try {
         await refreshing;
         return api(original);
       } catch {
+        clearCsrfToken();
         window.dispatchEvent(new CustomEvent("cccms:session-expired"));
       }
     }

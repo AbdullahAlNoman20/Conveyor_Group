@@ -109,6 +109,16 @@ export async function refresh(token: string, meta: { ip: string; ua?: string }):
   return issueSession(user.id, user.role as Role, meta);
 }
 
+/**
+ * Revokes whatever session a refresh token belongs to. Used by logout so a
+ * stale access token can't leave the refresh token alive — otherwise the next
+ * silent refresh would hand the user a brand-new session.
+ */
+export async function revokeByRefreshToken(token: string): Promise<void> {
+  const claims = await verifyRefreshToken(token);
+  await revokeSession(claims.sid);
+}
+
 export async function revokeSession(sid: string): Promise<void> {
   await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.id, sid));
   await redis.setex(`session:revoked:${sid}`, 3600, "1");

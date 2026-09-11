@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "../../components/hooks/useAuth";
+import { ROLE_HOME_ROUTE } from "../../components/constants/roles";
 import {
   UserPlus,
   ArrowLeft,
@@ -34,6 +36,7 @@ const EMPTY_FORM = {
 
 export default function Register() {
   const { push } = useToast();
+  const { user } = useAuth();
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [docData, setDocData] = useState("");
@@ -49,6 +52,13 @@ export default function Register() {
   const [submitted, setSubmitted] = useState(false);
 
   const needsDocument = form.mealBenefit === "Complimentary";
+
+  // Registration is for people without an account. Landing here while signed
+  // in used to render the form over a live session, which looked like the
+  // logout had silently failed.
+  if (user) {
+    return <Navigate to={ROLE_HOME_ROUTE[user.role] || "/"} replace />;
+  }
 
   function set(field, value) {
     setForm((f) => ({

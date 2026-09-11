@@ -22,9 +22,12 @@ export default function DashboardLayout({ navGroups, roleLabel }) {
     localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0");
   }, [collapsed]);
 
-  function handleLogout() {
-    logout();
-    navigate("/", { replace: true });
+  async function handleLogout() {
+    await logout();
+    // Full reload, not a client-side navigate: it tears down every cached
+    // collection, the live socket and any in-flight request that still carries
+    // the old session.
+    window.location.replace("/login");
   }
 
   return (
