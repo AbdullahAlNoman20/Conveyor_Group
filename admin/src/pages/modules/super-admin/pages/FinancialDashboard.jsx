@@ -1,6 +1,8 @@
 import { Banknote, Users, Download, Printer } from "lucide-react";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
-import DateRangeFilter, { useDateRangeFilter } from "../../../../components/shared/DateRangeFilter";
+import DateRangeFilter, {
+  useDateRangeFilter,
+} from "../../../../components/shared/DateRangeFilter";
 import { exportToExcel } from "../../../../components/utils/exportExcel";
 import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
 import ShareButton from "../../../../components/shared/ShareButton";
@@ -14,18 +16,28 @@ function inRange(dateStr, from, to) {
 }
 
 export default function FinancialDashboard() {
-  const orders = useLiveCollection("orders", "orders.json");
-  const { preset, setPreset, customFrom, setCustomFrom, customTo, setCustomTo, range } =
-    useDateRangeFilter("This Month");
+  const orders = useLiveCollection("orders");
+  const {
+    preset,
+    setPreset,
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    range,
+  } = useDateRangeFilter("This Month");
 
   if (!orders) return <Loader full label="Loading salary summary..." />;
 
-  const ordersInRange = orders.filter((o) => inRange(o.createdAt, range.from, range.to));
+  const ordersInRange = orders.filter((o) =>
+    inRange(o.createdAt, range.from, range.to),
+  );
 
   const clientSummaryMap = {};
   ordersInRange.forEach((o) => {
     const key = o.clientName;
-    if (!clientSummaryMap[key]) clientSummaryMap[key] = { name: key, days: new Set(), total: 0 };
+    if (!clientSummaryMap[key])
+      clientSummaryMap[key] = { name: key, days: new Set(), total: 0 };
     clientSummaryMap[key].days.add(new Date(o.createdAt).toDateString());
     clientSummaryMap[key].total += o.amount;
   });
@@ -46,7 +58,7 @@ export default function FinancialDashboard() {
       })),
       `salary-deduction-summary-${range.from.toISOString().slice(0, 10)}_to_${range.to
         .toISOString()
-        .slice(0, 10)}`
+        .slice(0, 10)}`,
     );
   }
 
@@ -61,7 +73,7 @@ export default function FinancialDashboard() {
           <tbody>${clientSummary
             .map(
               (c) =>
-                `<tr><td>${c.name}</td><td>${c.daysEaten}</td><td>Tk ${c.total}</td></tr>`
+                `<tr><td>${c.name}</td><td>${c.daysEaten}</td><td>Tk ${c.total}</td></tr>`,
             )
             .join("")}</tbody>
         </table>
@@ -127,11 +139,7 @@ export default function FinancialDashboard() {
               className="flex min-w-0 items-center gap-2 rounded-lg bg-ink-50 px-2.5 py-2.5 text-sm sm:gap-3 sm:px-3"
             >
               {/* Avatar */}
-              <AvatarImage
-                name={c.name}
-                size={32}
-                className="shrink-0"
-              />
+              <AvatarImage name={c.name} size={32} className="shrink-0" />
 
               {/* Employee Name */}
               <span className="min-w-0 flex-1 truncate font-medium text-ink-800">
@@ -158,24 +166,23 @@ export default function FinancialDashboard() {
         </div>
       </div>
       {/* Actions */}
-        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">
-          <button
-            onClick={downloadPayrollSummary}
-            className="flex w-full items-center justify-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold transition hover:bg-ink-50 sm:w-auto"
-          >
-            <Download size={14} />
-            <span>Excel</span>
-          </button>
+      <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">
+        <button
+          onClick={downloadPayrollSummary}
+          className="flex w-full items-center justify-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold transition hover:bg-ink-50 sm:w-auto"
+        >
+          <Download size={14} />
+          <span>Excel</span>
+        </button>
 
-          <button
-            onClick={printSummary}
-            className="flex w-full items-center justify-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold transition hover:bg-ink-50 sm:w-auto"
-          >
-            <Printer size={14} />
-            <span>Print</span>
-          </button>
-
-                  </div>
+        <button
+          onClick={printSummary}
+          className="flex w-full items-center justify-center gap-1 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold transition hover:bg-ink-50 sm:w-auto"
+        >
+          <Printer size={14} />
+          <span>Print</span>
+        </button>
+      </div>
     </div>
   );
 }

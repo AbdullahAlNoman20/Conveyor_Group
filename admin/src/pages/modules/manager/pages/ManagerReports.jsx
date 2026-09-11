@@ -14,7 +14,7 @@ const RANGES = [
 ];
 
 export default function ManagerReports() {
-  const orders = useLiveCollection("orders", "orders.json");
+  const orders = useLiveCollection("orders");
   const [range, setRange] = useState("today");
 
   if (!orders) return <Loader full label="Loading reports..." />;
@@ -29,8 +29,7 @@ export default function ManagerReports() {
     }
 
     return (
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear()
+      d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
     );
   });
 
@@ -46,9 +45,7 @@ export default function ManagerReports() {
       };
     }
 
-    dinerMap[o.clientName].days.add(
-      new Date(o.createdAt).toDateString()
-    );
+    dinerMap[o.clientName].days.add(new Date(o.createdAt).toDateString());
 
     dinerMap[o.clientName].total += o.amount;
     dinerMap[o.clientName].orders += 1;
@@ -75,7 +72,7 @@ export default function ManagerReports() {
         Orders: d.orders,
         "Total (Tk)": d.total,
       })),
-      `who-ate-${range}-${now.toISOString().slice(0, 10)}`
+      `who-ate-${range}-${now.toISOString().slice(0, 10)}`,
     );
   }
 
@@ -106,7 +103,7 @@ export default function ManagerReports() {
                     <td>${d.daysEaten}</td>
                     <td>Tk ${d.total}</td>
                   </tr>
-                `
+                `,
               )
               .join("")}
           </tbody>
@@ -133,7 +130,6 @@ export default function ManagerReports() {
             How many employees ate and how much was deducted from salary.
           </p>
         </div>
-
       </div>
 
       {/* Range Selector */}
@@ -155,11 +151,7 @@ export default function ManagerReports() {
 
       {/* Statistics */}
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-        <StatCard
-          label="Diners"
-          value={diners.length}
-          accent="brand"
-        />
+        <StatCard label="Diners" value={diners.length} accent="brand" />
 
         <StatCard
           label="Total Deducted"
@@ -181,11 +173,7 @@ export default function ManagerReports() {
               className="flex min-w-0 items-center gap-2 rounded-lg bg-ink-50 px-2.5 py-2.5 text-sm sm:gap-3 sm:px-3"
             >
               {/* Avatar */}
-              <AvatarImage
-                name={d.name}
-                size={32}
-                className="shrink-0"
-              />
+              <AvatarImage name={d.name} size={32} className="shrink-0" />
 
               {/* Employee Name */}
               <span className="min-w-0 flex-1 truncate font-medium text-ink-800">
@@ -211,26 +199,25 @@ export default function ManagerReports() {
           )}
         </div>
       </div>
-      
+
       {/* Actions */}
-        <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
-          <button
-            onClick={downloadExcel}
-            className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50 sm:h-8 sm:px-2.5"
-          >
-            <FileSpreadsheet size={14} className="shrink-0" />
-            <span>Excel</span>
-          </button>
+      <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
+        <button
+          onClick={downloadExcel}
+          className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50 sm:h-8 sm:px-2.5"
+        >
+          <FileSpreadsheet size={14} className="shrink-0" />
+          <span>Excel</span>
+        </button>
 
-          <button
-            onClick={printReport}
-            className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50 sm:h-8 sm:px-2.5"
-          >
-            <Printer size={14} className="shrink-0" />
-            <span>Print</span>
-          </button>
-
-        </div>
+        <button
+          onClick={printReport}
+          className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50 sm:h-8 sm:px-2.5"
+        >
+          <Printer size={14} className="shrink-0" />
+          <span>Print</span>
+        </button>
+      </div>
     </div>
   );
 }

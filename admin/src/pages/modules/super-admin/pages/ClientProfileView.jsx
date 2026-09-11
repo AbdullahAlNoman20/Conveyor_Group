@@ -9,7 +9,7 @@ import Loader from "../../../../components/shared/Loader";
 export default function ClientProfileView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const clients = useLiveCollection("clients", "clients.json");
+  const clients = useLiveCollection("clients");
 
   if (!clients) return <Loader full label="Loading profile..." />;
   const person = clients.find((c) => c.id === id);

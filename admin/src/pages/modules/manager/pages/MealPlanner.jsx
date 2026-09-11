@@ -10,7 +10,7 @@ import DishImage from "../../../../components/shared/DishImage";
 
 export default function MealPlanner() {
   const { push } = useToast();
-  const menu = useLiveCollection("menu", "menu.json");
+  const menu = useLiveCollection("menu");
   const [weekly, setWeekly] = useState(null);
   const [draft, setDraft] = useState(null);
 

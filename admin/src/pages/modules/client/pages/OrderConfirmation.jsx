@@ -9,7 +9,7 @@ import Loader from "../../../../components/shared/Loader";
 export default function OrderConfirmation() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const orders = useLiveCollection("orders", "orders.json");
+  const orders = useLiveCollection("orders");
 
   if (!orders) return <Loader full label="Loading your order..." />;
   const order = orders.find((o) => o.id === id);

@@ -9,7 +9,7 @@ import Loader from "../../../../components/shared/Loader";
 export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const orders = useLiveCollection("orders", "orders.json");
+  const orders = useLiveCollection("orders");
 
   if (!orders) return <Loader full label="Loading order..." />;
   const order = orders.find((o) => o.id === id);
@@ -89,9 +89,7 @@ export default function OrderDetail() {
       <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Invoice */}
         <div className="min-w-0 rounded-2xl border border-ink-100 bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="mb-3 text-sm font-bold text-ink-700">
-            Invoice
-          </h2>
+          <h2 className="mb-3 text-sm font-bold text-ink-700">Invoice</h2>
 
           {/* Order Information */}
           <div className="mb-4 space-y-2 text-sm">
@@ -138,7 +136,6 @@ export default function OrderDetail() {
                 Tk {order.subtotal ?? order.amount}
               </span>
             </div>
-
 
             <div className="flex items-center justify-between gap-4 text-base font-bold text-ink-900">
               <span>Total</span>
