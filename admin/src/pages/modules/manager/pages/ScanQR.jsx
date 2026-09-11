@@ -333,32 +333,30 @@ export default function ScanQR() {
               value={result.client.status}
             />
           </div>
-          {/* Placed above the button so the Manager reads the reason before
-              discovering it from a rejected order. */}
-          {!result.client.canOrderToday && (
-            <div className="mt-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-sm leading-5 text-amber-800">
-              <Ban size={18} className="mt-0.5 shrink-0" />
-              <p>
-                {result.client.attendanceStatus === "cancelled"
-                  ? `${result.client.name.split(" ")[0]} cancelled today's meal before the cutoff, so nothing was prepared. No order can be placed today.`
-                  : result.client.attendanceStatus === "collected"
-                    ? `${result.client.name.split(" ")[0]} has already collected today's meal — only one meal per day is allowed.`
-                    : "Today's meal window has closed for this employee."}
-              </p>
-            </div>
-          )}
 
+
+          {/* The button itself carries the reason — a separate warning banner
+              would just repeat it a few pixels away. */}
           <button
             type="button"
             disabled={placingInstant || !result.client.canOrderToday}
             onClick={() => placeInstantOrder(result.client)}
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-300"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-500"
           >
-            {placingInstant
-              ? "Placing order..."
-              : !result.client.canOrderToday
-                ? "Ordering unavailable today"
-                : `Confirm Fixed Meal for ${result.client.name.split(" ")[0]} — Instant Order`}
+            {placingInstant ? (
+              "Placing order..."
+            ) : !result.client.canOrderToday ? (
+              <>
+                <Ban size={16} className="shrink-0" />
+                {{
+                  cancelled: "Meal cancelled by employee — cannot order today",
+                  collected: "Meal already collected today",
+                  no_show: "Today's meal window has closed",
+                }[result.client.attendanceStatus] || "Ordering unavailable today"}
+              </>
+            ) : (
+              `Confirm Fixed Meal for ${result.client.name.split(" ")[0]} — Instant Order`
+            )}
           </button>
         </div>
       )}
