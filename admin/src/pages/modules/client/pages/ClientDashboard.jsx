@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   ShoppingCart,
   ArrowRight,
+  Wallet,
 } from "lucide-react";
 import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
@@ -173,7 +174,7 @@ export default function ClientDashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
         <Link to="/app/client/statement">
           <StatCard
             label="Today's Orders"
@@ -188,6 +189,14 @@ export default function ClientDashboard() {
             value={monthOrders}
             Icon={Receipt}
             accent="brand"
+          />
+        </Link>
+        <Link to="/app/client/statement">
+          <StatCard
+            label="Total Due"
+            value={`Tk ${dash.totalDue ?? 0}`}
+            Icon={Wallet}
+            accent="emerald"
           />
         </Link>
         <Link to="/app/client/qr-card">

@@ -146,6 +146,13 @@ export async function statement(clientId: string, year: number, month: number) {
   };
 }
 
+export async function clientDue(clientId: string): Promise<number> {
+  const [row] = await db.execute<{ monthly_bill: string }>(sql`
+    SELECT monthly_bill FROM clients WHERE id = ${clientId}
+  `);
+  return Number(row?.monthly_bill ?? 0);
+}
+
 export async function clientSpend(clientId: string) {
   const [row] = await db.execute<{
     today_count: number; today_sum: string; week_sum: string;

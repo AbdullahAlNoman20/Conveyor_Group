@@ -32,7 +32,7 @@ export default function OrderConfirmation() {
         <h2 style="margin:0 0 4px">Order Token</h2>
         <p style="color:#595959;font-size:13px;margin:0 0 20px">${order.id} · ${new Date(order.createdAt).toLocaleString()}</p>
         <div class="row"><span class="label">Customer</span><span>${order.clientName}</span></div>
-        ${order.tableNumber ? `<div class="row"><span class="label">Table</span><span>${order.tableNumber}</span></div>` : `<div class="row"><span class="label">Order Type</span><span>Take Away</span></div>`}
+        <div class="row"><span class="label">Deducted</span><span>Tk ${order.amount}</span></div>
         <table>
           <thead><tr><th>Item</th><th>Qty</th></tr></thead>
           <tbody>${(order.items || []).map((i) => `<tr><td>${i.name}</td><td>${i.qty}</td></tr>`).join("")}</tbody>

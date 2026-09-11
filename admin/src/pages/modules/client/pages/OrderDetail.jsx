@@ -39,7 +39,7 @@ export default function OrderDetail() {
         <h2 style="margin:0 0 4px">Order Receipt & Token</h2>
         <p style="color:#595959;font-size:13px;margin:0 0 20px">${order.id} · ${new Date(order.createdAt).toLocaleString()}</p>
         <div class="row"><span class="label">Customer</span><span>${order.clientName}</span></div>
-        ${order.tableNumber ? `<div class="row"><span class="label">Table</span><span>${order.tableNumber}</span></div>` : `<div class="row"><span class="label">Order Type</span><span>Take Away</span></div>`}
+        <div class="row"><span class="label">Deducted</span><span>Tk ${order.amount}</span></div>
         <div class="row"><span class="label">Status</span><span>Completed</span></div>
         <table>
           <thead><tr><th>Item</th><th>Qty</th><th>Amount</th></tr></thead>
@@ -104,14 +104,10 @@ export default function OrderDetail() {
             </div>
 
             <div className="flex min-w-0 items-start justify-between gap-4 text-ink-500">
-              <span className="shrink-0">
-                {order.tableNumber ? "Table" : "Order Type"}
-              </span>
+              <span className="shrink-0">Deducted</span>
 
-              <span className="min-w-0 break-words text-right font-medium text-ink-800">
-                {order.tableNumber
-                  ? `Table ${order.tableNumber}`
-                  : "Take Away"}
+              <span className="min-w-0 break-words text-right font-medium text-brand-600">
+                Tk {order.amount}
               </span>
             </div>
           </div>

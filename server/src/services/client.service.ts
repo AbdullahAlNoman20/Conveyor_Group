@@ -28,6 +28,7 @@ export async function toPublicClient(c: ClientRow) {
     employmentType: c.employmentType,
     mealPlan: c.mealPlan,
     mealBenefit: c.mealBenefit,
+    monthlyBill: Number(c.monthlyBill),
     qrStatus: c.qrStatus,
     // qrToken is deliberately included: it is printed on the physical card and
     // the client's own QR page needs it. Only the owner / staff ever read it.

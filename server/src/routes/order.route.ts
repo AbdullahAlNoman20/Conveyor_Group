@@ -47,13 +47,11 @@ export default async function orderRoutes(app: FastifyInstance) {
     preHandler: [requireRole("client")],
     config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
   }, async (req) => {
-    const body = placeOrderSchema.parse(req.body);
+    placeOrderSchema.parse(req.body);
     const client = await getOwnClient(req.auth!.userId);
     const order = await orderService.placeOrder({
       client,
       placedByUserId: req.auth!.userId,
-      collectionType: body.collectionType,
-      tableNumber: body.tableNumber ?? null,
     });
     await audit(req, { action: "order.placed", entity: "orders", entityId: order.id, after: order });
     const [hydrated] = await orderService.hydrateOrders([order]);

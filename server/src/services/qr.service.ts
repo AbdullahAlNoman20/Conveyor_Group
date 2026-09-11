@@ -64,6 +64,7 @@ export async function scan(payload: string): Promise<ScanResult> {
       designation: client.designation,
       mealPlan: client.mealPlan,
       mealBenefit: client.mealBenefit,
+      monthlyBill: Number(client.monthlyBill),
       status: client.status,
       qrStatus: client.qrStatus,
       photo: await signedUrl(client.photoPath),

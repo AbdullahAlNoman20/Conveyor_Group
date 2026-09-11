@@ -6,6 +6,7 @@ import {
   XCircle,
   User,
   Clock,
+  Wallet,
   Monitor,
   Keyboard,
   Search,
@@ -301,6 +302,11 @@ export default function ScanQR() {
               icon={User}
               label="Designation"
               value={result.client.designation}
+            />
+            <InfoRow
+              icon={Wallet}
+              label="Outstanding Due"
+              value={`Tk ${result.client.monthlyBill ?? 0}`}
             />
             <InfoRow
               icon={Clock}

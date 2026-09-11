@@ -161,9 +161,6 @@ export default function KitchenBoard() {
                     <span className="min-w-0 flex-1 truncate text-lg font-bold text-emerald-100 board:text-xl">
                       {o.clientName}
                     </span>
-                    <span className="hidden text-sm text-ink-200 sm:inline board:text-base">
-                      {o.tableNumber ? `Table ${o.tableNumber}` : "Take Away"}
-                    </span>
                     <span className="shrink-0 rounded-full bg-emerald-600 px-3 py-1 text-xs font-bold">
                       READY
                     </span>

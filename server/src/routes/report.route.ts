@@ -34,6 +34,7 @@ export default async function reportRoutes(app: FastifyInstance) {
         success: true,
         data: {
           spend: await reports.clientSpend(me.id),
+          totalDue: await reports.clientDue(me.id),
           qrStatus: me.qrStatus,
           mealPlan: me.mealPlan,
           todaysFixedMeal: fixedMeal,

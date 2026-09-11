@@ -1,5 +1,5 @@
 // server/scripts/migrate.ts
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import postgres from "postgres";
 
@@ -32,14 +32,29 @@ const sql = postgres(url, {
 });
 
 async function main(): Promise<void> {
-  const file = resolve(process.cwd(), "drizzle/0000_init.sql");
-  const ddl = readFileSync(file, "utf8");
+  const dir = resolve(process.cwd(), "drizzle");
 
-  console.log(`applying ${file}`);
-  console.log(`  ssl: ${useSsl ? "on (relaxed verification)" : "off"}`);
+  // Every .sql file, in filename order. Each one is written to be idempotent
+  // (IF NOT EXISTS / DROP ... IF EXISTS), so re-running the whole folder on an
+  // existing database is a no-op rather than an error.
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
 
-  await sql.unsafe(ddl);
-  console.log("migration applied");
+  if (!files.length) {
+    console.log("no migration files found in drizzle/");
+    return;
+  }
+
+  console.log(`ssl: ${useSsl ? "on (relaxed verification)" : "off"}`);
+
+  for (const name of files) {
+    const ddl = readFileSync(resolve(dir, name), "utf8");
+    console.log(`applying ${name}`);
+    await sql.unsafe(ddl);
+  }
+
+  console.log(`\n${files.length} migration(s) applied`);
 }
 
 main()

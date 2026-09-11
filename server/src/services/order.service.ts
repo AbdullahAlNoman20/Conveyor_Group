@@ -53,9 +53,6 @@ function rethrowDuplicate(err: unknown): never {
 interface CreateArgs {
   client: ClientRow;
   placedByUserId: string;
-  status: "awaiting_manager" | "ready";
-  orderType: "dine_in" | "take_away" | "self_order";
-  tableNumber: number | null;
   specialInstructions: string;
   selfPlaced: boolean;
   instantOrder: boolean;
@@ -72,6 +69,8 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
 
   const meal = await todaysFixedMeal();
   const isComplimentary = args.client.mealBenefit === "Complimentary";
+  // The price comes from the menu row, never from the request body.
+  const amount = isComplimentary ? 0 : meal.price;
 
   return db.transaction(async (tx) => {
     await consumeMealSlot(orderDate);
@@ -82,13 +81,15 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
       clientName: args.client.name,
       employeeId: args.client.employeeId,
       department: args.client.department,
-      tableNumber: args.tableNumber,
-      orderType: args.orderType,
+      // There is no dine-in/take-away choice any more: every order is the same
+      // pre-made fixed meal, collected at the counter off the token board.
+      tableNumber: null,
+      orderType: "self_order",
       priority: "normal",
       specialInstructions: args.specialInstructions,
-      amount: String(isComplimentary ? 0 : meal.price), // no VAT anywhere
+      amount: String(amount), // no VAT anywhere
       paymentMethod: isComplimentary ? "complimentary" : "salary",
-      status: args.status,
+      status: "ready",
       selfPlaced: args.selfPlaced,
       instantOrder: args.instantOrder,
       consumedMealSlot: true,
@@ -104,6 +105,16 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
       unitPrice: String(meal.price),
     });
 
+    // Complimentary clients are billed nothing, so their running total is
+    // left untouched rather than incremented by zero.
+    if (amount > 0) {
+      await tx.execute(sql`
+        UPDATE clients
+        SET monthly_bill = monthly_bill + ${amount}, updated_at = now()
+        WHERE id = ${args.client.id}
+      `);
+    }
+
     return row!;
   }).catch(rethrowDuplicate);
 }
@@ -118,17 +129,12 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
 export async function placeOrder(input: {
   client: ClientRow;
   placedByUserId: string;
-  collectionType: "dine_in" | "take_away";
-  tableNumber?: number | null;
 }): Promise<OrderRow> {
   assertOrderable(input.client);
 
   const order = await createFixedMealOrder({
     client: input.client,
     placedByUserId: input.placedByUserId,
-    status: "ready",
-    orderType: input.collectionType,
-    tableNumber: input.collectionType === "dine_in" ? (input.tableNumber ?? null) : null,
     specialInstructions: "Self-placed fixed-meal order — no approval steps",
     selfPlaced: true,
     instantOrder: false,
@@ -161,9 +167,6 @@ export async function createInstantFixedMealOrder(input: {
   const order = await createFixedMealOrder({
     client,
     placedByUserId: input.placedByUserId,
-    status: "ready",
-    orderType: "self_order",
-    tableNumber: null,
     specialInstructions: input.source === "manager_scan"
       ? "Instant fixed-meal order — Manager QR scan (no approval steps)"
       : "Instant fixed-meal order — Self-Order Station QR (no approval steps)",
@@ -198,10 +201,23 @@ export async function changeStatus(orderId: string, next: string): Promise<Order
   const updated = await db.transaction(async (tx) => {
     const [row] = await tx.update(orders)
       .set({ status: next, updatedAt: new Date() }).where(eq(orders.id, orderId)).returning();
-    // A cancelled/rejected meal goes back into today's available count.
-    if ((next === "cancelled" || next === "rejected") && current.consumedMealSlot) {
-      await releaseMealSlot(current.orderDate);
+
+    if (next === "cancelled" || next === "rejected") {
+      // The meal goes back into today's available count...
+      if (current.consumedMealSlot) await releaseMealSlot(current.orderDate);
+
+      // ...and the client stops being billed for it. GREATEST guards the
+      // CHECK constraint if a bill was ever reset by hand.
+      const amount = Number(current.amount);
+      if (amount > 0) {
+        await tx.execute(sql`
+          UPDATE clients
+          SET monthly_bill = GREATEST(0, monthly_bill - ${amount}), updated_at = now()
+          WHERE id = ${current.clientId}
+        `);
+      }
     }
+
     return row!;
   });
 

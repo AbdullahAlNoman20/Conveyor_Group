@@ -1,4 +1,4 @@
-// FILE: src/components/shared/OrderTokenModal.jsx (NEW)
+// admin/src/components/shared/OrderTokenModal.jsx
 import { Printer, Save } from "lucide-react";
 import Modal from "./Modal";
 import { printOnLetterhead } from "../utils/printLetterhead";
@@ -13,14 +13,14 @@ export default function OrderTokenModal({ open, onClose, order }) {
         <h2 style="margin:0 0 4px">Order Token</h2>
         <p style="color:#595959;font-size:13px;margin:0 0 20px">${order.id} · ${new Date(order.createdAt).toLocaleString()}</p>
         <div class="row"><span class="label">Customer</span><span>${order.clientName}</span></div>
-        ${order.tableNumber ? `<div class="row"><span class="label">Table</span><span>${order.tableNumber}</span></div>` : `<div class="row"><span class="label">Order Type</span><span>Take Away</span></div>`}
+        <div class="row"><span class="label">Employee ID</span><span>${order.employeeId || "-"}</span></div>
         <table>
           <thead><tr><th>Item</th><th>Qty</th></tr></thead>
           <tbody>
             ${(order.items || []).map((i) => `<tr><td>${i.name}</td><td>${i.qty}</td></tr>`).join("")}
           </tbody>
         </table>
-        <div class="row total"><span>Total</span><span>Tk ${order.amount}</span></div>
+        <div class="row total"><span>Salary Deduction</span><span>Tk ${order.amount}</span></div>
       `,
     });
   }
@@ -36,11 +36,21 @@ export default function OrderTokenModal({ open, onClose, order }) {
 
         <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg bg-ink-50 p-3 text-sm">
           {(order.items || []).map((i, idx) => (
-            <div key={idx} className="flex justify-between">
-              <span className="text-ink-600">{i.qty}x {i.name}</span>
-              <span className="font-medium text-ink-800">Tk {i.qty * i.unitPrice}</span>
+            <div key={idx} className="flex justify-between gap-3">
+              <span className="min-w-0 truncate text-ink-600">
+                {i.qty}x {i.name}
+              </span>
+              <span className="shrink-0 font-medium text-ink-800">
+                Tk {i.qty * i.unitPrice}
+              </span>
             </div>
           ))}
+        </div>
+
+        {/* The amount added to this client's outstanding salary deduction. */}
+        <div className="flex items-center justify-between border-t border-ink-100 pt-3 text-sm">
+          <span className="font-semibold text-ink-700">Salary Deduction</span>
+          <span className="text-base font-bold text-brand-600">Tk {order.amount}</span>
         </div>
 
         <div className="flex gap-2">
@@ -59,8 +69,8 @@ export default function OrderTokenModal({ open, onClose, order }) {
             <Save size={16} /> Save & Close
           </button>
         </div>
-        <p className="text-center text-xs text-ink-400">
-          Saved automatically to this order's history.
+        <p className="text-center text-xs leading-5 text-ink-400">
+          Saved to this client's statement and sent to the collection board.
         </p>
       </div>
     </Modal>

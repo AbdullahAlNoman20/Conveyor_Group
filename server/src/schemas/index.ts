@@ -82,13 +82,12 @@ export const weeklyMenuSchema = z.object({
   days: z.array(z.object({ day: z.enum(ENUMS.DAYS), meal: reqText(100) })).length(7),
 });
 
-/* orders — only IDs/qty accepted; prices are recomputed server-side */
-export const placeOrderSchema = z.object({
-  collectionType: z.enum(["dine_in", "take_away"]),
-  tableNumber: z.coerce.number().int().positive().max(500).nullable().optional(),
-}).refine((v) => v.collectionType !== "dine_in" || !!v.tableNumber, {
-  path: ["tableNumber"], message: "Table number is required for dine-in orders.",
-});
+/**
+ * Placing an order takes no input at all: the dish comes from the weekly
+ * planner, the price from the menu row, and the client from the session. There
+ * is nothing a caller could send that the server would trust.
+ */
+export const placeOrderSchema = z.object({}).optional();
 
 export const instantOrderSchema = z.object({
   source: z.enum(["self_scan", "manager_scan"]),

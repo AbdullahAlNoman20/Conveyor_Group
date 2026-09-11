@@ -64,6 +64,9 @@ export const clients = pgTable("clients", {
   mealBenefit: text("meal_benefit").notNull().default("Self Paid"),
   supportingDocumentPath: text("supporting_document_path"),
   supportingDocumentName: text("supporting_document_name"),
+  // Running total of everything this client has ordered and not had cancelled.
+  // Recomputed server-side only — never accepted from a request body.
+  monthlyBill: numeric("monthly_bill", { precision: 12, scale: 2 }).notNull().default("0"),
   qrStatus: text("qr_status").notNull().default("active"),
   // Permanent, printed on the physical card. Rotated only on Reissue.
   qrToken: text("qr_token").notNull(),
@@ -83,6 +86,7 @@ export const clients = pgTable("clients", {
   check("clients_meal_plan_chk", inList("meal_plan", MEAL_PLANS)),
   check("clients_meal_benefit_chk", inList("meal_benefit", MEAL_BENEFITS)),
   check("clients_employment_type_chk", inList("employment_type", EMPLOYMENT_TYPES)),
+  check("clients_monthly_bill_chk", sql`monthly_bill >= 0`),
 ]);
 
 export const managers = pgTable("managers", {

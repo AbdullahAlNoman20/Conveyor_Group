@@ -228,7 +228,7 @@ export default function ClientStatement() {
         </div>
 
         <div class="row total">
-          <span>Total</span>
+          <span>Total Salary Deduction</span>
           <span>Tk ${totalAmount}</span>
         </div>
       `,
@@ -406,7 +406,7 @@ export default function ClientStatement() {
         />
 
         <StatCard
-          label="Total Amount"
+          label="Salary Deduction"
           value={`Tk ${totalAmount}`}
           Icon={Wallet}
           accent="amber"
