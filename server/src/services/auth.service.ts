@@ -172,9 +172,17 @@ export async function changePassword(userId: string, current: string, next: stri
   await revokeAllForUser(userId);
 }
 
+/**
+ * Super-Admin-initiated reset. The new password is random and shown once on
+ * the welcome-email screen, so the account is immediately usable — unlike a
+ * bulk import, there is no guessable placeholder to lock the session behind.
+ */
 export async function resetPasswordFor(userId: string): Promise<string> {
   const password = generatePassword();
-  await userRepo.patch(userId, { passwordHash: await hashPassword(password), mustChangePassword: true });
+  await userRepo.patch(userId, {
+    passwordHash: await hashPassword(password),
+    mustChangePassword: false,
+  });
   await revokeAllForUser(userId);
   return password;
 }

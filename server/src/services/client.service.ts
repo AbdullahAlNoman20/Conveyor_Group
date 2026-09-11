@@ -1,7 +1,7 @@
-// backend/src/services/client.service.ts
+// server/src/services/client.service.ts
 import { sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { clients, users } from "../db/schema.js";
+import { ENUMS, clients, users } from "../db/schema.js";
 import { clientRepo, type ClientRow } from "../repositories/client.repo.js";
 import { userRepo } from "../repositories/user.repo.js";
 import { hashPassword } from "../lib/password.js";
@@ -11,9 +11,8 @@ import { escapeHtml, sanitizeEmail, sanitizeText } from "../lib/sanitize.js";
 import { markOrphan, signedUrl } from "../storage/supabase.js";
 import { revokeAllForUser } from "./auth.service.js";
 import { emitCollectionChanged } from "../sockets/index.js";
-import type { Pagination } from "../lib/pagination.js";
-import { ENUMS } from "../db/schema.js";
 import { logger } from "../lib/logger.js";
+import type { Pagination } from "../lib/pagination.js";
 
 const FIXED_MEAL_PLAN = "Fixed Company Meal";
 const EMPLOYMENT_TYPES: readonly string[] = ENUMS.EMPLOYMENT_TYPES;
@@ -103,7 +102,9 @@ export async function createClientWithLogin(input: {
       employeeId, employmentType, mealPlan: FIXED_MEAL_PLAN, mealBenefit,
       avatarColor: "#059669",
       photoPath: input.photoPath ?? null,
-      mustChangePassword: true,
+      // A real generated password is shown once on the welcome-email screen,
+      // so there is nothing guessable to force a change away from.
+      mustChangePassword: false,
     });
 
     const [row] = await tx.insert(clients).values({
@@ -246,6 +247,9 @@ export async function bulkImportClients(rows: BulkImportRow[]): Promise<{
           mealPlan: FIXED_MEAL_PLAN,
           mealBenefit,
           avatarColor: "#059669",
+          // The ONLY path that sets this. The temporary password here is the
+          // employee's own email address, which is effectively public, so the
+          // session is locked to the set-password screen until it is replaced.
           mustChangePassword: true,
         });
 

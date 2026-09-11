@@ -47,7 +47,8 @@ export async function createManager(input: {
       status: input.status === "active" ? "active" : "disabled",
       department: sanitizeText(input.department, 60) || "Restaurant Operations",
       designation: sanitizeText(input.designation, 60) || "Restaurant Manager",
-      avatarColor: "#eb2a2d", mustChangePassword: true,
+      // Same as clients: the generated password is handed over out of band.
+      avatarColor: "#eb2a2d", mustChangePassword: false,
     });
     await tx.insert(managers).values({ id: managerId, userId, name, email, status: input.status });
   });

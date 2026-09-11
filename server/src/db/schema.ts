@@ -39,7 +39,9 @@ export const users = pgTable("users", {
   mealBenefit: text("meal_benefit"),
   avatarColor: text("avatar_color"),
   photoPath: text("photo_path"),
-  mustChangePassword: boolean("must_change_password").notNull().default(true),
+  // Only bulk-imported accounts set this: their temporary password is their
+  // own email address, so nothing may load until a real one is chosen.
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

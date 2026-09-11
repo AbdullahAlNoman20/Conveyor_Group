@@ -58,6 +58,8 @@ async function main(): Promise<void> {
   }
   console.log("db connection ok");
 
+  // Seeded demo accounts get a known working password, not a forced-reset
+  // placeholder — the column default handles mustChangePassword = false.
   const passwordHash = await hashPassword(env.SEED_DEFAULT_PASSWORD);
   const today = new Date().toISOString().slice(0, 10);
   const byName = new Map(MENU.map((m) => [m.name, m.id]));
