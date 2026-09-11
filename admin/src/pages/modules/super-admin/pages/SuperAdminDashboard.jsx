@@ -1,4 +1,13 @@
-import { Users, UserCheck, Utensils, Banknote } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Users,
+  UserCheck,
+  Utensils,
+  Banknote,
+  CalendarX,
+  AlertTriangle,
+} from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -12,10 +21,31 @@ import StatCard from "../../../../components/shared/StatCard";
 import AvatarImage from "../../../../components/shared/AvatarImage";
 import Loader from "../../../../components/shared/Loader";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
+import { apiGet } from "../../../../components/services/api";
+import { dataStore } from "../../../../components/services/dataStore";
 
 export default function SuperAdminDashboard() {
   const clients = useLiveCollection("clients");
   const orders = useLiveCollection("orders");
+  const [attendance, setAttendance] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function refresh() {
+      const data = await apiGet("/reports/dashboard").catch(() => null);
+      if (mounted && data) setAttendance(data.attendance);
+    }
+
+    refresh();
+    // Pushed whenever someone cancels or collects — no polling.
+    const unsubscribe = dataStore.subscribe("attendance", refresh);
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   if (!clients || !orders) return <Loader full label="Loading dashboard..." />;
 
@@ -100,7 +130,7 @@ export default function SuperAdminDashboard() {
         />
 
         <StatCard
-          label="Diners Today"
+          label="Took Meal Today"
           value={dinersToday.length}
           Icon={Utensils}
           accent="brand"
@@ -113,6 +143,46 @@ export default function SuperAdminDashboard() {
           accent="amber"
         />
       </div>
+
+      {/* Attendance — the three outcomes that decide who gets charged */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+        <Link to="/app/super-admin/attendance">
+          <StatCard
+            label="Cancelled Today"
+            value={attendance?.cancelled ?? "—"}
+            Icon={CalendarX}
+            accent="ink"
+          />
+        </Link>
+
+        <Link to="/app/super-admin/attendance">
+          <StatCard
+            label="Missed (charged)"
+            value={attendance?.noShow ?? "—"}
+            Icon={AlertTriangle}
+            accent="amber"
+          />
+        </Link>
+
+        <Link to="/app/super-admin/attendance">
+          <StatCard
+            label="No-show Amount"
+            value={`Tk ${(attendance?.noShowAmount ?? 0).toLocaleString()}`}
+            Icon={Banknote}
+            accent="brand"
+          />
+        </Link>
+      </div>
+
+      {attendance?.pending > 0 && (
+        <Link
+          to="/app/super-admin/attendance"
+          className="block rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-800 transition hover:bg-amber-100"
+        >
+          {attendance.pending} employee(s) haven't collected or cancelled yet —
+          they'll be charged as no-shows tonight. View the register →
+        </Link>
+      )}
 
       {/* Charts / Monthly Summary */}
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">

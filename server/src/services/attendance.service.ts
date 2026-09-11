@@ -164,12 +164,9 @@ export async function clearCollection(clientId: string, date: string) {
 export async function assertNotCancelled(clientId: string, date = businessDate()) {
   const row = await getForClient(clientId, date);
   if (row?.status === "cancelled") {
-    throw new AppError(
-      "MEAL_CANCELLED_TODAY",
-      409,
-      {},
-      "You cancelled today's meal, so it wasn't prepared for you.",
-    );
+    // Same rule for every path — self-order, station scan, and Manager scan —
+    // because the kitchen genuinely didn't cook this meal.
+    throw new AppError("MEAL_CANCELLED_TODAY", 409);
   }
 }
 

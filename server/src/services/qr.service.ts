@@ -1,6 +1,8 @@
 // backend/src/services/qr.service.ts
 import { clientRepo } from "../repositories/client.repo.js";
 import { orderRepo } from "../repositories/order.repo.js";
+import { getForClient } from "./attendance.service.js";
+import { businessDate } from "../lib/clock.js";
 import { getSettings } from "./settings.service.js";
 import { AppError } from "../lib/errors.js";
 import { signedUrl } from "../storage/supabase.js";
@@ -53,6 +55,11 @@ export async function scan(payload: string): Promise<ScanResult> {
   }
   if (!presentedToken) return { ok: false, message: "Invalid QR Code" };
 
+  // Surfaced so the Manager sees the day's state before pressing Confirm,
+  // rather than discovering it from a rejected order.
+  const today = await getForClient(client.id, businessDate());
+  const attendanceStatus = today?.status ?? "pending";
+
   return {
     ok: true,
     message: "QR Verified",
@@ -69,6 +76,10 @@ export async function scan(payload: string): Promise<ScanResult> {
       qrStatus: client.qrStatus,
       photo: await signedUrl(client.photoPath),
       lastOrderDate: await orderRepo.lastOrderDate(client.id), // was hardcoded in the UI
+      attendanceStatus,
+      // A cancelled meal was never cooked, and a collected one is already
+      // gone, so neither can be ordered again today by anyone.
+      canOrderToday: attendanceStatus === "pending",
     },
   };
 }

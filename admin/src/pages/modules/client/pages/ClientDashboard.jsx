@@ -18,6 +18,7 @@ import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
 import Modal from "../../../../components/shared/Modal";
 import QRScannerCamera from "../../../../components/shared/QRScannerCamera";
+import MealAttendanceCard from "../../../../components/shared/MealAttendanceCard";
 import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import {
@@ -25,7 +26,6 @@ import {
   hasCameraSupport,
 } from "../../../../components/utils/device";
 import { createInstantFixedMealOrder } from "../../../../components/services/selfOrder";
-import MealAttendanceCard from "../../../../components/shared/MealAttendanceCard";
 import { dataStore } from "../../../../components/services/dataStore";
 import { apiGet } from "../../../../components/services/api";
 
@@ -67,17 +67,20 @@ export default function ClientDashboard() {
     }
 
     refresh();
-    const unsubscribe = dataStore.subscribe("orders", refresh);
+    const unsubOrders = dataStore.subscribe("orders", refresh);
+    const unsubAttendance = dataStore.subscribe("attendance", refresh);
 
     return () => {
       mounted = false;
-      unsubscribe();
+      unsubOrders();
+      unsubAttendance();
     };
   }, []);
 
   async function attemptInstantOrder(scannedCode) {
-    // The station code, the plan check, the one-per-day rule and the meal-slot
-    // reservation are all verified server-side in a single transaction.
+    // The station code, the plan check, the cancellation check, the
+    // one-per-day rule and the meal-slot reservation are all verified
+    // server-side in a single transaction.
     setPlacing(true);
     try {
       const order = await createInstantFixedMealOrder({
@@ -111,6 +114,20 @@ export default function ClientDashboard() {
 
   const isFixedMealClient = dash.mealPlan === "Fixed Company Meal";
 
+  // A cancelled meal was never cooked and a collected one is already gone, so
+  // both close ordering for the rest of the day — on every path.
+  const attendanceStatus = dash.attendance?.status ?? "pending";
+  const canOrderToday = attendanceStatus === "pending";
+
+  const orderBlockedReason =
+    attendanceStatus === "cancelled"
+      ? "You cancelled today's meal — it wasn't prepared."
+      : attendanceStatus === "collected"
+        ? "Today's meal has already been collected."
+        : attendanceStatus === "no_show"
+          ? "Today's meal window has closed."
+          : "";
+
   // Aggregates come from one indexed SQL query instead of pulling every order
   // into the browser and summing it there.
   const { todaySpend, weekSpend, monthSpend, todayOrders, monthOrders } = dash.spend;
@@ -135,49 +152,89 @@ export default function ClientDashboard() {
         onChange={(next) => setDash((d) => ({ ...d, attendance: next }))}
       />
 
+      {/* Both actions stay VISIBLE when ordering is closed and turn disabled
+          instead, so the reason is obvious rather than the buttons silently
+          vanishing. */}
       <div className="grid gap-3 sm:grid-cols-2">
-        {isFixedMealClient && dash.attendance?.canOrder && (
+        {isFixedMealClient && (
           <button
             type="button"
             onClick={openScanner}
-            className="flex items-center justify-between gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-4 text-left hover:bg-brand-100 sm:px-5"
+            disabled={!canOrderToday}
+            title={orderBlockedReason}
+            className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-4 text-left transition sm:px-5 ${
+              canOrderToday
+                ? "border-brand-200 bg-brand-50 hover:bg-brand-100"
+                : "cursor-not-allowed border-ink-100 bg-ink-50 opacity-60"
+            }`}
           >
-            <span className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white">
+            <span className="flex min-w-0 items-center gap-3">
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white ${
+                  canOrderToday ? "bg-brand-600" : "bg-ink-300"
+                }`}
+              >
                 <ScanLine size={20} />
               </span>
-              <span>
+              <span className="min-w-0">
                 <span className="block text-sm font-bold text-ink-900">
                   Scan to Order
                 </span>
                 <span className="block text-xs text-ink-500">
-                  Instant, no approval needed.
+                  {canOrderToday
+                    ? "Instant, no approval needed."
+                    : orderBlockedReason}
                 </span>
               </span>
             </span>
-            <QrCode size={20} className="shrink-0 text-brand-600" />
+            <QrCode
+              size={20}
+              className={`shrink-0 ${canOrderToday ? "text-brand-600" : "text-ink-300"}`}
+            />
           </button>
         )}
 
-        <Link
-          to="/app/client/place-order"
-          className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 bg-white px-4 py-4 text-left hover:border-brand-300 hover:bg-brand-50 sm:px-5"
-        >
-          <span className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink-800 text-white">
-              <ShoppingCart size={20} />
-            </span>
-            <span>
-              <span className="block text-sm font-bold text-ink-900">
-                Place Order
+        {canOrderToday ? (
+          <Link
+            to="/app/client/place-order"
+            className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 bg-white px-4 py-4 text-left transition hover:border-brand-300 hover:bg-brand-50 sm:px-5"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink-800 text-white">
+                <ShoppingCart size={20} />
               </span>
-              <span className="block text-xs text-ink-500">
-                Order manually, no QR scan required.
+              <span className="min-w-0">
+                <span className="block text-sm font-bold text-ink-900">
+                  Place Order
+                </span>
+                <span className="block text-xs text-ink-500">
+                  Order manually, no QR scan required.
+                </span>
               </span>
             </span>
-          </span>
-          <ArrowRight size={18} className="shrink-0 text-ink-400" />
-        </Link>
+            <ArrowRight size={18} className="shrink-0 text-ink-400" />
+          </Link>
+        ) : (
+          <div
+            title={orderBlockedReason}
+            className="flex cursor-not-allowed items-center justify-between gap-3 rounded-xl border border-ink-100 bg-ink-50 px-4 py-4 text-left opacity-60 sm:px-5"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink-300 text-white">
+                <ShoppingCart size={20} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold text-ink-900">
+                  Place Order
+                </span>
+                <span className="block text-xs text-ink-500">
+                  {orderBlockedReason}
+                </span>
+              </span>
+            </span>
+            <ArrowRight size={18} className="shrink-0 text-ink-300" />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">

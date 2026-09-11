@@ -21,7 +21,8 @@ export const ERROR_CODES = {
   NO_FIXED_MEAL_TODAY: "No fixed meal is set for today. Please contact the Manager.",
   CANCEL_WINDOW_CLOSED: "Cancellations have closed for today. The meal is already committed.",
   ALREADY_COLLECTED: "Today's meal has already been collected.",
-  MEAL_CANCELLED_TODAY: "You cancelled today's meal, so it wasn't prepared for you.",
+  MEAL_CANCELLED_TODAY:
+    "Today's meal was cancelled before the cutoff, so it wasn't prepared. No order can be placed today.",
 
   INVALID_QR: "Invalid QR Code",
   EXPIRED_QR: "Expired QR Code",

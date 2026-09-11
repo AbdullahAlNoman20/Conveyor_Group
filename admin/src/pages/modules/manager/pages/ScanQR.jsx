@@ -7,6 +7,8 @@ import {
   User,
   Clock,
   Wallet,
+  Ban,
+  CalendarCheck,
   Monitor,
   Keyboard,
   Search,
@@ -309,6 +311,18 @@ export default function ScanQR() {
               value={`Tk ${result.client.monthlyBill ?? 0}`}
             />
             <InfoRow
+              icon={CalendarCheck}
+              label="Today's Meal"
+              value={
+                {
+                  pending: "Not collected yet",
+                  cancelled: "Cancelled by employee",
+                  collected: "Already collected",
+                  no_show: "Missed",
+                }[result.client.attendanceStatus] || "Not collected yet"
+              }
+            />
+            <InfoRow
               icon={Clock}
               label="Last Order Date"
               value={result.client.lastOrderDate || "No orders yet"}
@@ -319,15 +333,32 @@ export default function ScanQR() {
               value={result.client.status}
             />
           </div>
+          {/* Placed above the button so the Manager reads the reason before
+              discovering it from a rejected order. */}
+          {!result.client.canOrderToday && (
+            <div className="mt-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-sm leading-5 text-amber-800">
+              <Ban size={18} className="mt-0.5 shrink-0" />
+              <p>
+                {result.client.attendanceStatus === "cancelled"
+                  ? `${result.client.name.split(" ")[0]} cancelled today's meal before the cutoff, so nothing was prepared. No order can be placed today.`
+                  : result.client.attendanceStatus === "collected"
+                    ? `${result.client.name.split(" ")[0]} has already collected today's meal — only one meal per day is allowed.`
+                    : "Today's meal window has closed for this employee."}
+              </p>
+            </div>
+          )}
+
           <button
             type="button"
-            disabled={placingInstant}
+            disabled={placingInstant || !result.client.canOrderToday}
             onClick={() => placeInstantOrder(result.client)}
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-300"
           >
             {placingInstant
               ? "Placing order..."
-              : `Confirm Fixed Meal for ${result.client.name.split(" ")[0]} — Instant Order`}
+              : !result.client.canOrderToday
+                ? "Ordering unavailable today"
+                : `Confirm Fixed Meal for ${result.client.name.split(" ")[0]} — Instant Order`}
           </button>
         </div>
       )}
