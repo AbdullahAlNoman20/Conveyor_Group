@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Eye, EyeOff, LogIn, FlaskConical, ArrowLeft } from "lucide-react";
 import { useAuth } from "../../components/hooks/useAuth";
@@ -42,6 +42,9 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [demoUsers, setDemoUsers] = useState([]);
 
+  const mountedWithSession = useRef(Boolean(user));
+  const justSignedIn = useRef(false);
+
   useEffect(() => {
     setDemoUsers(SHOW_DEMO_ACCOUNTS ? SEED_ACCOUNTS : []);
   }, []);
@@ -71,11 +74,18 @@ export default function Login() {
       return;
     }
 
+    justSignedIn.current = true;
     push(`Welcome back, ${result.user.name}!`, "success");
   }
 
   useEffect(() => {
     if (!user) return;
+
+    // Only bounce to the dashboard for a session that already existed when
+    // this page mounted, or one created by the form below. A session that
+    // reappears afterwards means a logout didn't stick, and silently
+    // redirecting would trap the user in a loop.
+    if (!mountedWithSession.current && !justSignedIn.current) return;
 
     const roleHome = ROLE_HOME_ROUTE[user.role] || "/";
     const requestedFrom = location.state?.from?.pathname;
@@ -97,7 +107,7 @@ export default function Login() {
     setErrors({});
   }
 
-  if (user) {
+  if (user && (mountedWithSession.current || justSignedIn.current)) {
     return <Loader full label="Redirecting..." />;
   }
 

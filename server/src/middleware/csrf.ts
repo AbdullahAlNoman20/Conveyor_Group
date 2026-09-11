@@ -8,11 +8,20 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 // Exempt: no CSRF cookie exists yet at these points, so requiring one would
 // make the very first login impossible.
-// No session cookie exists yet at these points, so demanding a CSRF token
-// would make the very first login — and self-registration — impossible.
+/**
+ * No usable CSRF token exists at these points.
+ *
+ * login/refresh/register : no session cookie has been issued yet.
+ * logout                 : the client drops its local state before the request
+ *                          lands, so the header is already gone. A forged
+ *                          logout only signs the victim out — there is nothing
+ *                          to gain — whereas a 403 here leaves the session
+ *                          cookie alive and the user stuck signed in.
+ */
 const EXEMPT_PATHS = new Set([
   "/api/v1/auth/login",
   "/api/v1/auth/refresh",
+  "/api/v1/auth/logout",
   "/api/v1/public/account-requests",
 ]);
 

@@ -76,19 +76,20 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    // Clear locally FIRST so the UI can never end up showing a signed-in state
-    // after a failed network call.
-    clearCsrfToken();
-    localStorage.removeItem(SESSION_KEY);
-    setUser(null);
-
+    // The server call goes FIRST, while the CSRF token is still available —
+    // clearing local state beforehand stripped the header and the request came
+    // back 403, so the session cookie was never actually revoked.
     try {
       await apiPost("/auth/logout");
     } catch (err) {
-      // The cookies live on the API origin, so if this call didn't land the
-      // browser may still hold a valid session. Surfacing it beats pretending.
+      // Cookies live on the API origin, so a failed call can leave the browser
+      // holding a live session. Surfacing it beats pretending.
       console.error("logout request failed — session may still be active", err);
     }
+
+    clearCsrfToken();
+    localStorage.removeItem(SESSION_KEY);
+    setUser(null);
   }
 
   const value = useMemo(() => ({ user, loading, login, logout }), [user, loading]);
