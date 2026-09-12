@@ -63,7 +63,8 @@ export const bulkImportSchema = z.object({
         phone: text(20).optional(),
         department: text(60),
         designation: text(60).optional(),
-        employmentType: text(40).optional(),
+        // Meal plan is not accepted at all: imported employees are always on
+        // the fixed company meal, so there is nothing for a caller to choose.
         mealBenefit: text(40).optional(),
       }),
     )

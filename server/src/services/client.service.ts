@@ -1,7 +1,7 @@
 // server/src/services/client.service.ts
 import { sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { ENUMS, clients, users } from "../db/schema.js";
+import { clients, users } from "../db/schema.js";
 import { clientRepo, type ClientRow } from "../repositories/client.repo.js";
 import { userRepo } from "../repositories/user.repo.js";
 import { hashPassword } from "../lib/password.js";
@@ -15,8 +15,9 @@ import { logger } from "../lib/logger.js";
 import type { Pagination } from "../lib/pagination.js";
 
 const FIXED_MEAL_PLAN = "Fixed Company Meal";
-const EMPLOYMENT_TYPES: readonly string[] = ENUMS.EMPLOYMENT_TYPES;
-const MEAL_BENEFITS: readonly string[] = ENUMS.MEAL_BENEFITS;
+// Bulk import offers a deliberately narrower set than the full enum: an
+// imported employee either pays for their meal or the company covers it.
+const IMPORTABLE_BENEFITS: readonly string[] = ["Self Paid", "Complimentary"];
 
 export async function toPublicClient(c: ClientRow) {
   return {
@@ -136,7 +137,6 @@ export interface BulkImportRow {
   phone?: string;
   department?: string;
   designation?: string;
-  employmentType?: string;
   mealBenefit?: string;
 }
 
@@ -214,11 +214,13 @@ export async function bulkImportClients(rows: BulkImportRow[]): Promise<{
       reject("This email address is already in use."); continue;
     }
 
-    const employmentType = EMPLOYMENT_TYPES.includes(raw.employmentType as never)
-      ? (raw.employmentType as string)
-      : "Company Employee";
+    // The import form collects neither of these, so both take a fixed default.
+    // Employment type is editable afterwards from the client's profile.
+    const employmentType = "Company Employee";
 
-    const mealBenefit = MEAL_BENEFITS.includes(raw.mealBenefit as never)
+    // Only the two benefits the template offers are honoured; anything else
+    // (including a blank cell) falls back to the safe, chargeable default.
+    const mealBenefit = IMPORTABLE_BENEFITS.includes(raw.mealBenefit ?? "")
       ? (raw.mealBenefit as string)
       : "Self Paid";
 

@@ -18,13 +18,10 @@ import { exportToExcel } from "../../../../components/utils/exportExcel";
 import { useToast } from "../../../../components/hooks/useToast";
 import Button from "../../../../components/shared/Button";
 
-const EMPLOYMENT_TYPES = [
-  "Company Employee",
-  "External Client",
-  "Contractor",
-  "Temporary Employee",
-];
-const MEAL_BENEFITS = ["Self Paid", "Company Subsidized", "Complimentary"];
+// Imported employees are always on the daily fixed meal — the template's Meal
+// Plan column is pre-filled and locked, so it is read for display only and
+// never trusted as input.
+const MEAL_BENEFITS = ["Self Paid", "Complimentary"];
 
 /**
  * Header text is matched loosely — lowercased with non-alphanumerics stripped —
@@ -47,8 +44,6 @@ const FIELD_BY_HEADER = {
   designation: "designation",
   jobtitle: "designation",
   title: "designation",
-  employmenttype: "employmentType",
-  type: "employmentType",
   mealbenefit: "mealBenefit",
   benefit: "mealBenefit",
 };
@@ -77,30 +72,32 @@ export default function BulkImportClients() {
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState(null);
 
-  /** Generated in the browser so the template can never drift from the parser. */
+  /**
+   * Generated in the browser so the headers can never drift from the parser
+   * above. The two rows are examples — the user replaces them with real data.
+   */
   function downloadTemplate() {
+    const example = (name, id, email, phone, dept, title, benefit) => ({
+      "Full Name": name,
+      "Employee ID": id,
+      Email: email,
+      Phone: phone,
+      Department: dept,
+      Designation: title,
+      "Meal Plan": "Fixed Company Meal",
+      "Meal Benefit": benefit,
+    });
+
     exportToExcel(
       [
-        {
-          "Full Name": "Md. Rafiqul Islam",
-          "Employee ID": "EMP-2001",
-          Email: "rafiqul.islam@conveyorgroup.com",
-          Phone: "01712-345678",
-          Department: "Finance",
-          Designation: "Senior Accountant",
-          "Employment Type": "Company Employee",
-          "Meal Benefit": "Self Paid",
-        },
-        {
-          "Full Name": "Ayesha Siddika",
-          "Employee ID": "EMP-2002",
-          Email: "ayesha.siddika@conveyorgroup.com",
-          Phone: "",
-          Department: "Human Resources",
-          Designation: "HR Officer",
-          "Employment Type": "Company Employee",
-          "Meal Benefit": "Complimentary",
-        },
+        example(
+          "Md. Rafiqul Islam", "EMP-2001", "rafiqul.islam@conveyorgroup.com",
+          "01712-345678", "Finance", "Senior Accountant", "Self Paid",
+        ),
+        example(
+          "Ayesha Siddika", "EMP-2002", "ayesha.siddika@conveyorgroup.com",
+          "", "Human Resources", "HR Officer", "Complimentary",
+        ),
       ],
       "cccms-client-import-template",
       "Employees",
@@ -159,9 +156,8 @@ export default function BulkImportClients() {
 
         record.email = record.email?.toLowerCase() ?? "";
         record.rowNumber = i + 1; // 1-based, matching what the user sees in Excel
-        record.employmentType = EMPLOYMENT_TYPES.includes(record.employmentType)
-          ? record.employmentType
-          : "Company Employee";
+        // Anything outside the two supported benefits — including a blank
+        // cell — falls back to the safe default rather than failing the row.
         record.mealBenefit = MEAL_BENEFITS.includes(record.mealBenefit)
           ? record.mealBenefit
           : "Self Paid";
@@ -253,8 +249,9 @@ export default function BulkImportClients() {
       <section className="rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
         <h2 className="text-sm font-bold text-ink-700">1. Get the template</h2>
         <p className="mt-1 text-xs leading-5 text-ink-500">
-          Required columns: Full Name, Employee ID, Email, Department. Optional:
-          Phone, Designation, Employment Type, Meal Benefit.
+          Required: Full Name, Employee ID, Email, Department. Optional: Phone,
+          Designation, Meal Benefit (Self Paid or Complimentary — blank means
+          Self Paid). Every imported employee is on the Fixed Company Meal plan.
         </p>
         <Button
           variant="secondary"
