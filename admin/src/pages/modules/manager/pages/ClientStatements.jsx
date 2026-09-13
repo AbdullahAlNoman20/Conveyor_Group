@@ -1,3 +1,4 @@
+// admin/src/pages/modules/manager/pages/ClientStatements.jsx
 import { useState } from "react";
 import { Search, Users } from "lucide-react";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
@@ -5,6 +6,8 @@ import StatementView from "../../../../components/shared/StatementView";
 import Loader from "../../../../components/shared/Loader";
 
 export default function ClientStatements() {
+  // Only the client list is needed here — StatementView fetches the selected
+  // client's ledger by id, because a charged no-show never produces an order.
   const clients = useLiveCollection("clients");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
@@ -20,9 +23,6 @@ export default function ClientStatements() {
   );
 
   const selected = clients.find((c) => c.id === selectedId);
-
-            <StatementView
-              client={selected}
 
   return (
     <div className="w-full min-w-0 space-y-4 overflow-x-hidden sm:space-y-6">
@@ -41,7 +41,6 @@ export default function ClientStatements() {
       {!selected ? (
         /* Client Picker */
         <div className="min-w-0 overflow-hidden rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
-          {/* Search */}
           <div className="relative mb-3">
             <Search
               size={16}
@@ -52,11 +51,10 @@ export default function ClientStatements() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search client by name or Employee ID..."
-              className="w-full min-w-0 rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none transition   focus:ring-brand-100"
+              className="w-full min-w-0 rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </div>
 
-          {/* Client List */}
           <div className="space-y-1">
             {filtered.map((c) => (
               <button
@@ -64,16 +62,13 @@ export default function ClientStatements() {
                 onClick={() => setSelectedId(c.id)}
                 className="flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors hover:bg-ink-50"
               >
-                {/* Client Icon + Name */}
                 <span className="flex min-w-0 flex-1 items-center gap-2">
                   <Users size={14} className="shrink-0 text-ink-400" />
-
                   <span className="min-w-0 truncate font-medium text-ink-800">
                     {c.name}
                   </span>
                 </span>
 
-                {/* Employee Details */}
                 <span className="hidden max-w-[45%] shrink-0 truncate text-xs text-ink-400 sm:block">
                   {c.employeeId} · {c.department}
                 </span>
@@ -98,12 +93,12 @@ export default function ClientStatements() {
           </button>
 
           <div className="min-w-0 overflow-hidden">
+            {/* No onViewOrder: the Manager has no client-facing order-detail
+                route to link to, so the eye icon is omitted rather than
+                pointed somewhere wrong. */}
             <StatementView
               client={selected}
               periodStorageKey={`cccms:manager-statement-period:${selected.id}`}
-              // Manager doesn't have a client-facing order-detail route to
-              // link to yet — omit onViewOrder for now (no eye-icon click
-              // action) rather than link somewhere wrong.
             />
           </div>
         </div>

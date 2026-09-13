@@ -1,4 +1,4 @@
-// FULL CODE — src/pages/modules/super-admin/pages/ClientStatements.jsx (NEW)
+// admin/src/pages/modules/super-admin/pages/ClientStatements.jsx
 import { useState } from "react";
 import { Search, Users } from "lucide-react";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
@@ -6,8 +6,9 @@ import StatementView from "../../../../components/shared/StatementView";
 import Loader from "../../../../components/shared/Loader";
 
 export default function ClientStatements() {
+  // Only the client list is needed here — StatementView fetches the selected
+  // client's ledger by id, because a charged no-show never produces an order.
   const clients = useLiveCollection("clients");
-  const orders = useLiveCollection("orders");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
 
@@ -22,9 +23,6 @@ export default function ClientStatements() {
   );
 
   const selected = clients.find((c) => c.id === selectedId);
-
-            <StatementView
-              client={selected}
 
   return (
     <div className="w-full min-w-0 space-y-4 overflow-x-hidden sm:space-y-6">
@@ -51,7 +49,7 @@ export default function ClientStatements() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search client by name or Employee ID..."
-              className="w-full min-w-0 rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none transition   focus:ring-brand-100"
+              className="w-full min-w-0 rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             />
           </div>
 
@@ -64,7 +62,6 @@ export default function ClientStatements() {
               >
                 <span className="flex min-w-0 flex-1 items-center gap-2">
                   <Users size={14} className="shrink-0 text-ink-400" />
-
                   <span className="min-w-0 truncate font-medium text-ink-800">
                     {c.name}
                   </span>
