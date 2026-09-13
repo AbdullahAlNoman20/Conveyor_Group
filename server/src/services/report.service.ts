@@ -97,51 +97,107 @@ export async function dashboardTotals() {
   };
 }
 
+/**
+ * Monthly statement.
+ *
+ * Built from `meal_attendance`, not `orders`, because a missed meal is charged
+ * without ever producing an order row — reading orders alone made the
+ * statement total disagree with the running balance on the dashboard.
+ *
+ * Every day the employee was scheduled produces one line: the meal they
+ * collected, the meal they cancelled in time (Tk 0), or the meal that was
+ * cooked and never collected (charged in full).
+ */
 export async function statement(clientId: string, year: number, month: number) {
   const from = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
   const to = new Date(Date.UTC(year, month + 1, 0)).toISOString().slice(0, 10);
 
   const rows = await db.execute<{
-    id: string; created_at: string; status: string; amount: string; items: string;
+    date: string;
+    kind: string;
+    order_id: string | null;
+    at: string;
+    amount: string;
+    items: string;
   }>(sql`
-    SELECT o.id, o.created_at, o.status, o.amount,
-           COALESCE(string_agg(oi.qty || 'x ' || oi.name, ', ' ORDER BY oi.id), '') AS items
-    FROM orders o
-    LEFT JOIN order_items oi ON oi.order_id = o.id
-    WHERE o.client_id = ${clientId}
-      AND o.order_date BETWEEN ${from} AND ${to}
-      AND o.status NOT IN ('cancelled','rejected')
-    GROUP BY o.id
-    ORDER BY o.created_at DESC
+    SELECT a.date::text                       AS date,
+           a.status                           AS kind,
+           a.order_id,
+           COALESCE(o.created_at, a.decided_at, a.created_at) AS at,
+           a.amount,
+           COALESCE(
+             (SELECT string_agg(oi.qty || 'x ' || oi.name, ', ' ORDER BY oi.id)
+              FROM order_items oi WHERE oi.order_id = o.id),
+             ''
+           ) AS items
+    FROM meal_attendance a
+    LEFT JOIN orders o
+           ON o.id = a.order_id
+          AND o.status NOT IN ('cancelled','rejected')
+    WHERE a.client_id = ${clientId}
+      AND a.date BETWEEN ${from} AND ${to}
+      AND a.status <> 'pending'
+    ORDER BY a.date DESC
   `);
 
-  const [agg] = await db.execute<{ days_eaten: number; total: string; orders_count: number }>(sql`
-    SELECT count(DISTINCT order_date)::int AS days_eaten,
-           COALESCE(sum(amount),0)         AS total,
-           count(*)::int                   AS orders_count
-    FROM orders
-    WHERE client_id = ${clientId} AND order_date BETWEEN ${from} AND ${to}
-      AND status NOT IN ('cancelled','rejected')
+  const [agg] = await db.execute<{
+    days_eaten: number;
+    collected_total: string;
+    no_show_count: number;
+    no_show_total: string;
+    cancelled_count: number;
+  }>(sql`
+    SELECT count(*) FILTER (WHERE status = 'collected')::int              AS days_eaten,
+           COALESCE(sum(amount) FILTER (WHERE status = 'collected'), 0)   AS collected_total,
+           count(*) FILTER (WHERE status = 'no_show')::int                AS no_show_count,
+           COALESCE(sum(amount) FILTER (WHERE status = 'no_show'), 0)     AS no_show_total,
+           count(*) FILTER (WHERE status = 'cancelled')::int              AS cancelled_count
+    FROM meal_attendance
+    WHERE client_id = ${clientId} AND date BETWEEN ${from} AND ${to}
   `);
 
   const months = await db.execute<{ y: number; m: number }>(sql`
-    SELECT DISTINCT extract(year FROM order_date)::int AS y,
-                    (extract(month FROM order_date)::int - 1) AS m
-    FROM orders WHERE client_id = ${clientId} AND status NOT IN ('cancelled','rejected')
+    SELECT DISTINCT extract(year FROM date)::int AS y,
+                    (extract(month FROM date)::int - 1) AS m
+    FROM meal_attendance
+    WHERE client_id = ${clientId} AND status <> 'pending'
   `);
 
+  const LABELS: Record<string, string> = {
+    collected: "Meal collected",
+    no_show: "Missed — not cancelled",
+    cancelled: "Cancelled in time",
+  };
+
+  const entries = rows.map((r) => ({
+    // No-show days have no order, so the row is keyed by date instead.
+    id: r.order_id ?? `${r.kind}-${r.date}`,
+    orderId: r.order_id,
+    date: r.date,
+    createdAt: r.at,
+    kind: r.kind,
+    label: LABELS[r.kind] ?? r.kind,
+    items: escapeHtml(r.items),
+    amount: Number(r.amount),
+  }));
+
+  const collectedTotal = Number(agg!.collected_total);
+  const noShowTotal = Number(agg!.no_show_total);
+
   return {
-    year, month,
-    orders: rows.map((r) => ({
-      id: r.id,
-      createdAt: r.created_at,
-      status: r.status,
-      amount: Number(r.amount),
-      items: escapeHtml(r.items),
-    })),
+    year,
+    month,
+    entries,
+    // Kept under the old key so existing callers keep working.
+    orders: entries,
     daysEaten: agg!.days_eaten,
-    totalOrders: agg!.orders_count,
-    totalAmount: Number(agg!.total),
+    totalOrders: agg!.days_eaten,
+    collectedTotal,
+    noShowCount: agg!.no_show_count,
+    noShowTotal,
+    cancelledCount: agg!.cancelled_count,
+    // What actually reaches payroll: meals taken plus meals wasted.
+    totalAmount: collectedTotal + noShowTotal,
     monthsWithData: months.map((m) => `${m.y}-${m.m}`),
   };
 }
@@ -153,26 +209,42 @@ export async function clientDue(clientId: string): Promise<number> {
   return Number(row?.monthly_bill ?? 0);
 }
 
+/**
+ * Dashboard spend bars. Read from attendance so a missed, charged meal shows
+ * up here too — otherwise the bars undercount against the running balance.
+ */
 export async function clientSpend(clientId: string) {
   const [row] = await db.execute<{
     today_count: number; today_sum: string; week_sum: string;
-    month_count: number; month_sum: string;
+    month_count: number; month_sum: string; month_no_show: string;
   }>(sql`
     SELECT
-      count(*) FILTER (WHERE order_date = current_date)::int AS today_count,
-      COALESCE(sum(amount) FILTER (WHERE order_date = current_date), 0) AS today_sum,
-      COALESCE(sum(amount) FILTER (WHERE order_date >= date_trunc('week', current_date)), 0) AS week_sum,
-      count(*) FILTER (WHERE date_trunc('month', order_date) = date_trunc('month', current_date))::int AS month_count,
-      COALESCE(sum(amount) FILTER (WHERE date_trunc('month', order_date) = date_trunc('month', current_date)), 0) AS month_sum
-    FROM orders
-    WHERE client_id = ${clientId} AND status NOT IN ('cancelled','rejected')
+      count(*) FILTER (WHERE date = current_date AND status = 'collected')::int AS today_count,
+      COALESCE(sum(amount) FILTER (WHERE date = current_date), 0) AS today_sum,
+      COALESCE(sum(amount) FILTER (WHERE date >= date_trunc('week', current_date)), 0) AS week_sum,
+      count(*) FILTER (
+        WHERE date_trunc('month', date) = date_trunc('month', current_date)
+          AND status = 'collected'
+      )::int AS month_count,
+      COALESCE(sum(amount) FILTER (
+        WHERE date_trunc('month', date) = date_trunc('month', current_date)
+      ), 0) AS month_sum,
+      COALESCE(sum(amount) FILTER (
+        WHERE date_trunc('month', date) = date_trunc('month', current_date)
+          AND status = 'no_show'
+      ), 0) AS month_no_show
+    FROM meal_attendance
+    WHERE client_id = ${clientId}
   `);
+
   return {
     todayOrders: row!.today_count,
     todaySpend: Number(row!.today_sum),
     weekSpend: Number(row!.week_sum),
     monthOrders: row!.month_count,
     monthSpend: Number(row!.month_sum),
+    // Broken out so the dashboard can show what was paid for nothing.
+    monthNoShowSpend: Number(row!.month_no_show),
   };
 }
 

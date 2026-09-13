@@ -267,6 +267,11 @@ export default function ClientDashboard() {
             value={`Tk ${dash.totalDue ?? 0}`}
             Icon={Wallet}
             accent="emerald"
+            trend={
+              dash.spend?.monthNoShowSpend > 0
+                ? `Includes Tk ${dash.spend.monthNoShowSpend} for missed meals`
+                : "Deducted from salary"
+            }
           />
         </Link>
         <Link to="/app/client/qr-card">
@@ -310,6 +315,15 @@ export default function ClientDashboard() {
               View Details
             </Link>
           </div>
+          {/* Missed meals are charged at full price, so they belong in the same
+              bars as meals actually eaten. */}
+          {dash.spend?.monthNoShowSpend > 0 && (
+            <p className="mb-3 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-5 text-amber-800">
+              Tk {dash.spend.monthNoShowSpend} of this month's total is for
+              meals that weren't collected or cancelled.
+            </p>
+          )}
+
           <div className="space-y-3">
             {[
               ["Today", todaySpend],

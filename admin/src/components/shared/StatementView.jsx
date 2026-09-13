@@ -9,13 +9,29 @@ import {
   RotateCcw,
   Utensils,
   Wallet,
+  CalendarX,
+  AlertTriangle,
 } from "lucide-react";
+import { apiGet } from "../services/api";
 import { printOnLetterhead } from "../utils/printLetterhead";
 import { exportToExcel } from "../utils/exportExcel";
 import StatCard from "./StatCard";
 import Badge from "./Badge";
 import Modal from "./Modal";
 import Pagination, { usePagination } from "./Pagination";
+
+// A statement line is one of three daily outcomes, not an order status.
+const STATUS_TEXT = {
+  collected: "collected",
+  no_show: "missed",
+  cancelled: "cancelled",
+};
+
+const BADGE_TONE = {
+  collected: "active",
+  no_show: "pending",
+  cancelled: "cancelled",
+};
 
 const MONTH_NAMES = [
   "January",
@@ -44,12 +60,12 @@ const MONTH_NAMES = [
  * `periodStorageKey` scopes the sessionStorage period-memory per viewer
  * context.
  */
-export default function StatementView({
-  client,
-  orders,
-  onViewOrder,
-  periodStorageKey,
-}) {
+/**
+ * Renders the same statement a client sees, for a target client chosen by a
+ * Manager or Super Admin. The data is fetched by id rather than filtered from
+ * an orders array, because a charged no-show never produces an order row.
+ */
+export default function StatementView({ client, onViewOrder, periodStorageKey }) {
   const now = new Date();
 
   function readSavedPeriod() {
@@ -87,57 +103,35 @@ export default function StatementView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month, periodStorageKey]);
 
-  const myOrders = useMemo(
-    () =>
-      (orders || []).filter(
-        (o) => !["cancelled", "rejected"].includes(o.status),
-      ),
-    [orders],
+  const [statement, setStatement] = useState(null);
+
+  useEffect(() => {
+    if (!client?.id) return undefined;
+    let mounted = true;
+    apiGet(`/clients/${client.id}/statement?year=${year}&month=${month}`)
+      .then((data) => mounted && setStatement(data))
+      .catch(() => mounted && setStatement(null));
+    return () => {
+      mounted = false;
+    };
+  }, [client?.id, year, month]);
+
+  const monthsWithData = useMemo(
+    () => new Set(statement?.monthsWithData ?? []),
+    [statement]
   );
-
-  const monthsWithData = useMemo(() => {
-    const set = new Set();
-
-    myOrders.forEach((o) => {
-      const d = new Date(o.createdAt);
-      set.add(`${d.getFullYear()}-${d.getMonth()}`);
-    });
-
-    return set;
-  }, [myOrders]);
 
   const MIN_YEAR = now.getFullYear() - 5;
   const MAX_YEAR = now.getFullYear() + 1;
 
-  const monthOrders = useMemo(
-    () =>
-      myOrders.filter((o) => {
-        const d = new Date(o.createdAt);
+  const sorted = useMemo(() => statement?.entries ?? [], [statement]);
+  const monthOrders = sorted;
 
-        return d.getFullYear() === year && d.getMonth() === month;
-      }),
-    [myOrders, year, month],
-  );
-
-  const sorted = useMemo(
-    () =>
-      [...monthOrders].sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-      ),
-    [monthOrders],
-  );
-
-  const totalAmount = useMemo(
-    () => monthOrders.reduce((s, o) => s + Number(o.amount || 0), 0),
-    [monthOrders],
-  );
-
-  const daysEaten = useMemo(
-    () =>
-      new Set(monthOrders.map((o) => new Date(o.createdAt).toDateString()))
-        .size,
-    [monthOrders],
-  );
+  const totalAmount = statement?.totalAmount ?? 0;
+  const daysEaten = statement?.daysEaten ?? 0;
+  const noShowCount = statement?.noShowCount ?? 0;
+  const noShowTotal = statement?.noShowTotal ?? 0;
+  const cancelledCount = statement?.cancelledCount ?? 0;
 
   const {
     page,
@@ -153,16 +147,12 @@ export default function StatementView({
 
   function downloadExcel() {
     exportToExcel(
-      monthOrders.map((o) => ({
-        Date: new Date(o.createdAt).toLocaleDateString(),
-        Time: new Date(o.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        Order: o.id,
-        Items: o.items?.map((i) => `${i.qty}x ${i.name}`).join(", "),
-        "Amount (Tk)": o.amount,
-        Status: o.status,
+      sorted.map((e) => ({
+        Date: new Date(e.date).toLocaleDateString(),
+        Type: e.label,
+        Meal: e.items || "—",
+        "Amount (Tk)": e.amount,
+        Reference: e.orderId || "—",
       })),
       `${client?.name || "statement"}-${year}-${String(month + 1).padStart(
         2,
@@ -187,32 +177,40 @@ export default function StatementView({
           <thead>
             <tr>
               <th>Date</th>
-              <th>Order</th>
-              <th>Items</th>
+              <th>Type</th>
+              <th>Meal</th>
               <th>Amount</th>
             </tr>
           </thead>
 
           <tbody>
-            ${monthOrders
+            ${sorted
               .map(
-                (o) =>
+                (e) =>
                   `<tr>
-                    <td>${new Date(o.createdAt).toLocaleDateString()}</td>
-                    <td>${o.id}</td>
-                    <td>${(o.items || [])
-                      .map((i) => `${i.qty}x ${i.name}`)
-                      .join(", ")}</td>
-                    <td>Tk ${o.amount}</td>
-                  </tr>`,
+                    <td>${new Date(e.date).toLocaleDateString()}</td>
+                    <td>${e.label}</td>
+                    <td>${e.items || "—"}</td>
+                    <td>Tk ${e.amount}</td>
+                  </tr>`
               )
               .join("")}
           </tbody>
         </table>
 
         <div class="row">
-          <span class="label">Days Eaten</span>
+          <span class="label">Meals Collected</span>
           <span>${daysEaten}</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Cancelled in Time (not charged)</span>
+          <span>${cancelledCount}</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Missed Without Cancelling</span>
+          <span>${noShowCount} &nbsp;·&nbsp; Tk ${noShowTotal}</span>
         </div>
 
         <div class="row total">
@@ -372,34 +370,33 @@ export default function StatementView({
       {/* Statistics */}
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
         <StatCard
-          label="Days Eaten"
+          label="Meals Collected"
           value={daysEaten}
           Icon={Utensils}
           accent="brand"
         />
 
         <StatCard
-          label="Total Orders"
-          value={monthOrders.length}
-          Icon={FileText}
+          label="Cancelled in Time"
+          value={cancelledCount}
+          Icon={CalendarX}
           accent="ink"
+          trend="Not charged"
         />
 
         <StatCard
-          label="Salary Deduction"
+          label="Missed Without Cancelling"
+          value={noShowCount}
+          Icon={AlertTriangle}
+          accent="amber"
+          trend={`Tk ${noShowTotal} charged`}
+        />
+
+        <StatCard
+          label="Total Salary Deduction"
           value={`Tk ${totalAmount}`}
           Icon={Wallet}
-          accent="amber"
-        />
-
-        <StatCard
-          label="Avg per Meal"
-          value={`Tk ${
-            monthOrders.length
-              ? Math.round(totalAmount / monthOrders.length)
-              : 0
-          }`}
-          accent="sky"
+          accent="brand"
         />
       </div>
 
@@ -422,9 +419,13 @@ export default function StatementView({
               <tr>
                 <th className="whitespace-nowrap py-2 pr-4">Date</th>
 
-                <th className="whitespace-nowrap py-2 pr-4">Order</th>
+                <th className="whitespace-nowrap py-2 pr-4">
+                  Type
+                </th>
 
-                <th className="min-w-[180px] py-2 pr-4">Items</th>
+                <th className="min-w-[180px] py-2 pr-4">
+                  Meal
+                </th>
 
                 <th className="whitespace-nowrap py-2 pr-4">Status</th>
 
@@ -437,43 +438,40 @@ export default function StatementView({
             </thead>
 
             <tbody className="divide-y divide-ink-100">
-              {pagedOrders.map((o) => (
-                <tr key={o.id} className="align-middle">
-                  {/* Date */}
+              {pagedOrders.map((e) => (
+                <tr key={e.id} className="align-middle">
                   <td className="whitespace-nowrap py-2.5 pr-4 text-ink-500">
-                    {new Date(o.createdAt).toLocaleDateString()}
+                    {new Date(e.date).toLocaleDateString()}
                   </td>
 
-                  {/* Order ID */}
-                  <td className="max-w-[150px] py-2.5 pr-4 font-medium text-ink-800">
-                    <span className="block truncate">{o.id}</span>
+                  <td className="max-w-[180px] py-2.5 pr-4 font-medium text-ink-800">
+                    <span className="block truncate">{e.label}</span>
                   </td>
 
-                  {/* Items */}
                   <td className="max-w-[260px] py-2.5 pr-4 text-ink-500">
-                    <span className="block break-words">
-                      {o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}
-                    </span>
+                    <span className="block break-words">{e.items || "—"}</span>
                   </td>
 
-                  {/* Status */}
                   <td className="whitespace-nowrap py-2.5 pr-4">
-                    <Badge tone={o.status}>{o.status}</Badge>
+                    <Badge tone={BADGE_TONE[e.kind]}>{STATUS_TEXT[e.kind]}</Badge>
                   </td>
 
-                  {/* Amount */}
-                  <td className="whitespace-nowrap py-2.5 pr-4 text-right font-semibold text-brand-600">
-                    -Tk {o.amount}
+                  <td
+                    className={`whitespace-nowrap py-2.5 pr-4 text-right font-semibold ${
+                      e.amount > 0 ? "text-brand-600" : "text-ink-400"
+                    }`}
+                  >
+                    {e.amount > 0 ? `-Tk ${e.amount}` : "Tk 0"}
                   </td>
 
-                  {/* Details */}
                   <td className="py-2.5 text-right">
-                    {onViewOrder && (
+                    {/* A missed meal has no order to open. */}
+                    {onViewOrder && e.orderId && (
                       <button
                         type="button"
-                        onClick={() => onViewOrder(o.id)}
+                        onClick={() => onViewOrder(e.orderId)}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-500 transition hover:bg-ink-100 hover:text-ink-700"
-                        aria-label={`View order ${o.id}`}
+                        aria-label={`View order ${e.orderId}`}
                       >
                         <Eye size={14} />
                       </button>
@@ -482,13 +480,10 @@ export default function StatementView({
                 </tr>
               ))}
 
-              {monthOrders.length === 0 && (
+              {sorted.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={6}
-                    className="py-10 text-center text-sm text-ink-400"
-                  >
-                    No orders in {monthLabel}.
+                  <td colSpan={6} className="py-10 text-center text-sm text-ink-400">
+                    No meal activity in {monthLabel}.
                   </td>
                 </tr>
               )}

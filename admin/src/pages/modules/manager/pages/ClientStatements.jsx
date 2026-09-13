@@ -6,11 +6,10 @@ import Loader from "../../../../components/shared/Loader";
 
 export default function ClientStatements() {
   const clients = useLiveCollection("clients");
-  const orders = useLiveCollection("orders");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
 
-  if (!clients || !orders) {
+  if (!clients) {
     return <Loader full label="Loading clients..." />;
   }
 
@@ -22,11 +21,8 @@ export default function ClientStatements() {
 
   const selected = clients.find((c) => c.id === selectedId);
 
-  const selectedOrders = selected
-    ? orders.filter(
-        (o) => o.clientId === selected.id || o.clientName === selected.name,
-      )
-    : [];
+            <StatementView
+              client={selected}
 
   return (
     <div className="w-full min-w-0 space-y-4 overflow-x-hidden sm:space-y-6">
@@ -104,7 +100,6 @@ export default function ClientStatements() {
           <div className="min-w-0 overflow-hidden">
             <StatementView
               client={selected}
-              orders={selectedOrders}
               periodStorageKey={`cccms:manager-statement-period:${selected.id}`}
               // Manager doesn't have a client-facing order-detail route to
               // link to yet — omit onViewOrder for now (no eye-icon click

@@ -13,8 +13,11 @@ import {
   Wallet,
   Utensils,
   RotateCcw,
+  CalendarX,
+  AlertTriangle,
 } from "lucide-react";
 import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
+import { apiGet } from "../../../../components/services/api";
 import { useAuth } from "../../../../components/hooks/useAuth";
 import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
 import { exportToExcel } from "../../../../components/utils/exportExcel";
@@ -44,6 +47,19 @@ const MONTH_NAMES = [
 // Persisted for the tab's session only
 const PERIOD_KEY = "cccms:statement-period";
 
+// A statement line is one of three daily outcomes, not an order status.
+const STATUS_TEXT = {
+  collected: "collected",
+  no_show: "missed",
+  cancelled: "cancelled",
+};
+
+const BADGE_TONE = {
+  collected: "active",
+  no_show: "pending",
+  cancelled: "cancelled",
+};
+
 function readSavedPeriod() {
   try {
     const raw = sessionStorage.getItem(PERIOD_KEY);
@@ -70,7 +86,6 @@ export default function ClientStatement() {
   const navigate = useNavigate();
 
   const clients = useLiveCollection("clients");
-  const orders = useLiveCollection("orders");
 
   const now = new Date();
   const saved = readSavedPeriod();
@@ -95,54 +110,41 @@ export default function ClientStatement() {
   // ("C-001"), so that comparison never matched and only the name fallback
   // worked. The server already scopes GET /orders to the caller's own client
   // when the role is "client", so no ownership filter is needed here at all.
+  // The statement is served whole by the API — it merges collected meals with
+  // charged no-shows, which the orders collection alone can't express.
+  const [statement, setStatement] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    apiGet(`/clients/me/statement?year=${year}&month=${month}`)
+      .then((data) => mounted && setStatement(data))
+      .catch(() => mounted && setStatement(null));
+    return () => {
+      mounted = false;
+    };
+  }, [year, month]);
+
   const myOrders = useMemo(
     () => safeOrders.filter((o) => !["cancelled", "rejected"].includes(o.status)),
     [safeOrders]
   );
 
-  const monthsWithData = useMemo(() => {
-    const set = new Set();
-
-    myOrders.forEach((o) => {
-      const d = new Date(o.createdAt);
-      set.add(`${d.getFullYear()}-${d.getMonth()}`);
-    });
-
-    return set;
-  }, [myOrders]);
+  const monthsWithData = useMemo(
+    () => new Set(statement?.monthsWithData ?? []),
+    [statement]
+  );
 
   const MIN_YEAR = now.getFullYear() - 5;
   const MAX_YEAR = now.getFullYear() + 1;
 
-  const monthOrders = useMemo(
-    () =>
-      myOrders.filter((o) => {
-        const d = new Date(o.createdAt);
+  const sorted = useMemo(() => statement?.entries ?? [], [statement]);
+  const monthOrders = sorted;
 
-        return d.getFullYear() === year && d.getMonth() === month;
-      }),
-    [myOrders, year, month],
-  );
-
-  const sorted = useMemo(
-    () =>
-      [...monthOrders].sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-      ),
-    [monthOrders],
-  );
-
-  const totalAmount = useMemo(
-    () => monthOrders.reduce((s, o) => s + Number(o.amount || 0), 0),
-    [monthOrders],
-  );
-
-  const daysEaten = useMemo(
-    () =>
-      new Set(monthOrders.map((o) => new Date(o.createdAt).toDateString()))
-        .size,
-    [monthOrders],
-  );
+  const totalAmount = statement?.totalAmount ?? 0;
+  const daysEaten = statement?.daysEaten ?? 0;
+  const noShowCount = statement?.noShowCount ?? 0;
+  const noShowTotal = statement?.noShowTotal ?? 0;
+  const cancelledCount = statement?.cancelledCount ?? 0;
 
   const {
     page,
@@ -162,16 +164,12 @@ export default function ClientStatement() {
 
   function downloadExcel() {
     exportToExcel(
-      monthOrders.map((o) => ({
-        Date: new Date(o.createdAt).toLocaleDateString(),
-        Time: new Date(o.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        Order: o.id,
-        Items: o.items?.map((i) => `${i.qty}x ${i.name}`).join(", "),
-        "Amount (Tk)": o.amount,
-        Status: o.status,
+      sorted.map((e) => ({
+        Date: new Date(e.date).toLocaleDateString(),
+        Type: e.label,
+        Meal: e.items || "—",
+        "Amount (Tk)": e.amount,
+        Reference: e.orderId || "—",
       })),
       `${user?.name || "statement"}-${year}-${String(month + 1).padStart(
         2,
@@ -196,35 +194,40 @@ export default function ClientStatement() {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Order</th>
-              <th>Items</th>
+              <th>Type</th>
+              <th>Meal</th>
               <th>Amount</th>
             </tr>
           </thead>
 
           <tbody>
-            ${monthOrders
+            ${sorted
               .map(
-                (o) =>
+                (e) =>
                   `<tr>
-                    <td>${new Date(o.createdAt).toLocaleDateString()}</td>
-
-                    <td>${o.id}</td>
-
-                    <td>${(o.items || [])
-                      .map((i) => `${i.qty}x ${i.name}`)
-                      .join(", ")}</td>
-
-                    <td>Tk ${o.amount}</td>
-                  </tr>`,
+                    <td>${new Date(e.date).toLocaleDateString()}</td>
+                    <td>${e.label}</td>
+                    <td>${e.items || "—"}</td>
+                    <td>Tk ${e.amount}</td>
+                  </tr>`
               )
               .join("")}
           </tbody>
         </table>
 
         <div class="row">
-          <span class="label">Days Eaten</span>
+          <span class="label">Meals Collected</span>
           <span>${daysEaten}</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Cancelled in Time (not charged)</span>
+          <span>${cancelledCount}</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Missed Without Cancelling</span>
+          <span>${noShowCount} &nbsp;·&nbsp; Tk ${noShowTotal}</span>
         </div>
 
         <div class="row total">
@@ -390,38 +393,55 @@ export default function ClientStatement() {
       {/* =========================================================
           STAT CARDS
       ========================================================== */}
-      <div className="grid w-full min-w-0 grid-cols-1 gap-3 xs:grid-cols-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Days Eaten"
-          value={daysEaten}
-          Icon={Utensils}
-          accent="brand"
-        />
+            <tbody className="divide-y divide-ink-100">
+              {pagedOrders.map((e) => (
+                <tr key={e.id}>
+                  <td className="whitespace-nowrap py-2 text-ink-500">
+                    {new Date(e.date).toLocaleDateString()}
+                  </td>
 
-        <StatCard
-          label="Total Orders"
-          value={monthOrders.length}
-          Icon={FileText}
-          accent="ink"
-        />
+                  <td className="whitespace-nowrap py-2 font-medium text-ink-800">
+                    {e.label}
+                  </td>
 
-        <StatCard
-          label="Salary Deduction"
-          value={`Tk ${totalAmount}`}
-          Icon={Wallet}
-          accent="amber"
-        />
+                  <td className="max-w-[300px] py-2 text-ink-500">
+                    <span className="block truncate">{e.items || "—"}</span>
+                  </td>
 
-        <StatCard
-          label="Avg per Meal"
-          value={`Tk ${
-            monthOrders.length
-              ? Math.round(totalAmount / monthOrders.length)
-              : 0
-          }`}
-          accent="sky"
-        />
-      </div>
+                  <td className="whitespace-nowrap py-2">
+                    <Badge tone={BADGE_TONE[e.kind]}>{STATUS_TEXT[e.kind]}</Badge>
+                  </td>
+
+                  <td
+                    className={`whitespace-nowrap py-2 text-right font-semibold ${
+                      e.amount > 0 ? "text-brand-600" : "text-ink-400"
+                    }`}
+                  >
+                    {e.amount > 0 ? `-Tk ${e.amount}` : "Tk 0"}
+                  </td>
+
+                  <td className="whitespace-nowrap py-2 text-right">
+                    {/* A missed meal has no order to open. */}
+                    {e.orderId && (
+                      <button
+                        onClick={() => navigate(`/app/client/orders/${e.orderId}`)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg p-1.5 text-ink-500 transition hover:bg-ink-100"
+                      >
+                        <Eye size={14} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+
+              {sorted.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-ink-400">
+                    No meal activity in {monthLabel}.
+                  </td>
+                </tr>
+              )}
+            </tbody>
 
       {/* =========================================================
           ORDER DETAILS
@@ -440,13 +460,19 @@ export default function ClientStatement() {
               <tr>
                 <th className="whitespace-nowrap py-2">Date</th>
 
-                <th className="whitespace-nowrap py-2">Order</th>
+                <th className="whitespace-nowrap py-2">
+                  Type
+                </th>
 
-                <th className="py-2">Items</th>
+                <th className="py-2">
+                  Meal
+                </th>
 
                 <th className="whitespace-nowrap py-2">Status</th>
 
-                <th className="whitespace-nowrap py-2 text-right">Deducted</th>
+                <th className="whitespace-nowrap py-2 text-right">
+                  Deducted
+                </th>
 
                 <th className="whitespace-nowrap py-2 text-right">Details</th>
               </tr>
@@ -503,41 +529,43 @@ export default function ClientStatement() {
             MOBILE ORDER CARDS
         ======================================================== */}
         <div className="w-full min-w-0 space-y-3 sm:hidden">
-          {pagedOrders.map((o) => (
+          {pagedOrders.map((e) => (
             <button
-              key={o.id}
-              onClick={() => navigate(`/app/client/orders/${o.id}`)}
-              className="flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-ink-100 bg-ink-50/60 p-3 text-left transition active:scale-[0.995] hover:border-ink-200"
+              key={e.id}
+              onClick={() => e.orderId && navigate(`/app/client/orders/${e.orderId}`)}
+              disabled={!e.orderId}
+              className="flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-ink-100 bg-ink-50/60 p-3 text-left transition hover:border-ink-200 active:scale-[0.995] disabled:cursor-default disabled:active:scale-100"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
                   <p className="min-w-0 truncate text-sm font-semibold text-ink-900">
-                    {o.id}
+                    {e.label}
                   </p>
-
                   <div className="shrink-0">
-                    <Badge tone={o.status}>{o.status}</Badge>
+                    <Badge tone={BADGE_TONE[e.kind]}>{STATUS_TEXT[e.kind]}</Badge>
                   </div>
                 </div>
 
-                <p className="mt-1 truncate text-xs text-ink-400">
-                  {o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}
-                </p>
+                <p className="mt-1 truncate text-xs text-ink-400">{e.items || "—"}</p>
 
                 <p className="mt-1 text-xs text-ink-400">
-                  {new Date(o.createdAt).toLocaleDateString()}
+                  {new Date(e.date).toLocaleDateString()}
                 </p>
               </div>
 
-              <p className="shrink-0 whitespace-nowrap text-sm font-bold text-brand-600">
-                -Tk {o.amount}
+              <p
+                className={`shrink-0 whitespace-nowrap text-sm font-bold ${
+                  e.amount > 0 ? "text-brand-600" : "text-ink-400"
+                }`}
+              >
+                {e.amount > 0 ? `-Tk ${e.amount}` : "Tk 0"}
               </p>
             </button>
           ))}
 
-          {monthOrders.length === 0 && (
+          {sorted.length === 0 && (
             <p className="rounded-xl border border-dashed border-ink-200 p-6 text-center text-sm text-ink-400 sm:p-8">
-              No orders in {monthLabel}.
+              No meal activity in {monthLabel}.
             </p>
           )}
         </div>
