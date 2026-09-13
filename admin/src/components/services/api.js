@@ -7,7 +7,10 @@ const BASE_URL = (import.meta.env.VITE_API_URL || "/api/v1").replace(/\/+$/, "")
 
 export const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  // Generous because a sleeping free-tier instance takes ~30s to answer its
+  // first request; the shorter default aborted those reads and left the menu
+  // and weekly plan empty on a cold open.
+  timeout: 45000,
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
@@ -86,6 +89,15 @@ api.interceptors.response.use(
     // probes for an existing session on boot, not a failure worth logging.
     if (status === 401 && (original.url || "").includes("/auth/me")) {
       return Promise.reject({ code: "UNAUTHENTICATED", status, silent: true, message: "" });
+    }
+
+    // One silent retry for a read that never reached the server — a cold start
+    // or a dropped connection shouldn't surface as an error to the user.
+    const isRead = ["get", "head"].includes((original.method || "get").toLowerCase());
+    if (!status && isRead && !original.__networkRetried) {
+      original.__networkRetried = true;
+      await new Promise((r) => setTimeout(r, 1500));
+      return api(original);
     }
 
     // Never try to refresh an auth call itself — that would resurrect a

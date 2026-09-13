@@ -12,7 +12,14 @@ const EVENT_NAME = "cccms:datachange";
 export const socket = io(import.meta.env.VITE_SOCKET_URL || undefined, {
   path: "/socket.io",
   withCredentials: true,
-  transports: ["websocket", "polling"],
+  // Polling first, then upgrade. Forcing websocket up front fails outright
+  // behind proxies that need a moment before the upgrade handshake, which is
+  // what produced "closed before the connection is established".
+  transports: ["polling", "websocket"],
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 10000,
+  timeout: 20000,
 });
 
 function notify(key) {
