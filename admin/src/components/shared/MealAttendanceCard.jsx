@@ -99,7 +99,7 @@ export default function MealAttendanceCard({ attendance, onChange }) {
             {attendance.status === "pending" && (
               <p className="mt-1 flex items-center gap-1 text-xs font-medium text-ink-500">
                 <Clock size={12} className="shrink-0" />
-                {countdown ?? `Cancellations closed at ${attendance.cutoffLabel}`}
+                {countdown ?? `Collect between ${attendance.orderWindowLabel}`}
               </p>
             )}
 

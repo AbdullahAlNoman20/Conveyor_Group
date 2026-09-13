@@ -73,10 +73,22 @@ export default function BulkImportClients() {
   const [report, setReport] = useState(null);
 
   /**
-   * Generated in the browser so the headers can never drift from the parser
-   * above. The two rows are examples — the user replaces them with real data.
+   * Served as a static file rather than generated here: the template's locked
+   * Meal Plan column and Meal Benefit dropdown are real Excel features that
+   * SheetJS cannot write, and they are what stop bad values reaching the
+   * importer in the first place.
    */
   function downloadTemplate() {
+    const a = document.createElement("a");
+    a.href = "/templates/cccms-client-import-template.xlsx";
+    a.download = "cccms-client-import-template.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    push("Template downloaded — fill in the Employees tab.", "info");
+  }
+
+  function _unusedGeneratedTemplate() {
     const example = (name, id, email, phone, dept, title, benefit) => ({
       "Full Name": name,
       "Employee ID": id,
@@ -102,7 +114,6 @@ export default function BulkImportClients() {
       "cccms-client-import-template",
       "Employees",
     );
-    push("Template downloaded — replace the example rows with your data.", "info");
   }
 
   function pickFile() {

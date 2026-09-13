@@ -1,7 +1,7 @@
 // admin/src/pages/modules/client/pages/PlaceOrder.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Lock, Wallet } from "lucide-react";
+import { Send, Lock, Wallet, Clock } from "lucide-react";
 import { apiGet, apiPost } from "../../../../components/services/api";
 import { useToast } from "../../../../components/hooks/useToast";
 import Loader from "../../../../components/shared/Loader";
@@ -12,7 +12,7 @@ export default function PlaceOrder() {
   const navigate = useNavigate();
 
   const [meal, setMeal] = useState(null);
-  const [alreadyOrderedToday, setAlreadyOrderedToday] = useState(false);
+  const [attendance, setAttendance] = useState(null);
   const [totalDue, setTotalDue] = useState(0);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -29,7 +29,7 @@ export default function PlaceOrder() {
         ]);
         if (!mounted) return;
         setMeal(fixedMeal);
-        setAlreadyOrderedToday(dashboard.spend.todayOrders > 0);
+        setAttendance(dashboard.attendance ?? {});
         setTotalDue(dashboard.totalDue ?? 0);
       } catch (err) {
         if (mounted) setLoadError(err?.message || "Couldn't load today's meal.");
@@ -60,6 +60,22 @@ export default function PlaceOrder() {
   }
 
   if (loading) return <Loader full label="Loading today's meal..." />;
+
+  const status = attendance?.status ?? "pending";
+  const windowOpen = attendance?.orderWindowOpen !== false;
+  const windowLabel = attendance?.orderWindowLabel || "11:00 AM – 6:00 PM";
+  const canOrder = status === "pending" && windowOpen;
+
+  const blockedReason =
+    status === "cancelled"
+      ? "You cancelled today's meal, so it wasn't prepared."
+      : status === "collected"
+        ? "You've already collected today's meal."
+        : status === "no_show"
+          ? "Today's ordering window has closed."
+          : !windowOpen
+            ? `Ordering is open ${windowLabel} only.`
+            : "";
 
   if (loadError || !meal) {
     return (
@@ -111,9 +127,14 @@ export default function PlaceOrder() {
           </span>
         </div>
 
-        {alreadyOrderedToday && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            You've already collected today's meal — maximum 1 meal per day.
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-400">
+          <Clock size={12} className="shrink-0" />
+          Collection counter open {windowLabel}
+        </p>
+
+        {!canOrder && (
+          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+            {blockedReason}
           </p>
         )}
       </section>
@@ -132,13 +153,13 @@ export default function PlaceOrder() {
           <div className="flex items-center justify-between text-ink-500">
             <span>This order</span>
             <span className="font-semibold text-brand-600">
-              + Tk {alreadyOrderedToday ? 0 : meal.price}
+              + Tk {canOrder ? meal.price : 0}
             </span>
           </div>
 
           <div className="flex items-center justify-between border-t border-ink-100 pt-2 text-base font-bold text-ink-900">
             <span>New total</span>
-            <span>Tk {totalDue + (alreadyOrderedToday ? 0 : meal.price)}</span>
+            <span>Tk {totalDue + (canOrder ? meal.price : 0)}</span>
           </div>
         </div>
 
@@ -151,14 +172,15 @@ export default function PlaceOrder() {
       <form onSubmit={submit}>
         <button
           type="submit"
-          disabled={alreadyOrderedToday || submitting}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!canOrder || submitting}
+          title={blockedReason}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-3.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-500"
         >
-          <Send size={16} />
+          <Send size={16} className="shrink-0" />
           {submitting
             ? "Confirming..."
-            : alreadyOrderedToday
-              ? "Already ordered today"
+            : !canOrder
+              ? blockedReason
               : `Confirm Order — Tk ${meal.price}`}
         </button>
       </form>

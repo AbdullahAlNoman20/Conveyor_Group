@@ -116,8 +116,13 @@ export default function ClientDashboard() {
 
   // A cancelled meal was never cooked and a collected one is already gone, so
   // both close ordering for the rest of the day — on every path.
-  const attendanceStatus = dash.attendance?.status ?? "pending";
-  const canOrderToday = attendanceStatus === "pending";
+  // Two independent gates: what already happened today, and the clock. The
+  // status reason wins, because "you cancelled" is more useful than "closed".
+  const att = dash.attendance ?? {};
+  const attendanceStatus = att.status ?? "pending";
+  const windowOpen = att.orderWindowOpen !== false;
+  const windowLabel = att.orderWindowLabel || "11:00 AM – 6:00 PM";
+  const canOrderToday = attendanceStatus === "pending" && windowOpen;
 
   const orderBlockedReason =
     attendanceStatus === "cancelled"
@@ -125,8 +130,10 @@ export default function ClientDashboard() {
       : attendanceStatus === "collected"
         ? "Today's meal has already been collected."
         : attendanceStatus === "no_show"
-          ? "Today's meal window has closed."
-          : "";
+          ? `Missed — ordering closed at ${windowLabel.split("–").pop().trim()}.`
+          : !windowOpen
+            ? `Ordering opens ${windowLabel}.`
+            : "";
 
   // Aggregates come from one indexed SQL query instead of pulling every order
   // into the browser and summing it there.

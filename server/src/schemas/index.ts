@@ -40,8 +40,12 @@ export const createClientSchema = clientBase.refine(
 // FIX: .partial() on the BASE object — ZodEffects has no .innerType().
 export const updateClientSchema = clientBase.partial();
 
+/**
+ * Self-service profile edit. The name is deliberately NOT accepted: it appears
+ * on the printed QR card, the token board and every payroll report, so it is
+ * changed by a Super Admin or not at all.
+ */
 export const updateOwnProfileSchema = z.object({
-  name: reqText(100).optional(),
   photoPath: text(255).optional(),
 });
 

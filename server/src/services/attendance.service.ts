@@ -6,7 +6,16 @@ import { clientRepo, type ClientRow } from "../repositories/client.repo.js";
 import { todaysFixedMeal } from "./order.service.js";
 import { notifyEvent, SOCKET_EVENTS } from "./notification.service.js";
 import { emitCollectionChanged } from "../sockets/index.js";
-import { businessDate, cancellationOpen, cutoffLabel, minutesUntilCutoff } from "../lib/clock.js";
+import {
+  businessDate,
+  cancellationOpen,
+  cutoffLabel,
+  minutesUntilCutoff,
+  minutesUntilOrderWindow,
+  minutesUntilOrderWindowCloses,
+  orderWindowLabel,
+  orderWindowOpen,
+} from "../lib/clock.js";
 import { AppError, notFound } from "../lib/errors.js";
 import { escapeHtml } from "../lib/sanitize.js";
 import { logger } from "../lib/logger.js";
@@ -77,6 +86,8 @@ export async function todayStatusFor(client: ClientRow) {
 
   const status: AttendanceStatus = (row?.status as AttendanceStatus) ?? "pending";
 
+  const windowOpen = orderWindowOpen();
+
   return {
     date,
     status,
@@ -85,10 +96,15 @@ export async function todayStatusFor(client: ClientRow) {
     amountCharged: Number(row?.amount ?? 0),
     // Collecting and cancelling are both one-way doors once taken.
     canCancel: status === "pending" && cancellationOpen(),
-    canOrder: status === "pending",
+    // Two independent gates: the day's own status, and the clock.
+    canOrder: status === "pending" && windowOpen,
     cancellationOpen: cancellationOpen(),
     minutesUntilCutoff: minutesUntilCutoff(),
     cutoffLabel: cutoffLabel(),
+    orderWindowOpen: windowOpen,
+    orderWindowLabel: orderWindowLabel(),
+    minutesUntilOrderWindow: minutesUntilOrderWindow(),
+    minutesUntilOrderWindowCloses: minutesUntilOrderWindowCloses(),
   };
 }
 
@@ -186,7 +202,7 @@ export async function sweepNoShows(date = businessDate()) {
   const result = await db.transaction(async (tx) => {
     // Complimentary clients are recorded as no-shows for reporting, but their
     // chargeable amount is zero, so they are never billed.
-    const inserted = await tx.execute<{ client_id: string; amount: string }>(sql`
+    const inserted = await tx.execute<{ client_id: string; amount: string; client_name: string }>(sql`
       INSERT INTO meal_attendance
         (date, client_id, client_name, employee_id, department, status, amount, charged, decided_at)
       SELECT ${date}, c.id, c.name, c.employee_id, c.department, 'no_show',
@@ -202,7 +218,7 @@ export async function sweepNoShows(date = businessDate()) {
           WHERE a.date = ${date} AND a.client_id = c.id
         )
       ON CONFLICT (date, client_id) DO NOTHING
-      RETURNING client_id, amount
+      RETURNING client_id, amount, client_name
     `);
 
     // Bill each no-show exactly once, in the same transaction that created it.
@@ -220,20 +236,47 @@ export async function sweepNoShows(date = businessDate()) {
       SELECT count(*)::int AS n FROM applied
     `);
 
-    return { marked: inserted.length, charged: billed[0]?.n ?? 0 };
+    return {
+      marked: inserted.length,
+      charged: billed[0]?.n ?? 0,
+      chargedClientIds: inserted
+        .filter((r) => Number(r.amount) > 0)
+        .map((r) => r.client_id),
+    };
   });
 
-  logger.info({ date, ...result }, "no-show sweep complete");
+  logger.info(
+    { date, marked: result.marked, charged: result.charged },
+    "no-show sweep complete",
+  );
 
   if (result.marked > 0) {
     await notifyEvent(SOCKET_EVENTS.NO_SHOW_SWEEP, {
       message: `${result.marked} employee(s) missed today's meal without cancelling.`,
       recipientRoles: ["manager", "super_admin"],
     });
-    emitCollectionChanged("attendance", ["manager", "super_admin"]);
+
+    // Nobody should discover a deduction from their statement weeks later, so
+    // each charged employee is told the same evening, with the reason.
+    if (result.chargedClientIds.length > 0) {
+      const owners = await db.execute<{ user_id: string }>(sql`
+        SELECT user_id FROM clients
+        WHERE id = ANY(${result.chargedClientIds}) AND user_id IS NOT NULL
+      `);
+
+      await notifyEvent(SOCKET_EVENTS.NO_SHOW_CHARGED, {
+        message:
+          `Tk ${meal.price} was deducted for today's meal. It was prepared for you ` +
+          `but not collected, and it wasn't cancelled before ${cutoffLabel()}. ` +
+          `Cancel before ${cutoffLabel()} on any day you won't be eating.`,
+        recipientUserIds: owners.map((o) => o.user_id),
+      });
+    }
+
+    emitCollectionChanged("attendance", ["manager", "super_admin", "client"]);
   }
 
-  return { date, ...result };
+  return { date, marked: result.marked, charged: result.charged };
 }
 
 /** Manager/Super Admin daily register. */
@@ -281,6 +324,8 @@ export async function dailyRegister(date = businessDate()) {
     date,
     cutoffLabel: cutoffLabel(),
     cancellationOpen: cancellationOpen(),
+    orderWindowLabel: orderWindowLabel(),
+    orderWindowOpen: orderWindowOpen(),
     entries,
     summary: {
       total: entries.length,

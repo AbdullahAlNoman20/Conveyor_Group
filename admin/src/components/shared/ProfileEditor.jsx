@@ -1,8 +1,7 @@
 // FILE: src/components/shared/ProfileEditor.jsx (NEW)
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Camera, Send } from "lucide-react";
-import { dataStore } from "../services/dataStore";
-import { sanitizeText } from "../utils/sanitize";
+import { apiPatch, uploadFile } from "../services/api";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
 import FormField from "./FormField";
@@ -23,17 +22,13 @@ export default function ProfileEditor({ roleLabel }) {
   const { push } = useToast();
   const fileRef = useRef(null);
 
-  const [name, setName] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoPath, setPhotoPath] = useState(null);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (user?.name) setName(user.name);
-  }, [user]);
 
   const displayPhoto = photoPreview || user?.photo;
 
-  function onPhotoChosen(e) {
+  async function onPhotoChosen(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -44,26 +39,42 @@ export default function ProfileEditor({ roleLabel }) {
       push("Image is too large — please choose one under 2MB.", "error");
       return;
     }
+
+    // Preview locally; the bytes stream straight to Supabase Storage and only
+    // the returned object path is stored on the record.
     const reader = new FileReader();
     reader.onload = () => setPhotoPreview(reader.result);
     reader.readAsDataURL(file);
+
+    try {
+      const { path } = await uploadFile("avatars", file);
+      setPhotoPath(path);
+    } catch (err) {
+      setPhotoPreview(null);
+      push(err?.message || "Upload failed. Please try again.", "error");
+    }
   }
 
   async function saveProfile(e) {
     e.preventDefault();
-    if (!name.trim()) {
-      push("Name cannot be empty.", "error");
+
+    if (!photoPath) {
+      push("Choose a new photo first.", "info");
       return;
     }
+
     setSaving(true);
-    const patch = { name: sanitizeText(name, 100) };
-    if (photoPreview) patch.photo = photoPreview;
-
-    await dataStore.update("users", (u) => u.id === user.id, patch);
-
-    setSaving(false);
-    setPhotoPreview(null);
-    push("Profile updated.", "success");
+    try {
+      await apiPatch("/auth/me/photo", { photoPath });
+      setPhotoPreview(null);
+      setPhotoPath(null);
+      window.dispatchEvent(new CustomEvent("cccms:profile-updated"));
+      push("Profile photo updated.", "success");
+    } catch (err) {
+      push(err?.message || "Couldn't update your photo.", "error");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -71,7 +82,7 @@ export default function ProfileEditor({ roleLabel }) {
       <div>
         <h1 className="text-2xl font-bold text-ink-900">My Profile</h1>
         <p className="text-sm text-ink-400">
-          Update your name or photo any time — changes apply immediately.
+          Update your photo any time — changes apply immediately.
         </p>
       </div>
 
@@ -98,12 +109,12 @@ export default function ProfileEditor({ roleLabel }) {
           <p className="text-xs text-ink-400">JPG or PNG, under 2MB</p>
         </div>
 
-        <FormField label="Full Name" required>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-          />
+        {/* Read-only for the same reason as clients: the display name is used
+            across reports and audit records. */}
+        <FormField label="Full Name">
+          <div className="flex w-full items-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-600">
+            {user?.name}
+          </div>
         </FormField>
 
         <div className="grid grid-cols-2 gap-3 text-sm text-ink-500">
@@ -119,10 +130,10 @@ export default function ProfileEditor({ roleLabel }) {
 
         <button
           type="submit"
-          disabled={saving}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={saving || !photoPath}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Send size={16} /> {saving ? "Saving..." : "Save Changes"}
+          <Send size={16} /> {saving ? "Saving..." : "Save Photo"}
         </button>
       </form>
 

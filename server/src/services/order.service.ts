@@ -36,11 +36,28 @@ export async function todaysFixedMeal() {
 }
 
 import { assertNotCancelled, clearCollection, markCollected } from "./attendance.service.js";
+import { orderWindowLabel, orderWindowOpen } from "../lib/clock.js";
 
 function assertOrderable(client: ClientRow): void {
   if (client.status !== "active") throw new AppError("ACCOUNT_SUSPENDED", 403);
   if (client.qrStatus !== "active") throw new AppError("EXPIRED_QR", 403);
   if (client.mealPlan !== "Fixed Company Meal") throw new AppError("NOT_FIXED_MEAL_CLIENT", 403);
+}
+
+/**
+ * The counter only serves between the configured hours. Enforced here rather
+ * than in each route so every path — self-order, station scan and Manager scan
+ * — is bound by the same window, and a disabled button can't be bypassed.
+ */
+function assertOrderWindow(): void {
+  if (!orderWindowOpen()) {
+    throw new AppError(
+      "ORDER_WINDOW_CLOSED",
+      409,
+      { window: orderWindowLabel() },
+      `Meal ordering is open ${orderWindowLabel()} only.`,
+    );
+  }
 }
 
 // Translates the DB unique-index violation into the exact UI wording.
@@ -68,6 +85,8 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
     throw new AppError("ORDER_ALREADY_PLACED", 409, { orderId: existing.id },
       `${args.client.name.split(" ")[0]} has already collected today's meal — only one meal per day is allowed.`);
   }
+
+  assertOrderWindow();
 
   // Someone who opted out before the cutoff has no meal waiting for them.
   await assertNotCancelled(args.client.id, orderDate);

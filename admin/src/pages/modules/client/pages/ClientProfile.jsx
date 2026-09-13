@@ -72,15 +72,15 @@ export default function ClientProfile() {
   async function saveProfile(e) {
     e.preventDefault();
 
-    if (!name.trim()) {
-      push("Name cannot be empty.", "error");
+    if (!photoPath) {
+      push("Choose a new photo first.", "info");
       return;
     }
 
     setSaving(true);
 
     try {
-      const patch = { name: sanitizeText(name, 100) };
+      const patch = {};
       if (photoPath) patch.photoPath = photoPath;
 
       // The server updates the clients row AND the linked users row in one
@@ -106,8 +106,7 @@ export default function ClientProfile() {
         </h1>
 
         <p className="text-sm text-ink-400">
-          Update your name or photo any time — changes apply
-          immediately, no approval needed.
+          Update your photo any time — changes apply immediately.
         </p>
       </div>
 
@@ -155,12 +154,15 @@ export default function ClientProfile() {
           </p>
         </div>
 
-        <FormField label="Full Name" required>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-          />
+        {/* Read-only: the name is printed on the QR card and appears on the
+            token board and every payroll report, so a Super Admin changes it. */}
+        <FormField
+          label="Full Name"
+          hint="Contact your Super Admin if your name needs correcting."
+        >
+          <div className="flex w-full items-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm text-ink-600">
+            {me?.name}
+          </div>
         </FormField>
 
         <div className="grid grid-cols-2 gap-3 text-sm text-ink-500">
@@ -187,7 +189,7 @@ export default function ClientProfile() {
 
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || !photoPath}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Send size={16} />

@@ -14,6 +14,7 @@ export const SOCKET_EVENTS = {
   ORDER_STATUS_CHANGED: "order:status_changed",
   MEAL_CANCELLED: "meal:cancelled",
   NO_SHOW_SWEEP: "meal:no_show_sweep",
+  NO_SHOW_CHARGED: "meal:no_show_charged",
 } as const;
 
 export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];
@@ -26,7 +27,14 @@ function resolveLink(event: string, role: string): string | null {
     case SOCKET_EVENTS.ORDER_SUBMITTED:
       return role === "manager" ? "/app/manager" : role === "super_admin" ? "/app/super-admin" : "/";
     case SOCKET_EVENTS.FOOD_READY:
+    case SOCKET_EVENTS.NO_SHOW_CHARGED:
       return role === "client" ? "/app/client/statement" : "/";
+    case SOCKET_EVENTS.NO_SHOW_SWEEP:
+      return role === "manager"
+        ? "/app/manager/attendance"
+        : role === "super_admin"
+          ? "/app/super-admin/attendance"
+          : "/";
     default:
       return null;
   }

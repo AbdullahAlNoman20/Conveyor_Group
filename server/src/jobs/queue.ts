@@ -42,9 +42,11 @@ export async function scheduleRepeatables(): Promise<void> {
     { name: "rollover" },
   );
 
+  // One minute after the counter closes: the last possible order has been
+  // placed, so anyone still pending genuinely didn't show up.
   await noShowSweepQueue.upsertJobScheduler(
     "meal-noshow-sweep",
-    { pattern: `0 ${env.MEAL_NOSHOW_SWEEP_HOUR} * * *`, tz: env.APP_TIMEZONE },
+    { pattern: `1 ${env.MEAL_ORDER_END_HOUR % 24} * * *`, tz: env.APP_TIMEZONE },
     { name: "sweep" },
   );
 }

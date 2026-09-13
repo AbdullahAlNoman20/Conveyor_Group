@@ -7,6 +7,8 @@ import { ACCESS_COOKIE, CSRF_COOKIE, REFRESH_COOKIE, authenticate } from "../mid
 import { verifyAccessToken } from "../lib/jwt.js";
 import { unauthorized } from "../lib/errors.js";
 import { audit } from "../middleware/audit.js";
+import { userRepo } from "../repositories/user.repo.js";
+import { z } from "zod";
 
 function setSessionCookies(reply: FastifyReply, s: authService.SessionBundle): void {
   // `domain` is omitted entirely when blank — setting it to "" makes the
@@ -90,6 +92,21 @@ export default async function authRoutes(app: FastifyInstance) {
 
     clearSessionCookies(reply);
     return { success: true, data: { loggedOut: true } };
+  });
+
+  /**
+   * Photo-only self-service update for Manager and Super Admin, who have no
+   * `clients` row to go through. The display name is intentionally not
+   * accepted here — it appears across reports and audit records.
+   */
+  app.patch("/me/photo", { preHandler: [authenticate] }, async (req) => {
+    const body = z.object({ photoPath: z.string().trim().max(255) }).parse(req.body);
+    const before = await authService.publicUser(req.auth!.userId);
+    await userRepo.patch(req.auth!.userId, { photoPath: body.photoPath });
+    await audit(req, {
+      action: "user.photo_updated", entity: "users", entityId: req.auth!.userId, before,
+    });
+    return { success: true, data: await authService.publicUser(req.auth!.userId) };
   });
 
   app.get("/me", { preHandler: [authenticate] },

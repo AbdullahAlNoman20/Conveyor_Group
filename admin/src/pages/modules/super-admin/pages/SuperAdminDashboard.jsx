@@ -130,48 +130,68 @@ export default function SuperAdminDashboard() {
         />
 
         <StatCard
-          label="Took Meal Today"
-          value={dinersToday.length}
+          label="Orders Today"
+          value={todaysOrders.length}
           Icon={Utensils}
           accent="brand"
         />
 
         <StatCard
-          label="Salary Deducted Today"
+          label="Deducted Today"
           value={`Tk ${salaryToday.toLocaleString()}`}
           Icon={Banknote}
           accent="amber"
+          trend="Meals collected today"
         />
       </div>
 
-      {/* Attendance — the three outcomes that decide who gets charged */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-        <Link to="/app/super-admin/attendance">
-          <StatCard
-            label="Cancelled Today"
-            value={attendance?.cancelled ?? "—"}
-            Icon={CalendarX}
-            accent="ink"
-          />
-        </Link>
+      {/* Today's attendance, in the order the day actually unfolds — cancel by
+          6 AM, collect during the counter hours, then whatever is left over is
+          charged. Same sequence the Manager dashboard uses. */}
+      <div>
+        <h2 className="mb-3 text-sm font-bold text-ink-700">Today's Meal Attendance</h2>
 
-        <Link to="/app/super-admin/attendance">
-          <StatCard
-            label="Missed (charged)"
-            value={attendance?.noShow ?? "—"}
-            Icon={AlertTriangle}
-            accent="amber"
-          />
-        </Link>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
+          <Link to="/app/super-admin/attendance">
+            <StatCard
+              label="Took Meal"
+              value={attendance?.collected ?? dinersToday.length}
+              Icon={Utensils}
+              accent="emerald"
+              trend="Collected at the counter"
+            />
+          </Link>
 
-        <Link to="/app/super-admin/attendance">
-          <StatCard
-            label="No-show Amount"
-            value={`Tk ${(attendance?.noShowAmount ?? 0).toLocaleString()}`}
-            Icon={Banknote}
-            accent="brand"
-          />
-        </Link>
+          <Link to="/app/super-admin/attendance">
+            <StatCard
+              label="Cancelled in Time"
+              value={attendance?.cancelled ?? "—"}
+              Icon={CalendarX}
+              accent="ink"
+              trend="Opted out before 6:00 AM · not charged"
+            />
+          </Link>
+
+          <Link to="/app/super-admin/attendance">
+            <StatCard
+              label="Missed Without Cancelling"
+              value={attendance?.noShow ?? "—"}
+              Icon={AlertTriangle}
+              accent="amber"
+              trend="Meal was cooked but never collected"
+            />
+          </Link>
+
+          <Link to="/app/super-admin/attendance">
+            <StatCard
+              label="Charged for Missed Meals"
+              value={`Tk ${(attendance?.noShowAmount ?? 0).toLocaleString()}`}
+              Icon={Banknote}
+              accent="brand"
+              trend="Deducted from those employees' salary"
+            />
+          </Link>
+        </div>
       </div>
 
       {attendance?.pending > 0 && (

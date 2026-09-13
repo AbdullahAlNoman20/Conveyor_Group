@@ -16,6 +16,7 @@ const PASSWORD_SETUP_PATHS = new Set([
   "/api/v1/auth/logout",
   "/api/v1/auth/password",
   "/api/v1/auth/password/initial",
+  "/api/v1/auth/me/photo",
 ]);
 
 export const ACCESS_COOKIE = "cccms_at";

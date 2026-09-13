@@ -155,17 +155,19 @@ export default function ManagerDashboard() {
         />
 
         <StatCard
-          label="Cancelled Today"
+          label="Cancelled in Time"
           value={attendance?.cancelled ?? "—"}
           Icon={CalendarX}
           accent="ink"
+          trend="Not charged"
         />
 
         <StatCard
-          label="Missed (charged)"
+          label="Missed Without Cancelling"
           value={attendance?.noShow ?? "—"}
           Icon={AlertTriangle}
           accent="amber"
+          trend="Cooked but not collected"
         />
 
         <StatCard

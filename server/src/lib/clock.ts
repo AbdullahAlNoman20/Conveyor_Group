@@ -51,10 +51,37 @@ export function minutesUntilCutoff(): number {
 
 export const cancellationOpen = () => minutesUntilCutoff() > 0;
 
-/** e.g. "6:00 AM" — used verbatim in user-facing messages. */
-export function cutoffLabel(): string {
-  const h = env.MEAL_CANCEL_CUTOFF_HOUR;
-  const suffix = h < 12 ? "AM" : "PM";
-  const display = h % 12 === 0 ? 12 : h % 12;
+/** True while the counter is serving. */
+export function orderWindowOpen(): boolean {
+  const h = localHour();
+  return h >= env.MEAL_ORDER_START_HOUR && h < env.MEAL_ORDER_END_HOUR;
+}
+
+/** Minutes until the window opens, or 0 if it is open or already past. */
+export function minutesUntilOrderWindow(): number {
+  const now = localHour() * 60 + localMinute();
+  const start = env.MEAL_ORDER_START_HOUR * 60;
+  return now < start ? start - now : 0;
+}
+
+/** Minutes until the window closes, or 0 once it has. */
+export function minutesUntilOrderWindowCloses(): number {
+  const now = localHour() * 60 + localMinute();
+  const end = env.MEAL_ORDER_END_HOUR * 60;
+  return Math.max(0, end - now);
+}
+
+function hourLabel(h: number): string {
+  const normalised = h % 24;
+  const suffix = normalised < 12 ? "AM" : "PM";
+  const display = normalised % 12 === 0 ? 12 : normalised % 12;
   return `${display}:00 ${suffix}`;
 }
+
+/** e.g. "11:00 AM – 6:00 PM" — rendered verbatim in the UI. */
+export function orderWindowLabel(): string {
+  return `${hourLabel(env.MEAL_ORDER_START_HOUR)} \u2013 ${hourLabel(env.MEAL_ORDER_END_HOUR)}`;
+}
+
+/** e.g. "6:00 AM" — used verbatim in user-facing messages. */
+export const cutoffLabel = (): string => hourLabel(env.MEAL_CANCEL_CUTOFF_HOUR);

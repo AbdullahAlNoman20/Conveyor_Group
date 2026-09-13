@@ -56,9 +56,10 @@ const schema = z.object({
   APP_TIMEZONE: z.string().default("Asia/Dhaka"),
   // Local hour after which today's meal can no longer be cancelled.
   MEAL_CANCEL_CUTOFF_HOUR: z.coerce.number().int().min(0).max(23).default(6),
-  // Local hour at which uncollected, uncancelled meals become chargeable
-  // no-shows. Must be comfortably after the cafeteria closes.
-  MEAL_NOSHOW_SWEEP_HOUR: z.coerce.number().int().min(0).max(23).default(22),
+  // The counter is only open between these local hours. Outside the window no
+  // order can be placed by anyone — client, station scan or Manager scan.
+  MEAL_ORDER_START_HOUR: z.coerce.number().int().min(0).max(23).default(11),
+  MEAL_ORDER_END_HOUR: z.coerce.number().int().min(1).max(24).default(18),
 
   DEFAULT_DAILY_MEAL_LIMIT: z.coerce.number().int().positive().default(300),
   SELF_ORDER_STATION_CODE: z.string().min(6).default("CONVEYOR-SELF-ORDER-STATION-01"),
@@ -83,6 +84,16 @@ export const ALLOWED_ORIGINS = env.APP_PUBLIC_URL.split(",")
 
 if (!ALLOWED_ORIGINS.length) {
   throw new Error("APP_PUBLIC_URL must contain at least one origin.");
+}
+
+if (env.MEAL_ORDER_END_HOUR <= env.MEAL_ORDER_START_HOUR) {
+  throw new Error("MEAL_ORDER_END_HOUR must be later than MEAL_ORDER_START_HOUR.");
+}
+if (env.MEAL_CANCEL_CUTOFF_HOUR >= env.MEAL_ORDER_START_HOUR) {
+  throw new Error(
+    "MEAL_CANCEL_CUTOFF_HOUR must be before MEAL_ORDER_START_HOUR — the kitchen " +
+      "needs the final headcount before the counter opens.",
+  );
 }
 
 if (isProd) {

@@ -14,7 +14,7 @@ import {
   Search,
 } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
-import { apiPost } from "../../../../components/services/api";
+import { apiGet, apiPost } from "../../../../components/services/api";
 import {
   isMobileDevice,
   hasCameraSupport,
@@ -41,6 +41,7 @@ export default function ScanQR() {
   // Guests removed: guests.json never existed, so that whole branch was dead
   // and the Custom-Menu path linked to a route that doesn't exist.
   const [clients, setClients] = useState(null);
+  const [window_, setWindow] = useState(null);
   const [selectedId, setSelectedId] = useState("");
   const [simSearch, setSimSearch] = useState("");
   const [result, setResult] = useState(null); // { ok, message, client, guest }
@@ -54,7 +55,15 @@ export default function ScanQR() {
   const showFallbackSearch = !mobile || cameraFailed;
 
   useEffect(() => {
-    (async () => setClients(await dataStore.load("clients")))();
+    (async () => {
+      setClients(await dataStore.load("clients"));
+      // The counter's opening hours come from the server so a wrong device
+      // clock can't make the button look available when it isn't.
+      const register = await apiGet("/attendance/daily").catch(() => null);
+      if (register) {
+        setWindow({ open: register.orderWindowOpen, label: register.orderWindowLabel });
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -79,6 +88,18 @@ export default function ScanQR() {
   }, [clients, simSearch]);
 
   if (!clients) return <Loader full label="Loading directory..." />;
+
+  const windowClosed = window_?.open === false;
+
+  const canServe = Boolean(result?.client?.canOrderToday) && !windowClosed;
+
+  const serveBlockedReason =
+    {
+      cancelled: "Employee cancelled today's meal — cannot order",
+      collected: "Meal already collected today",
+      no_show: "Employee missed today's meal window",
+    }[result?.client?.attendanceStatus] ||
+    (windowClosed ? `Counter closed — ordering is ${window_?.label} only` : "Ordering unavailable today");
 
   // Fixed-meal clients scanned by the Manager skip menu selection AND both
   // approval steps entirely — this creates the order right here and sends
@@ -278,6 +299,17 @@ export default function ScanQR() {
         </div>
       )}
 
+      {windowClosed && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+          <Clock size={18} className="mt-0.5 shrink-0" />
+          <p>
+            The counter is closed. Meal ordering is open{" "}
+            <span className="font-semibold">{window_?.label}</span> only — you
+            can still scan a card to check an employee's details.
+          </p>
+        </div>
+      )}
+
       {result?.ok && result.client && (
         <div className="rounded-xl border border-emerald-200 bg-white p-6">
           <div className="mb-4 flex items-center gap-2 text-emerald-600">
@@ -336,23 +368,20 @@ export default function ScanQR() {
 
 
           {/* The button itself carries the reason — a separate warning banner
-              would just repeat it a few pixels away. */}
+              would just repeat it a few pixels away. The employee's own status
+              wins over the clock, because it's the more specific answer. */}
           <button
             type="button"
-            disabled={placingInstant || !result.client.canOrderToday}
+            disabled={placingInstant || !canServe}
             onClick={() => placeInstantOrder(result.client)}
             className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-500"
           >
             {placingInstant ? (
               "Placing order..."
-            ) : !result.client.canOrderToday ? (
+            ) : !canServe ? (
               <>
                 <Ban size={16} className="shrink-0" />
-                {{
-                  cancelled: "Meal cancelled by employee — cannot order today",
-                  collected: "Meal already collected today",
-                  no_show: "Today's meal window has closed",
-                }[result.client.attendanceStatus] || "Ordering unavailable today"}
+                {serveBlockedReason}
               </>
             ) : (
               `Confirm Fixed Meal for ${result.client.name.split(" ")[0]} — Instant Order`
