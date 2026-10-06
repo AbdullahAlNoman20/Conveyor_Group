@@ -1,4 +1,5 @@
 // server/scripts/migrate.ts
+import "dotenv/config"; // so `npm run db:deploy` works without --env-file locally
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import postgres from "postgres";

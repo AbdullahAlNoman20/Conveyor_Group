@@ -249,7 +249,7 @@ export default function ClientDashboard() {
           <StatCard
             label="Today's Orders"
             value={todayOrders}
-            Icon={Utensils}
+
             accent="amber"
           />
         </Link>
@@ -257,7 +257,7 @@ export default function ClientDashboard() {
           <StatCard
             label="This Month's Orders"
             value={monthOrders}
-            Icon={Receipt}
+
             accent="brand"
           />
         </Link>
@@ -265,7 +265,7 @@ export default function ClientDashboard() {
           <StatCard
             label="Total Due"
             value={`Tk ${dash.totalDue ?? 0}`}
-            Icon={Wallet}
+
             accent="emerald"
             trend={
               dash.spend?.monthNoShowSpend > 0

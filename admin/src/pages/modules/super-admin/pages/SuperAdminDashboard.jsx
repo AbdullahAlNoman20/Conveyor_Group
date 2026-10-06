@@ -118,28 +118,28 @@ export default function SuperAdminDashboard() {
         <StatCard
           label="Total Clients"
           value={clients.length}
-          Icon={Users}
+
           accent="ink"
         />
 
         <StatCard
           label="Active Clients"
           value={activeClients}
-          Icon={UserCheck}
+
           accent="emerald"
         />
 
         <StatCard
           label="Orders Today"
           value={todaysOrders.length}
-          Icon={Utensils}
+
           accent="brand"
         />
 
         <StatCard
           label="Deducted Today"
           value={`Tk ${salaryToday.toLocaleString()}`}
-          Icon={Banknote}
+
           accent="amber"
           trend="Meals collected today"
         />
@@ -156,7 +156,7 @@ export default function SuperAdminDashboard() {
             <StatCard
               label="Took Meal"
               value={attendance?.collected ?? dinersToday.length}
-              Icon={Utensils}
+
               accent="emerald"
               trend="Collected at the counter"
             />
@@ -166,7 +166,7 @@ export default function SuperAdminDashboard() {
             <StatCard
               label="Cancelled in Time"
               value={attendance?.cancelled ?? "—"}
-              Icon={CalendarX}
+
               accent="ink"
               trend="Opted out before 6:00 AM · not charged"
             />
@@ -176,7 +176,7 @@ export default function SuperAdminDashboard() {
             <StatCard
               label="Missed Without Cancelling"
               value={attendance?.noShow ?? "—"}
-              Icon={AlertTriangle}
+
               accent="amber"
               trend="Meal was cooked but never collected"
             />
@@ -186,7 +186,7 @@ export default function SuperAdminDashboard() {
             <StatCard
               label="Charged for Missed Meals"
               value={`Tk ${(attendance?.noShowAmount ?? 0).toLocaleString()}`}
-              Icon={Banknote}
+              
               accent="brand"
               trend="Deducted from those employees' salary"
             />

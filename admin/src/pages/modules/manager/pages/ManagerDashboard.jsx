@@ -150,14 +150,14 @@ export default function ManagerDashboard() {
         <StatCard
           label="Took Meal Today"
           value={dinersToday.length}
-          Icon={Users}
+
           accent="brand"
         />
 
         <StatCard
           label="Cancelled in Time"
           value={attendance?.cancelled ?? "—"}
-          Icon={CalendarX}
+
           accent="ink"
           trend="Not charged"
         />
@@ -165,7 +165,7 @@ export default function ManagerDashboard() {
         <StatCard
           label="Missed Without Cancelling"
           value={attendance?.noShow ?? "—"}
-          Icon={AlertTriangle}
+
           accent="amber"
           trend="Cooked but not collected"
         />
@@ -173,14 +173,14 @@ export default function ManagerDashboard() {
         <StatCard
           label="Deducted Today"
           value={`Tk ${valueToday.toLocaleString()}`}
-          Icon={Banknote}
+
           accent="emerald"
         />
 
         <StatCard
           label="Meals Remaining"
           value={mealsRemaining ?? "—"}
-          Icon={Utensils}
+          
           accent="sky"
         />
       </div>

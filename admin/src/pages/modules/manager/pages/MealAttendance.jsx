@@ -144,9 +144,9 @@ export default function MealAttendance() {
       </div>
 
       <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
-        <StatCard label="Took Meal" value={summary.collected} Icon={Utensils} accent="emerald" />
-        <StatCard label="Cancelled" value={summary.cancelled} Icon={CalendarX} accent="ink" />
-        <StatCard label="Missed (charged)" value={summary.noShow} Icon={AlertTriangle} accent="amber" />
+        <StatCard label="Took Meal" value={summary.collected}  accent="emerald" />
+        <StatCard label="Cancelled" value={summary.cancelled}  accent="ink" />
+        <StatCard label="Missed (charged)" value={summary.noShow}  accent="amber" />
         <StatCard label="Total Deducted" value={`Tk ${summary.chargedAmount}`} accent="brand" />
       </div>
 
