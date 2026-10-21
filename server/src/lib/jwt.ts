@@ -10,7 +10,7 @@ const ISS = "cccms-api";
 const AUD = "cccms-app";
 const opts = { issuer: ISS, audience: AUD } as const;
 
-export type Role = "super_admin" | "manager" | "client";
+export type Role = "super_admin" | "manager" | "accounts" | "client";
 
 export interface AccessClaims extends JWTPayload {
   sub: string;

@@ -15,7 +15,7 @@ export function formatSequentialId(prefix: string, next: number): string {
 }
 
 // Readable temp password — no 0/O/1/l/I so it can be read aloud over a phone.
-export function generatePassword(length = 12): string {
+export function generatePassword(length = 8): string {
   const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
   const symbols = "!@#$%";
   const buf = randomBytes(length + 1);

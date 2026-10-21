@@ -16,6 +16,8 @@
     "start:local": "node --env-file=.env dist/src/server.js",
     "db:deploy": "tsx scripts/migrate.ts",
     "db:backup": "tsx scripts/backup-db.ts",
+    "staff:list": "tsx scripts/reset-password.ts --list",
+    "staff:password": "tsx scripts/reset-password.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",

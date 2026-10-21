@@ -12,6 +12,7 @@ import { AppError, unauthorized } from "../lib/errors.js";
 import { redis } from "../lib/redis.js";
 import { env } from "../config/env.js";
 import { signedUrl } from "../storage/supabase.js";
+import { effectivePermissions } from "./permission.service.js";
 
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");
 
@@ -44,6 +45,10 @@ export async function publicUser(id: string) {
     // Drives the forced set-password redirect on the client.
     mustChangePassword: u.mustChangePassword,
     clientId: client?.id ?? null,
+    // The UI hides what the server would refuse anyway — the check here is a
+    // convenience, never the enforcement.
+    permissions: await effectivePermissions(u.id),
+    devTools: env.DEV_TOOLS,
   };
 }
 

@@ -21,6 +21,7 @@ const SEED_ACCOUNTS = [
   { id: "U-001", name: "Rafiq Ahmed", email: "superadmin@conveyorgroup.com", role: "super_admin" },
   { id: "U-002", name: "Nadia Islam", email: "manager@conveyorgroup.com", role: "manager" },
   { id: "U-003", name: "Arif Hasan", email: "arif.manager@conveyorgroup.com", role: "manager" },
+  { id: "U-004", name: "Shirin Akter", email: "accounts@conveyorgroup.com", role: "accounts" },
   { id: "U-005", name: "Farzana Karim", email: "client@conveyorgroup.com", role: "client" },
   { id: "U-006", name: "Tanvir Rahman", email: "tanvir.rahman@conveyorgroup.com", role: "client" },
   { id: "U-007", name: "Sabrina Yasmin", email: "sabrina.yasmin@conveyorgroup.com", role: "client" },

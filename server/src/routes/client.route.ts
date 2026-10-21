@@ -1,7 +1,8 @@
 // backend/src/routes/client.route.ts
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
-import { requireRole } from "../middleware/rbac.js";
+import { requirePermission, requireRole } from "../middleware/rbac.js";
+import { PERMISSIONS } from "../constants/permissions.js";
 import {
   bulkImportSchema, clientActionSchema, clientListQuery, createClientSchema,
   updateClientSchema, updateOwnProfileSchema,
@@ -44,23 +45,23 @@ export default async function clientRoutes(app: FastifyInstance) {
   });
 
   /* staff-facing */
-  app.get("/", { preHandler: [requireRole("super_admin", "manager")] }, async (req) => {
+  app.get("/", { preHandler: [requirePermission(PERMISSIONS.CLIENT_VIEW)] }, async (req) => {
     const q = clientListQuery.parse(req.query);
     const { items, total } = await clientService.listClients(q);
     return { success: true, data: paged(items, total, q) };
   });
 
   app.get<{ Params: { id: string } }>("/:id", {
-    preHandler: [requireRole("super_admin", "manager")],
+    preHandler: [requirePermission(PERMISSIONS.CLIENT_VIEW)],
   }, async (req) => ({ success: true, data: await clientService.getClient(req.params.id) }));
 
   app.get<{ Params: { id: string }; Querystring: { year: string; month: string } }>("/:id/statement", {
-    preHandler: [requireRole("super_admin", "manager")],
+    preHandler: [requirePermission(PERMISSIONS.STATEMENT_VIEW)],
   }, async (req) => ({
     success: true, data: await statement(req.params.id, Number(req.query.year), Number(req.query.month)),
   }));
 
-  app.post("/", { preHandler: [requireRole("super_admin")] }, async (req) => {
+  app.post("/", { preHandler: [requirePermission(PERMISSIONS.CLIENT_MANAGE)] }, async (req) => {
     const body = createClientSchema.parse(req.body);
     const created = await clientService.createClientWithLogin(body as never);
     await audit(req, { action: "client.created", entity: "clients", entityId: created.client.id, after: created.client });
@@ -82,7 +83,7 @@ export default async function clientRoutes(app: FastifyInstance) {
   });
 
   app.post("/bulk-import", {
-    preHandler: [requireRole("super_admin")],
+    preHandler: [requirePermission(PERMISSIONS.CLIENT_IMPORT)],
     // Hashing 500 passwords with argon2id is genuinely expensive, so this
     // endpoint gets a far tighter budget than an ordinary write.
     config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
@@ -99,7 +100,7 @@ export default async function clientRoutes(app: FastifyInstance) {
     return { success: true, data: result };
   });
 
-  app.patch<{ Params: { id: string } }>("/:id", { preHandler: [requireRole("super_admin")] }, async (req) => {
+  app.patch<{ Params: { id: string } }>("/:id", { preHandler: [requirePermission(PERMISSIONS.CLIENT_MANAGE)] }, async (req) => {
     const body = updateClientSchema.parse(req.body);
     const { before, after } = await clientService.updateClient(req.params.id, body);
     await audit(req, { action: "client.updated", entity: "clients", entityId: req.params.id, before, after });
@@ -107,7 +108,7 @@ export default async function clientRoutes(app: FastifyInstance) {
   });
 
   app.post<{ Params: { id: string } }>("/:id/actions", {
-    preHandler: [requireRole("super_admin")],
+    preHandler: [requirePermission(PERMISSIONS.CLIENT_MANAGE)],
   }, async (req) => {
     const { action } = clientActionSchema.parse(req.body);
 
@@ -136,6 +137,6 @@ export default async function clientRoutes(app: FastifyInstance) {
   });
 
   app.get("/meta/departments", {
-    preHandler: [requireRole("super_admin", "manager")],
+    preHandler: [requirePermission(PERMISSIONS.CLIENT_VIEW)],
   }, async () => ({ success: true, data: await clientService.departments() }));
 }

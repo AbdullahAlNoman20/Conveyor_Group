@@ -40,7 +40,10 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    # BullMQ stores job state in Redis, so an eviction policy that discards
+    # keys under pressure silently drops queued jobs. noeviction makes Redis
+    # reject writes instead, which surfaces the problem rather than losing work.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
     ports: ["6379:6379"]
     volumes: [redisdata:/data]
     healthcheck:

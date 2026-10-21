@@ -1,47 +1,14 @@
-// FILE: src/pages/modules/manager/layout/ManagerLayout.jsx (FIXED — missing FileText import added)
+// admin/src/pages/modules/manager/layout/ManagerLayout.jsx
 import DashboardLayout from "../../../../components/layout/DashboardLayout";
-import {
-  LayoutDashboard,
-  ScanLine,
-  CalendarRange,
-  BarChart3,
-  Monitor,
-  FileText,
-  UserCircle,
-  ClipboardCheck,
-} from "lucide-react";
+import { buildNavGroups } from "../../../../components/layout/navConfig";
+import { usePermission } from "../../../../components/hooks/usePermission";
 
-const navGroups = [
-  {
-    title: "Overview",
-    items: [
-      { to: "/app/manager", label: "Dashboard", Icon: LayoutDashboard, end: true },
-      { to: "/app/manager/profile", label: "My Profile", Icon: UserCircle },
-    ],
-  },
-  {
-    title: "Operations",
-    items: [
-      { to: "/app/manager/scan-qr", label: "Scan QR — Order", Icon: ScanLine },
-      { to: "/app/manager/attendance", label: "Daily Attendance", Icon: ClipboardCheck },
-      { to: "/kitchen/board", label: "Token Display Board", Icon: Monitor },
-    ],
-  },
-  {
-    title: "Meal Planning",
-    items: [
-      { to: "/app/manager/meal-planner", label: "Weekly Menu Planner", Icon: CalendarRange },
-    ],
-  },
-  {
-    title: "Reports",
-    items: [
-      { to: "/app/manager/reports", label: "Who Ate Today / This Month", Icon: BarChart3 },
-      { to: "/app/manager/client-statements", label: "Client Statements", Icon: FileText },
-    ],
-  },
-];
-
+/**
+ * The sidebar is built from the shared permission-filtered config rather than
+ * a hard-coded list, so granting this Manager an extra duty makes its link
+ * appear without a code change.
+ */
 export default function ManagerLayout() {
-  return <DashboardLayout navGroups={navGroups} roleLabel="Manager" />;
+  const { can } = usePermission();
+  return <DashboardLayout navGroups={buildNavGroups("/app/manager", can)} roleLabel="Manager" />;
 }

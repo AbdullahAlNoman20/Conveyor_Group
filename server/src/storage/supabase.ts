@@ -14,7 +14,7 @@ import { randomToken } from "../lib/ids.js";
 const ALLOWED_IMAGE = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_DOC = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
-export type AssetKind = "avatars" | "menu-items" | "documents";
+export type AssetKind = "avatars" | "menu-items" | "documents" | "vouchers";
 
 let client: SupabaseClient | null = null;
 const sb = () => (client ??= createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -60,7 +60,10 @@ export async function uploadAsset(opts: {
   // file-type v22 types the arg as Uint8Array; Buffer is one, but the view
   // keeps TS happy without a cast.
   const detected = await fileTypeFromBuffer(new Uint8Array(raw));
-  const allowed = opts.kind === "documents" ? ALLOWED_DOC : ALLOWED_IMAGE;
+  // Vouchers are often photographed receipts, but a supplier may hand over a
+  // PDF invoice instead.
+  const allowed =
+    opts.kind === "documents" || opts.kind === "vouchers" ? ALLOWED_DOC : ALLOWED_IMAGE;
   if (!detected || !allowed.has(detected.mime)) throw new AppError("UNSUPPORTED_FILE_TYPE", 415);
 
   let body = raw;

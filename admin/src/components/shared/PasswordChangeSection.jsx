@@ -21,12 +21,12 @@ export default function PasswordChangeSection() {
 
   function validate() {
     const next = {};
-    if (!form.current) next.current = "Current password is required.";
-    if (form.next.length < 10) next.next = "At least 10 characters.";
+    if (!form.current) next.current = "Put your current password.";
+    if (form.next.length < 8) next.next = "At least 8 characters.";
     else if (!/[a-z]/.test(form.next) || !/[A-Z]/.test(form.next) || !/[0-9]/.test(form.next)) {
-      next.next = "Use upper case, lower case and a digit.";
+      next.next = "Use a capital letter, a small letter and a number.";
     }
-    if (form.confirm !== form.next) next.confirm = "Passwords don't match.";
+    if (form.confirm !== form.next) next.confirm = "The two passwords are not the same.";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -83,7 +83,7 @@ export default function PasswordChangeSection() {
       <FormField
         label="New Password"
         error={errors.next}
-        hint="At least 10 characters, with upper case, lower case and a digit."
+        hint="At least 8 characters, with a capital letter, a small letter and a number."
         required
       >
         <div className="relative">

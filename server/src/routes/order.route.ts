@@ -1,7 +1,8 @@
 // backend/src/routes/order.route.ts
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
-import { requireRole } from "../middleware/rbac.js";
+import { can, requirePermission, requireRole } from "../middleware/rbac.js";
+import { PERMISSIONS } from "../constants/permissions.js";
 import { instantOrderSchema, orderListQuery, orderStatusSchema, placeOrderSchema } from "../schemas/index.js";
 import * as orderService from "../services/order.service.js";
 import { orderRepo } from "../repositories/order.repo.js";
@@ -59,7 +60,7 @@ export default async function orderRoutes(app: FastifyInstance) {
   });
 
   app.post("/instant", {
-    preHandler: [requireRole("client", "manager")],
+    preHandler: [authenticate],
     config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
   }, async (req) => {
     const body = instantOrderSchema.parse(req.body);
@@ -70,7 +71,9 @@ export default async function orderRoutes(app: FastifyInstance) {
       await verifyStationCode(body.stationCode);
       clientId = (await getOwnClient(req.auth!.userId)).id;
     } else {
-      if (req.auth!.role !== "manager") throw forbidden();
+      // Serving someone else's meal is a delegable duty, not a role — an
+      // Accounts user covering the counter can be granted it.
+      if (!(await can(req, PERMISSIONS.ORDER_SCAN))) throw forbidden();
       if (!body.clientId) throw badRequest("VALIDATION_ERROR");
       clientId = body.clientId;
     }
@@ -84,7 +87,7 @@ export default async function orderRoutes(app: FastifyInstance) {
   });
 
   app.patch<{ Params: { id: string } }>("/:id/status", {
-    preHandler: [requireRole("manager", "super_admin")],
+    preHandler: [requirePermission(PERMISSIONS.ORDER_SCAN)],
   }, async (req) => {
     const body = orderStatusSchema.parse(req.body);
     const before = await orderRepo.byId(req.params.id);

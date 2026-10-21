@@ -1,0 +1,14 @@
+// admin/src/pages/modules/accounts/AccountsLayout.jsx
+import DashboardLayout from "../../../components/layout/DashboardLayout";
+import { buildNavGroups } from "../../../components/layout/navConfig";
+import { usePermission } from "../../../components/hooks/usePermission";
+
+/**
+ * The Accounts role owns kitchen procurement and costing. The sidebar is built
+ * from the shared permission-filtered config, so granting an extra duty makes
+ * its link appear here without touching this file.
+ */
+export default function AccountsLayout() {
+  const { can } = usePermission();
+  return <DashboardLayout navGroups={buildNavGroups("/app/accounts", can)} roleLabel="Accounts" />;
+}

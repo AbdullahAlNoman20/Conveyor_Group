@@ -9,10 +9,10 @@ import FormField from "../../components/shared/FormField";
 import logo from "../../assets/logo.jpeg";
 
 const RULES = [
-  { test: (v) => v.length >= 10, label: "At least 10 characters" },
-  { test: (v) => /[a-z]/.test(v), label: "One lowercase letter" },
-  { test: (v) => /[A-Z]/.test(v), label: "One uppercase letter" },
-  { test: (v) => /[0-9]/.test(v), label: "One digit" },
+  { test: (v) => v.length >= 8, label: "At least 8 characters" },
+  { test: (v) => /[a-z]/.test(v), label: "One small letter" },
+  { test: (v) => /[A-Z]/.test(v), label: "One capital letter" },
+  { test: (v) => /[0-9]/.test(v), label: "One number" },
 ];
 
 /**
@@ -43,9 +43,9 @@ export default function SetPassword() {
     e.preventDefault();
 
     const next = {};
-    if (!allPassed) next.password = "Password doesn't meet all the requirements yet.";
+    if (!allPassed) next.password = "The password does not meet all the rules yet.";
     else if (isOwnEmail) next.password = "Choose something other than your email address.";
-    if (confirm !== password) next.confirm = "Passwords don't match.";
+    if (confirm !== password) next.confirm = "The two passwords are not the same.";
 
     setErrors(next);
     if (Object.keys(next).length) return;

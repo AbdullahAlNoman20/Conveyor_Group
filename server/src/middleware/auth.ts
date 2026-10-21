@@ -7,6 +7,8 @@ import { redis } from "../lib/redis.js";
 declare module "fastify" {
   interface FastifyRequest {
     auth?: { userId: string; role: Role; sid: string; mustChangePassword: boolean };
+    /** Populated by requirePermission so a handler can re-check cheaply. */
+    permissions?: string[];
   }
 }
 

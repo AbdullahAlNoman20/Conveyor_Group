@@ -2,6 +2,29 @@
 import { env } from "../config/env.js";
 
 /**
+ * Development-only clock offset, in milliseconds.
+ *
+ * Every date and hour decision in the app runs through this module, so shifting
+ * one number simulates any point in time: a different day (to get past the
+ * one-meal-per-day rule), a different hour (to test the 6 AM cancellation
+ * cutoff or the 11–6 serving window), or a month of history for the cost
+ * reports. Nothing else needs a test-only branch.
+ *
+ * Held in memory and mirrored to Redis so every worker in the process group
+ * agrees. Always 0 unless DEV_TOOLS is on, which env.ts refuses in production.
+ */
+let devOffsetMs = 0;
+
+export function setDevOffset(ms: number): void {
+  devOffsetMs = env.DEV_TOOLS ? ms : 0;
+}
+
+export const getDevOffset = (): number => (env.DEV_TOOLS ? devOffsetMs : 0);
+
+/** The app's idea of "now". Real time in production, shiftable in development. */
+export const now = (): Date => new Date(Date.now() + getDevOffset());
+
+/**
  * All day/hour logic runs in APP_TIMEZONE, never UTC.
  *
  * This matters more than it looks: the server runs in UTC, so
@@ -18,7 +41,7 @@ const parts = () =>
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  }).formatToParts(new Date());
+  }).formatToParts(now());
 
 function read(): Record<string, string> {
   const out: Record<string, string> = {};

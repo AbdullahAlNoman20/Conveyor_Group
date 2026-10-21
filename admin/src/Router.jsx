@@ -16,6 +16,8 @@ import SuperAdminLayout from "./pages/modules/super-admin/layout/SuperAdminLayou
 import SuperAdminRoutes from "./pages/modules/super-admin/SuperAdminRoutes";
 import ManagerLayout from "./pages/modules/manager/layout/ManagerLayout";
 import ManagerRoutes from "./pages/modules/manager/ManagerRoutes";
+import AccountsLayout from "./pages/modules/accounts/AccountsLayout";
+import AccountsRoutes from "./pages/modules/accounts/AccountsRoutes";
 import ClientLayout from "./pages/modules/client/layout/ClientLayout";
 import ClientRoutes from "./pages/modules/client/ClientRoutes";
 
@@ -50,6 +52,15 @@ const Router = createBrowserRouter([
           </RoleRoute>
         ),
         children: ManagerRoutes,
+      },
+      {
+        path: "app/accounts",
+        element: (
+          <RoleRoute allowedRoles={[ROLES.ACCOUNTS]}>
+            <AccountsLayout />
+          </RoleRoute>
+        ),
+        children: AccountsRoutes,
       },
       {
         path: "app/client",

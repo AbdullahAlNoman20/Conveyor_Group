@@ -202,12 +202,17 @@ export async function sweepNoShows(date = businessDate()) {
   const result = await db.transaction(async (tx) => {
     // Complimentary clients are recorded as no-shows for reporting, but their
     // chargeable amount is zero, so they are never billed.
-    const inserted = await tx.execute<{ client_id: string; amount: string; client_name: string }>(sql`
+    //
+    // `charged` means "already added to the running bill", so it starts false
+    // and is flipped by the billing step below. Writing it as true up front
+    // made a second sweep — from the cron plus a manual close, or a restart —
+    // re-bill everyone who had already been charged.
+    const inserted = await tx.execute<{ client_id: string }>(sql`
       INSERT INTO meal_attendance
         (date, client_id, client_name, employee_id, department, status, amount, charged, decided_at)
       SELECT ${date}, c.id, c.name, c.employee_id, c.department, 'no_show',
              CASE WHEN c.meal_benefit = 'Complimentary' THEN 0 ELSE ${meal.price} END,
-             CASE WHEN c.meal_benefit = 'Complimentary' THEN false ELSE true END,
+             false,
              now()
       FROM clients c
       WHERE c.status = 'active'
@@ -218,30 +223,45 @@ export async function sweepNoShows(date = businessDate()) {
           WHERE a.date = ${date} AND a.client_id = c.id
         )
       ON CONFLICT (date, client_id) DO NOTHING
-      RETURNING client_id, amount, client_name
+      RETURNING client_id
     `);
 
-    // Bill each no-show exactly once, in the same transaction that created it.
-    const billed = await tx.execute<{ n: number }>(sql`
-      WITH charged_rows AS (
-        SELECT client_id, amount FROM meal_attendance
-        WHERE date = ${date} AND status = 'no_show' AND charged = true AND amount > 0
+    // Bills every unbilled no-show and marks it billed in the same statement,
+    // so the flag and the balance can never drift apart. Re-running the sweep
+    // finds nothing left to charge.
+    const billed = await tx.execute<{ client_id: string; user_id: string | null; amount: string }>(sql`
+      WITH pending AS (
+        UPDATE meal_attendance a
+        SET charged = true, updated_at = now()
+        WHERE a.date = ${date}
+          AND a.status = 'no_show'
+          AND a.charged = false
+          AND a.amount > 0
+        RETURNING a.client_id, a.amount
       ), applied AS (
         UPDATE clients c
-        SET monthly_bill = c.monthly_bill + r.amount, updated_at = now()
-        FROM charged_rows r
-        WHERE c.id = r.client_id
-        RETURNING c.id
+        SET monthly_bill = c.monthly_bill + p.amount, updated_at = now()
+        FROM pending p
+        WHERE c.id = p.client_id
+        RETURNING c.id AS client_id, c.user_id, p.amount
       )
-      SELECT count(*)::int AS n FROM applied
+      SELECT client_id, user_id, amount FROM applied
+    `);
+
+    // Complimentary no-shows owe nothing, so they are settled immediately
+    // rather than left looking unbilled forever.
+    await tx.execute(sql`
+      UPDATE meal_attendance
+      SET charged = true, updated_at = now()
+      WHERE date = ${date} AND status = 'no_show' AND charged = false AND amount = 0
     `);
 
     return {
       marked: inserted.length,
-      charged: billed[0]?.n ?? 0,
-      chargedClientIds: inserted
-        .filter((r) => Number(r.amount) > 0)
-        .map((r) => r.client_id),
+      charged: billed.length,
+      // Carried out of the transaction so the notification goes only to people
+      // billed on THIS run — a second sweep notifies nobody.
+      notifyUserIds: billed.map((b) => b.user_id).filter((id): id is string => !!id),
     };
   });
 
@@ -257,19 +277,17 @@ export async function sweepNoShows(date = businessDate()) {
     });
 
     // Nobody should discover a deduction from their statement weeks later, so
-    // each charged employee is told the same evening, with the reason.
-    if (result.chargedClientIds.length > 0) {
-      const owners = await db.execute<{ user_id: string }>(sql`
-        SELECT user_id FROM clients
-        WHERE id = ANY(${result.chargedClientIds}) AND user_id IS NOT NULL
-      `);
-
+    // each charged employee is told the same evening, with the reason. The id
+    // list comes back from the billing statement itself — a separate lookup
+    // with ANY() over a JS array fails, because the driver expands the array
+    // into individual parameters rather than passing one array value.
+    if (result.notifyUserIds.length > 0) {
       await notifyEvent(SOCKET_EVENTS.NO_SHOW_CHARGED, {
         message:
           `Tk ${meal.price} was deducted for today's meal. It was prepared for you ` +
           `but not collected, and it wasn't cancelled before ${cutoffLabel()}. ` +
           `Cancel before ${cutoffLabel()} on any day you won't be eating.`,
-        recipientUserIds: owners.map((o) => o.user_id),
+        recipientUserIds: result.notifyUserIds,
       });
     }
 

@@ -18,6 +18,14 @@ const SystemBackup = lazy(() => import("./pages/SystemBackup"));
 const ClientStatements = lazy(() => import("./pages/ClientStatements"));
 const StaffForm = lazy(() => import("./pages/StaffForm"));
 const MealAttendance = lazy(() => import("../manager/pages/MealAttendance"));
+const CostAnalysis = lazy(() => import("../manager/pages/CostAnalysis"));
+const Inventory = lazy(() => import("../manager/pages/Inventory"));
+const ShoppingList = lazy(() => import("../manager/pages/ShoppingList"));
+const Purchases = lazy(() => import("../manager/pages/Purchases"));
+const ScanQR = lazy(() => import("../manager/pages/ScanQR"));
+const MealPlanner = lazy(() => import("../manager/pages/MealPlanner"));
+const ManagerReports = lazy(() => import("../manager/pages/ManagerReports"));
+const AccessControl = lazy(() => import("./pages/AccessControl"));
 const SuperAdminProfile = lazy(() => import("./pages/SuperAdminProfile"));
 
 const SuperAdminRoutes = [
@@ -33,7 +41,16 @@ const SuperAdminRoutes = [
   { path: "system-backup", element: <SystemBackup /> },
   { path: "client-statements", element: <ClientStatements /> },
   { path: "attendance", element: <MealAttendance /> },
-  { path: "managers", element: <StaffManagement title="Manager Management" /> },
+  { path: "kitchen/costs", element: <CostAnalysis /> },
+  { path: "kitchen/inventory", element: <Inventory /> },
+  { path: "kitchen/shopping-list", element: <ShoppingList /> },
+  { path: "kitchen/purchases", element: <Purchases /> },
+  { path: "permissions", element: <AccessControl /> },
+  { path: "scan-qr", element: <ScanQR /> },
+  { path: "attendance", element: <MealAttendance /> },
+  { path: "meal-planner", element: <MealPlanner /> },
+  { path: "reports", element: <ManagerReports /> },
+  { path: "managers", element: <StaffManagement title="Staff Accounts" /> },
 
   { path: "staff/new", element: <StaffForm /> },
   { path: "menu", element: <SuperAdminMenu /> },

@@ -1,4 +1,4 @@
-// FILE: src/pages/modules/manager/pages/ScanQR.jsx  (MODIFIED, full rewrite)
+// admin/src/pages/modules/manager/pages/ScanQR.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ScanLine,
@@ -8,6 +8,7 @@ import {
   Clock,
   Wallet,
   Ban,
+  AlertTriangle,
   CalendarCheck,
   Monitor,
   Keyboard,
@@ -27,29 +28,28 @@ import Loader from "../../../../components/shared/Loader";
 
 /**
  * SRS §13.3 — QR Scanner Module.
- *  - Handset (phone/tablet with a camera): the camera opens automatically
- *    and scans live.
- *  - Desktop/laptop: no camera auto-open (per client request) — instead we
- *    show a message directing staff to a connected scanner or their phone,
- *    and accept input from a physical USB/Bluetooth barcode scanner (which
- *    behaves like a keyboard typing the code followed by Enter) via the
- *    text field below. A searchable "simulate" picker stays available too,
- *    for testing without any hardware.
+ *
+ * Handset with a camera: tap to open the camera and scan live.
+ * Desktop: no camera, so a USB/Bluetooth scanner types into the input below.
+ * Either way, "Find by Name" serves anyone whose card can't be read at all —
+ * lost, damaged, or the camera refusing to start.
  */
 export default function ScanQR() {
   const { push } = useToast();
+
   // Guests removed: guests.json never existed, so that whole branch was dead
   // and the Custom-Menu path linked to a route that doesn't exist.
   const [clients, setClients] = useState(null);
   const [window_, setWindow] = useState(null);
   const [selectedId, setSelectedId] = useState("");
   const [simSearch, setSimSearch] = useState("");
-  const [result, setResult] = useState(null); // { ok, message, client, guest }
+  const [result, setResult] = useState(null);
   const [scannerInput, setScannerInput] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false); // click-to-open, never auto-starts
-  const [cameraFailed, setCameraFailed] = useState(false); // camera errored — fall back to search UI even on mobile
+  const [cameraFailed, setCameraFailed] = useState(false);
   const [placingInstant, setPlacingInstant] = useState(false);
   const [instantOrder, setInstantOrder] = useState(null);
+
   const inputRef = useRef(null);
   const mobile = isMobileDevice() && hasCameraSupport();
   const showFallbackSearch = !mobile || cameraFailed;
@@ -70,10 +70,9 @@ export default function ScanQR() {
     if (showFallbackSearch) inputRef.current?.focus();
   }, [showFallbackSearch]);
 
-  // ALL hooks (including useMemo below) must run on every render, before
-  // any early return — calling useMemo only after a conditional `return`
-  // changes the hook count between the "loading" and "loaded" renders and
-  // throws "Rendered more hooks than during the previous render."
+  // Every hook must run on every render, before any early return — calling
+  // useMemo only after a conditional `return` changes the hook count between
+  // the loading and loaded renders and throws.
   const simResults = useMemo(() => {
     const list = clients || [];
     const q = simSearch.trim().toLowerCase();
@@ -90,21 +89,25 @@ export default function ScanQR() {
   if (!clients) return <Loader full label="Loading directory..." />;
 
   const windowClosed = window_?.open === false;
-
   const canServe = Boolean(result?.client?.canOrderToday) && !windowClosed;
 
+  // The employee's own status wins over the clock: "they cancelled" is a more
+  // useful answer than "the counter is shut".
   const serveBlockedReason =
     {
       cancelled: "Employee cancelled today's meal — cannot order",
       collected: "Meal already collected today",
       no_show: "Employee missed today's meal window",
     }[result?.client?.attendanceStatus] ||
-    (windowClosed ? `Counter closed — ordering is ${window_?.label} only` : "Ordering unavailable today");
+    (windowClosed
+      ? `Counter closed — ordering is ${window_?.label} only`
+      : "Ordering unavailable today");
 
-  // Fixed-meal clients scanned by the Manager skip menu selection AND both
-  // approval steps entirely — this creates the order right here and sends
-  // it straight to the Token Board, same shared logic as the client's own
-  // Self-Order Station scan.
+  /**
+   * Fixed-meal clients served by the Manager skip menu selection and every
+   * approval step — this creates the order and sends it straight to the token
+   * board, through the same path as a Self-Order Station scan.
+   */
   async function placeInstantOrder(client) {
     setPlacingInstant(true);
     try {
@@ -112,39 +115,42 @@ export default function ScanQR() {
         source: "manager_scan",
         clientId: client.id,
       });
-      push(
-        `Order ${order.id} confirmed — sent straight to the kitchen board.`,
-        "success",
-      );
+      push(`Order ${order.id} confirmed — sent straight to the kitchen board.`, "success");
       setInstantOrder(order);
       setResult(null);
     } catch (err) {
-      push(
-        err?.message || "Couldn't place the order. Please try again.",
-        "error",
-      );
+      push(err?.message || "Couldn't place the order. Please try again.", "error");
     } finally {
       setPlacingInstant(false);
     }
   }
 
-  function closeInstantModal() {
-    setInstantOrder(null);
-  }
-
-  // Every check (suspended / expired / replaced card) now runs server-side.
+  // Every check (suspended / expired / replaced card) runs server-side.
   // Front-end validation alone was trivially bypassable.
   async function handleDecoded(text) {
     try {
       setResult(await apiPost("/qr/scan", { payload: text }));
     } catch (err) {
-      setResult({ ok: false, message: err.message });
+      setResult({ ok: false, message: err.message, via: "scan" });
     }
   }
 
-  async function simulateScan(client) {
+  /**
+   * Serve someone whose card can't be scanned.
+   *
+   * This used to fake a scan payload, but the staff client list deliberately
+   * withholds the card's secret token — so the forged payload always failed
+   * the token check and every manual lookup came back "Invalid QR Code". The
+   * server has a dedicated endpoint for this, which skips the card check and
+   * records that a person made the identification.
+   */
+  async function lookupByName(client) {
     setSelectedId(client.id);
-    await handleDecoded(JSON.stringify({ clientId: client.id, qrToken: client.qrToken }));
+    try {
+      setResult(await apiPost(`/qr/lookup/${client.id}`));
+    } catch (err) {
+      setResult({ ok: false, message: err.message, via: "manual" });
+    }
   }
 
   function onScannerInputKeyDown(e) {
@@ -154,26 +160,22 @@ export default function ScanQR() {
     }
   }
 
-  // Camera is mounted only after an explicit tap — QRScannerCamera starts
+  // The camera is mounted only after an explicit tap — QRScannerCamera starts
   // the device camera the moment it mounts, so gating the mount behind this
-  // handler is what makes "open camera on click" actually true instead of
-  // auto-opening as soon as the page loads.
+  // handler is what makes "open on click" true rather than on page load.
   function openCameraAndArm() {
     setResult(null);
     setCameraOpen(true);
   }
 
   function handleDecodedOnce(text) {
-    setCameraOpen(false); // one shot per tap, per SRS — re-tap "Scan" to scan again
+    setCameraOpen(false); // one shot per tap — re-tap to scan again
     handleDecoded(text);
   }
 
   function handleCameraError() {
-    // Camera couldn't start (permissions, non-HTTPS, unsupported device,
-    // or the library itself failing) — never leave the manager stuck.
-    // Fall back to the same manual/simulate search used on desktop so an
-    // order can still be placed using the client/guest data already on
-    // this device (public/data JSON), with zero backend dependency.
+    // Permissions, a non-HTTPS origin, or an unsupported device. Never leave
+    // the Manager stuck: fall through to name lookup, which still serves.
     setCameraOpen(false);
     setCameraFailed(true);
   }
@@ -183,60 +185,65 @@ export default function ScanQR() {
       <div>
         <h1 className="text-2xl font-bold text-ink-900">QR Scanner</h1>
         <p className="text-sm text-ink-400">
-          Scan a client or guest QR to load their profile before placing an
-          order.
+          Scan an employee's card to serve their meal — or find them by name if
+          the card can't be read.
         </p>
       </div>
 
       {mobile && !cameraFailed ? (
         cameraOpen ? (
-          <QRScannerCamera
-            onScan={handleDecodedOnce}
-            onError={handleCameraError}
-          />
+          <QRScannerCamera onScan={handleDecodedOnce} onError={handleCameraError} />
         ) : (
           <button
             type="button"
             onClick={openCameraAndArm}
-            className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink-200 bg-white py-10 text-ink-500 hover:border-brand-400 hover:text-brand-600"
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink-200 bg-white py-10 text-ink-500 transition hover:border-brand-400 hover:text-brand-600"
           >
             <ScanLine size={28} />
-            <span className="text-sm font-semibold">
-              Tap to Open Camera & Scan
-            </span>
+            <span className="text-sm font-semibold">Tap to Open Camera & Scan</span>
           </button>
         )
       ) : (
         <div className="space-y-4">
-          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
             <Monitor size={20} className="mt-0.5 shrink-0" />
             <p>
               {cameraFailed
-                ? "Camera scanning isn't available right now on this device. Search and select a client or guest below instead — everything still works."
-                : "For scanning, please use a scanner or your handset. This screen doesn't have a camera, but a connected USB/Bluetooth barcode scanner will work below — it types the code automatically, just like a keyboard."}
+                ? "Camera scanning isn't available on this device right now. Find the employee by name below — the meal is served exactly the same way."
+                : "This screen has no camera. A connected USB or Bluetooth scanner works in the box below — it types the code just like a keyboard. Or find the employee by name."}
             </p>
           </div>
 
           {!mobile && (
             <div className="rounded-xl border border-ink-100 bg-white p-6">
-              <label className="mb-1 flex items-center gap-2 text-sm font-medium text-ink-700">
+              <label
+                htmlFor="scannerInput"
+                className="mb-1 flex items-center gap-2 text-sm font-medium text-ink-700"
+              >
                 <Keyboard size={15} /> Scanner Input
               </label>
               <input
+                id="scannerInput"
                 ref={inputRef}
                 value={scannerInput}
                 onChange={(e) => setScannerInput(e.target.value)}
                 onKeyDown={onScannerInputKeyDown}
                 placeholder="Click here, then scan with a connected device..."
-                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm outline-none   focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </div>
           )}
 
-          <div className="rounded-xl border border-dashed border-ink-200 bg-white p-6">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-400">
-              No hardware handy? Simulate a scan for testing
+          <div className="rounded-xl border border-ink-100 bg-white p-6">
+            <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink-700">
+              <Search size={15} /> Find by Name
             </p>
+            <p className="mb-3 text-xs leading-5 text-ink-400">
+              Use this when a card is lost, damaged, or the camera won't read
+              it. The meal is recorded the same way, noted as identified by
+              name.
+            </p>
+
             <div className="relative">
               <Search
                 size={16}
@@ -245,23 +252,23 @@ export default function ScanQR() {
               <input
                 value={simSearch}
                 onChange={(e) => setSimSearch(e.target.value)}
-                placeholder="Search a client by name or Employee ID..."
-                className="w-full rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none   focus:ring-brand-100"
+                placeholder="Search by name or Employee ID..."
+                className="w-full rounded-lg border border-ink-200 py-2.5 pl-9 pr-3 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
               />
             </div>
+
             <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
               {simResults.map((c) => (
                 <button
                   key={c.id}
-                  onClick={() => simulateScan(c)}
-                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-ink-50 ${
-                    selectedId === c.id
-                      ? "bg-brand-50 ring-1 ring-brand-200"
-                      : ""
+                  onClick={() => lookupByName(c)}
+                  className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-ink-50 ${
+                    selectedId === c.id ? "bg-brand-50 ring-1 ring-brand-200" : ""
                   }`}
                 >
-                  <span className="font-medium text-ink-800">{c.name}</span>
-                  <span className="flex items-center gap-2 text-xs text-ink-400">
+                  <span className="min-w-0 truncate font-medium text-ink-800">{c.name}</span>
+
+                  <span className="flex shrink-0 items-center gap-2 text-xs text-ink-400">
                     {c.employeeId}
                     <span
                       className={
@@ -272,14 +279,13 @@ export default function ScanQR() {
                     >
                       {c.status === "suspended" ? "suspended" : c.qrStatus}
                     </span>
-                    <ScanLine size={14} className="text-ink-300" />
+                    <User size={14} className="text-ink-300" />
                   </span>
                 </button>
               ))}
+
               {simResults.length === 0 && (
-                <p className="px-3 py-4 text-sm text-ink-400">
-                  No matching clients.
-                </p>
+                <p className="px-3 py-4 text-sm text-ink-400">No matching employees.</p>
               )}
             </div>
           </div>
@@ -287,13 +293,16 @@ export default function ScanQR() {
       )}
 
       {result && !result.ok && (
-        <div className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 p-5 text-brand-700">
-          <XCircle size={24} />
-          <div>
+        <div className="flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50 p-5 text-brand-700">
+          <XCircle size={24} className="mt-0.5 shrink-0" />
+          <div className="min-w-0">
             <p className="font-semibold">{result.message}</p>
-            <p className="text-sm text-brand-600">
-              This card cannot be scanned in. Contact Super Admin if this seems
-              wrong.
+            <p className="mt-0.5 text-sm leading-5 text-brand-600">
+              {/* A failed name lookup means something is wrong with the account,
+                  not with a card — saying "card" there would be misleading. */}
+              {result.via === "manual"
+                ? "This employee can't be served right now. Contact the Super Admin if this seems wrong."
+                : "This card cannot be scanned in. Try finding the employee by name, or contact the Super Admin."}
             </p>
           </div>
         </div>
@@ -305,38 +314,39 @@ export default function ScanQR() {
           <p>
             The counter is closed. Meal ordering is open{" "}
             <span className="font-semibold">{window_?.label}</span> only — you
-            can still scan a card to check an employee's details.
+            can still look someone up to check their details.
           </p>
         </div>
       )}
 
       {result?.ok && result.client && (
         <div className="rounded-xl border border-emerald-200 bg-white p-6">
-          <div className="mb-4 flex items-center gap-2 text-emerald-600">
-            <CheckCircle2 size={22} />
-            <p className="font-semibold">QR Verified — Active</p>
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-emerald-600">
+            <CheckCircle2 size={22} className="shrink-0" />
+            <p className="font-semibold">{result.message}</p>
+
+            {/* Say plainly how this person was identified — it changes what the
+                meal record means when it's audited later. */}
+            {result.via === "manual" && (
+              <span className="rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-bold uppercase text-sky-700">
+                Found by name
+              </span>
+            )}
           </div>
+
+          {result.client.qrExpired && (
+            <p className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              This employee's QR card has expired. Serve them now, then ask the
+              Super Admin to reissue the card.
+            </p>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <InfoRow
-              icon={User}
-              label="Client Name"
-              value={result.client.name}
-            />
-            <InfoRow
-              icon={User}
-              label="Employee ID"
-              value={result.client.employeeId}
-            />
-            <InfoRow
-              icon={User}
-              label="Department"
-              value={result.client.department}
-            />
-            <InfoRow
-              icon={User}
-              label="Designation"
-              value={result.client.designation}
-            />
+            <InfoRow icon={User} label="Employee Name" value={result.client.name} />
+            <InfoRow icon={User} label="Employee ID" value={result.client.employeeId} />
+            <InfoRow icon={User} label="Department" value={result.client.department} />
+            <InfoRow icon={User} label="Designation" value={result.client.designation} />
             <InfoRow
               icon={Wallet}
               label="Outstanding Due"
@@ -366,10 +376,8 @@ export default function ScanQR() {
             />
           </div>
 
-
-          {/* The button itself carries the reason — a separate warning banner
-              would just repeat it a few pixels away. The employee's own status
-              wins over the clock, because it's the more specific answer. */}
+          {/* The button carries the reason itself — a separate warning banner
+              would just repeat it a few pixels away. */}
           <button
             type="button"
             disabled={placingInstant || !canServe}
@@ -393,7 +401,7 @@ export default function ScanQR() {
       <OrderTokenModal
         open={!!instantOrder}
         order={instantOrder}
-        onClose={closeInstantModal}
+        onClose={() => setInstantOrder(null)}
       />
     </div>
   );
@@ -401,11 +409,11 @@ export default function ScanQR() {
 
 function InfoRow({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-start gap-2 rounded-lg bg-ink-50 p-3">
-      <Icon size={16} className="mt-0.5 text-ink-400" />
-      <div>
+    <div className="flex min-w-0 items-start gap-2 rounded-lg bg-ink-50 p-3">
+      <Icon size={16} className="mt-0.5 shrink-0 text-ink-400" />
+      <div className="min-w-0">
         <p className="text-xs text-ink-400">{label}</p>
-        <p className="text-sm font-semibold capitalize text-ink-800">{value}</p>
+        <p className="break-words text-sm font-semibold capitalize text-ink-800">{value}</p>
       </div>
     </div>
   );

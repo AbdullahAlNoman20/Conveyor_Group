@@ -1,7 +1,8 @@
 // backend/src/routes/settings.route.ts
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
-import { requireRole } from "../middleware/rbac.js";
+import { requirePermission } from "../middleware/rbac.js";
+import { PERMISSIONS } from "../constants/permissions.js";
 import { mealLimitPatchSchema, settingsPatchSchema } from "../schemas/index.js";
 import { getSettings, patchSettings } from "../services/settings.service.js";
 import { getMealLimitStatus, setDailyLimit } from "../services/mealLimit.service.js";
@@ -11,10 +12,12 @@ import { audit } from "../middleware/audit.js";
 export default async function settingsRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authenticate);
 
-  app.get("/", { preHandler: [requireRole("super_admin", "manager")] },
+  // Readable by anyone who runs reports — the station code and tax settings
+  // show up in several of them.
+  app.get("/", { preHandler: [requirePermission(PERMISSIONS.SETTINGS_MANAGE, PERMISSIONS.REPORT_VIEW)] },
     async () => ({ success: true, data: await getSettings() }));
 
-  app.patch("/", { preHandler: [requireRole("super_admin")] }, async (req) => {
+  app.patch("/", { preHandler: [requirePermission(PERMISSIONS.SETTINGS_MANAGE)] }, async (req) => {
     const body = settingsPatchSchema.parse(req.body);
     const before = await getSettings();
     const after = await patchSettings(body);
@@ -23,10 +26,10 @@ export default async function settingsRoutes(app: FastifyInstance) {
     return { success: true, data: after };
   });
 
-  app.get("/meal-limit", { preHandler: [requireRole("super_admin", "manager")] },
+  app.get("/meal-limit", { preHandler: [requirePermission(PERMISSIONS.SETTINGS_MANAGE, PERMISSIONS.ATTENDANCE_VIEW)] },
     async () => ({ success: true, data: await getMealLimitStatus() }));
 
-  app.patch("/meal-limit", { preHandler: [requireRole("super_admin")] }, async (req) => {
+  app.patch("/meal-limit", { preHandler: [requirePermission(PERMISSIONS.SETTINGS_MANAGE)] }, async (req) => {
     const body = mealLimitPatchSchema.parse(req.body);
     const before = await getMealLimitStatus();
     const after = await setDailyLimit(body.dailyLimit);

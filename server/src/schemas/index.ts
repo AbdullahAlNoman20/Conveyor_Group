@@ -5,7 +5,9 @@ import { ENUMS } from "../db/schema.js";
 const text = (max: number) => z.string().trim().max(max);
 const reqText = (max: number) => text(max).min(1);
 const email = z.email().trim().toLowerCase().max(254);
-const strongPassword = z.string().min(10).max(128)
+// Eight characters with a mix of cases and a digit. Short enough that people
+// pick something they can actually remember rather than writing it down.
+const strongPassword = z.string().min(8).max(128)
   .regex(/[a-z]/).regex(/[A-Z]/).regex(/[0-9]/);
 
 /* auth */
@@ -95,6 +97,8 @@ export const createStaffSchema = z.object({
   department: text(60).default("Restaurant Operations"),
   designation: text(60).default("Restaurant Manager"),
   status: z.enum(["active", "inactive"]).default("active"),
+  // Accounts owns kitchen procurement; Manager runs the counter.
+  role: z.enum(["manager", "accounts"]).default("manager"),
 });
 
 /* menu */
@@ -196,6 +200,68 @@ export const backupQuery = z.object({
   format: z.enum(["json", "csv"]),
 });
 
+/* ── kitchen ──────────────────────────────────────────────────────────── */
+const qty = z.coerce.number().positive().max(1_000_000);
+const money = z.coerce.number().min(0).max(10_000_000);
+
+export const inventoryItemSchema = z.object({
+  name: reqText(80),
+  unit: z.enum(ENUMS.INVENTORY_UNITS).default("kg"),
+  lowStockQty: z.coerce.number().min(0).max(1_000_000).optional(),
+});
+
+export const inventoryItemPatchSchema = z.object({
+  name: reqText(80).optional(),
+  unit: z.enum(ENUMS.INVENTORY_UNITS).optional(),
+  lowStockQty: z.coerce.number().min(0).max(1_000_000).optional(),
+  active: z.boolean().optional(),
+});
+
+export const stockAdjustSchema = z.object({
+  // The counted figure, not a delta — that's what the Manager has in hand.
+  newQty: z.coerce.number().min(0).max(1_000_000),
+  unitCost: money.optional(),
+  note: text(200).optional(),
+});
+
+export const shoppingListSchema = z.object({
+  forDate: z.iso.date(),
+  notes: text(300).optional(),
+  items: z.array(z.object({
+    itemId: reqText(40),
+    qty,
+    note: text(120).optional(),
+  })).max(100),
+});
+
+export const purchaseSchema = z.object({
+  listId: text(40).optional(),
+  purchaseDate: z.iso.date(),
+  voucherPath: text(255).optional(),
+  notes: text(300).optional(),
+  // Per-line cost is required: without it the moving average can't be
+  // maintained, and cost-per-meal would be unanswerable.
+  items: z.array(z.object({
+    itemId: reqText(40),
+    qty,
+    lineCost: money,
+  })).min(1).max(100),
+});
+
+export const consumptionSchema = z.object({
+  usedDate: z.iso.date(),
+  items: z.array(z.object({
+    itemId: reqText(40),
+    qty,
+    note: text(120).optional(),
+  })).min(1).max(100),
+});
+
+export const costRangeSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  month: z.coerce.number().int().min(0).max(11),
+});
+
 export const uploadKindSchema = z.object({
-  kind: z.enum(["avatars", "menu-items", "documents"]),
+  kind: z.enum(["avatars", "menu-items", "documents", "vouchers"]),
 });

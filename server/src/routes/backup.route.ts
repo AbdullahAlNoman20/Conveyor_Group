@@ -1,14 +1,15 @@
 // backend/src/routes/backup.route.ts
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
-import { requireRole } from "../middleware/rbac.js";
+import { requirePermission } from "../middleware/rbac.js";
+import { PERMISSIONS } from "../constants/permissions.js";
 import { backupQuery } from "../schemas/index.js";
 import { buildBackup, buildTransactionCsvRows, toCsv } from "../services/backup.service.js";
 import { audit } from "../middleware/audit.js";
 
 export default async function backupRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authenticate);
-  app.addHook("preHandler", requireRole("super_admin"));
+  app.addHook("preHandler", requirePermission(PERMISSIONS.BACKUP_EXPORT));
 
   app.get("/", { config: { rateLimit: { max: 6, timeWindow: "5 minutes" } } }, async (req, reply) => {
     const q = backupQuery.parse(req.query);

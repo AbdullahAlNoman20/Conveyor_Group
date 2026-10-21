@@ -5,7 +5,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-const ROLES = ["super_admin", "manager", "client"] as const;
+const ROLES = ["super_admin", "manager", "accounts", "client"] as const;
 const USER_STATUS = ["active", "suspended", "disabled"] as const;
 const CLIENT_STATUS = ["active", "suspended", "archived"] as const;
 const QR_STATUS = ["active", "expired"] as const;
@@ -293,6 +293,116 @@ export const mealAttendance = pgTable("meal_attendance", {
   check("meal_attendance_status_chk", inList("status", ATTENDANCE_STATUS)),
 ]);
 
+export const INVENTORY_UNITS = ["kg", "g", "litre", "ml", "piece", "dozen", "packet", "bundle"] as const;
+const LIST_STATUS = ["draft", "purchased"] as const;
+const MOVEMENT_KINDS = ["purchase", "consumption", "adjustment", "opening"] as const;
+
+export const inventoryItems = pgTable("inventory_items", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  unit: text("unit").notNull().default("kg"),
+  currentQty: numeric("current_qty", { precision: 12, scale: 3 }).notNull().default("0"),
+  // Moving average, reblended on every purchase. Consumption is charged out at
+  // this rate, which is what turns "4 kg used" into a taka figure.
+  avgUnitCost: numeric("avg_unit_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+  lowStockQty: numeric("low_stock_qty", { precision: 12, scale: 3 }).notNull().default("0"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("inventory_items_name_uq").on(sql`lower(${t.name})`),
+  check("inventory_items_unit_chk", inList("unit", INVENTORY_UNITS)),
+]);
+
+export const shoppingLists = pgTable("shopping_lists", {
+  id: text("id").primaryKey(),
+  forDate: date("for_date").notNull(),
+  status: text("status").notNull().default("draft"),
+  notes: text("notes"),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("shopping_lists_date_idx").on(t.forDate),
+  check("shopping_lists_status_chk", inList("status", LIST_STATUS)),
+]);
+
+export const shoppingListItems = pgTable("shopping_list_items", {
+  id: serial("id").primaryKey(),
+  listId: text("list_id").notNull().references(() => shoppingLists.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => inventoryItems.id, { onDelete: "restrict" }),
+  qty: numeric("qty", { precision: 12, scale: 3 }).notNull(),
+  note: text("note"),
+}, (t) => [index("shopping_list_items_list_idx").on(t.listId)]);
+
+export const purchases = pgTable("purchases", {
+  id: text("id").primaryKey(),
+  listId: text("list_id").references(() => shoppingLists.id, { onDelete: "set null" }),
+  purchaseDate: date("purchase_date").notNull(),
+  voucherPath: text("voucher_path"),
+  totalCost: numeric("total_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+  notes: text("notes"),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("purchases_date_idx").on(t.purchaseDate)]);
+
+export const purchaseItems = pgTable("purchase_items", {
+  id: serial("id").primaryKey(),
+  purchaseId: text("purchase_id").notNull().references(() => purchases.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => inventoryItems.id, { onDelete: "restrict" }),
+  qty: numeric("qty", { precision: 12, scale: 3 }).notNull(),
+  lineCost: numeric("line_cost", { precision: 12, scale: 2 }).notNull(),
+}, (t) => [index("purchase_items_purchase_idx").on(t.purchaseId)]);
+
+export const consumptions = pgTable("consumptions", {
+  id: text("id").primaryKey(),
+  usedDate: date("used_date").notNull(),
+  itemId: text("item_id").notNull().references(() => inventoryItems.id, { onDelete: "restrict" }),
+  qty: numeric("qty", { precision: 12, scale: 3 }).notNull(),
+  unitCost: numeric("unit_cost", { precision: 12, scale: 2 }).notNull(),
+  cost: numeric("cost", { precision: 12, scale: 2 }).notNull(),
+  note: text("note"),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("consumptions_date_idx").on(t.usedDate),
+  index("consumptions_item_idx").on(t.itemId, t.usedDate),
+]);
+
+export const inventoryMovements = pgTable("inventory_movements", {
+  id: text("id").primaryKey(),
+  itemId: text("item_id").notNull().references(() => inventoryItems.id, { onDelete: "restrict" }),
+  movedDate: date("moved_date").notNull(),
+  kind: text("kind").notNull(),
+  qtyDelta: numeric("qty_delta", { precision: 12, scale: 3 }).notNull(),
+  unitCost: numeric("unit_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+  balanceQty: numeric("balance_qty", { precision: 12, scale: 3 }).notNull(),
+  refId: text("ref_id"),
+  note: text("note"),
+  createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("inventory_movements_item_idx").on(t.itemId, t.createdAt),
+  check("inventory_movements_kind_chk", inList("kind", MOVEMENT_KINDS)),
+]);
+
+/**
+ * Per-user overrides layered on the role defaults. `granted: false` is a
+ * revoke, not an absence — so a permission the role normally carries can be
+ * taken away from one person without a new role.
+ */
+export const userPermissions = pgTable("user_permissions", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  permission: text("permission").notNull(),
+  granted: boolean("granted").notNull(),
+  note: text("note"),
+  grantedBy: text("granted_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.permission] }),
+  index("user_permissions_user_idx").on(t.userId),
+]);
+
 export const storageObjects = pgTable("storage_objects", {
   path: text("path").primaryKey(),
   bucket: text("bucket").notNull(),
@@ -305,6 +415,7 @@ export const storageObjects = pgTable("storage_objects", {
 ]);
 
 export const ENUMS = {
+  INVENTORY_UNITS,
   ATTENDANCE_STATUS,
   ROLES, USER_STATUS, CLIENT_STATUS, QR_STATUS, MEAL_PLANS, MEAL_BENEFITS,
   EMPLOYMENT_TYPES, MENU_CATEGORIES, ORDER_STATUS, ORDER_TYPES, PRIORITIES,

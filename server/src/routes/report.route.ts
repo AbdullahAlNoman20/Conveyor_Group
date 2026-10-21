@@ -1,7 +1,8 @@
 // backend/src/routes/report.route.ts
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
-import { requireRole } from "../middleware/rbac.js";
+import { requirePermission } from "../middleware/rbac.js";
+import { PERMISSIONS } from "../constants/permissions.js";
 import { reportRangeQuery, statementQuery } from "../schemas/index.js";
 import * as reports from "../services/report.service.js";
 import { getMealLimitStatus } from "../services/mealLimit.service.js";
@@ -14,12 +15,12 @@ import { badRequest } from "../lib/errors.js";
 export default async function reportRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authenticate);
 
-  app.get("/who-ate", { preHandler: [requireRole("manager", "super_admin")] }, async (req) => {
+  app.get("/who-ate", { preHandler: [requirePermission(PERMISSIONS.REPORT_VIEW)] }, async (req) => {
     const q = reportRangeQuery.parse(req.query);
     return { success: true, data: await reports.whoAte(reports.resolveRange(q.preset, q.from, q.to)) };
   });
 
-  app.get("/statement", { preHandler: [requireRole("manager", "super_admin")] }, async (req) => {
+  app.get("/statement", { preHandler: [requirePermission(PERMISSIONS.STATEMENT_VIEW)] }, async (req) => {
     const q = statementQuery.parse(req.query);
     if (!q.clientId) throw badRequest("VALIDATION_ERROR");
     return { success: true, data: await reports.statement(q.clientId, q.year, q.month) };

@@ -9,6 +9,7 @@ import AvatarImage from "../shared/AvatarImage";
 import Button from "../shared/Button";
 import { useAuth } from "../hooks/useAuth";
 import { ROLE_BADGE_COLOR } from "../constants/roles";
+import DevPanel from "../shared/DevPanel";
 
 const COLLAPSE_KEY = "cccms:sidebarCollapsed";
 
@@ -92,6 +93,9 @@ export default function DashboardLayout({ navGroups, roleLabel }) {
             <Outlet />
           </Suspense>
         </main>
+
+        {/* Renders nothing unless the server reports DEV_TOOLS. */}
+        <DevPanel />
 
         <footer className="border-t border-ink-100 bg-white px-4 py-3 text-center text-xs text-ink-400 sm:px-6">
           © {new Date().getFullYear()} Conveyor Group Restaurant · CCCMS ·{" "}

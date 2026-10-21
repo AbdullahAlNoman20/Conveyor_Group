@@ -2,7 +2,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "../middleware/auth.js";
-import { requireRole } from "../middleware/rbac.js";
+import { requirePermission } from "../middleware/rbac.js";
+import { PERMISSIONS } from "../constants/permissions.js";
 import { paged, paginationSchema } from "../lib/pagination.js";
 import { rejectRequestSchema } from "../schemas/index.js";
 import * as service from "../services/accountRequest.service.js";
@@ -11,7 +12,7 @@ import { audit } from "../middleware/audit.js";
 
 export default async function accountRequestRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authenticate);
-  app.addHook("preHandler", requireRole("super_admin"));
+  app.addHook("preHandler", requirePermission(PERMISSIONS.ACCOUNT_REQUEST_MANAGE));
 
   app.get("/", async (req) => {
     const q = paginationSchema

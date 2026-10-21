@@ -67,6 +67,13 @@ const schema = z.object({
   SEED_DEFAULT_PASSWORD: z.string().min(8).default("Demo@123"),
 
   ENABLE_SWAGGER: envBool(false),
+
+  /**
+   * Unlocks the development toolkit: a shiftable clock, sample-data
+   * generation, and a manual day-close. Refused outright in production below,
+   * so it cannot reach a live deployment by accident.
+   */
+  DEV_TOOLS: envBool(false),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -97,6 +104,12 @@ if (env.MEAL_CANCEL_CUTOFF_HOUR >= env.MEAL_ORDER_START_HOUR) {
 }
 
 if (isProd) {
+  if (env.DEV_TOOLS) {
+    throw new Error(
+      "DEV_TOOLS must be false in production — it exposes a time-travel clock " +
+        "and sample-data generation.",
+    );
+  }
   if (!env.COOKIE_SECURE) throw new Error("COOKIE_SECURE must be true in production (HTTPS only).");
   // SameSite=None without Secure is rejected outright by every modern browser.
   if (env.COOKIE_SAMESITE === "none" && !env.COOKIE_SECURE) {
