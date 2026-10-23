@@ -202,6 +202,59 @@ export async function statement(clientId: string, year: number, month: number) {
   };
 }
 
+/**
+ * Who ate over a period, read from attendance rather than orders.
+ *
+ * A missed meal is charged without producing an order, so an orders based
+ * report would show a smaller total than the balance people are billed.
+ */
+export async function whoAteInPeriod(from: string, to: string) {
+  const rows = await db.execute<{
+    client_id: string; client_name: string; employee_id: string | null;
+    department: string | null; collected: number; missed: number;
+    cancelled: number; amount: string;
+  }>(sql`
+    SELECT client_id, max(client_name) AS client_name, max(employee_id) AS employee_id,
+           max(department) AS department,
+           count(*) FILTER (WHERE status = 'collected')::int AS collected,
+           count(*) FILTER (WHERE status = 'no_show')::int AS missed,
+           count(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
+           COALESCE(sum(amount), 0) AS amount
+    FROM meal_attendance
+    WHERE date BETWEEN ${from} AND ${to} AND status <> 'pending'
+    GROUP BY client_id
+    ORDER BY max(client_name)
+  `);
+
+  const [daily] = await db.execute<{ days: number }>(sql`
+    SELECT count(DISTINCT date)::int AS days FROM meal_attendance
+    WHERE date BETWEEN ${from} AND ${to} AND status IN ('collected','no_show')
+  `);
+
+  const people = rows.map((r) => ({
+    clientId: r.client_id,
+    name: escapeHtml(r.client_name),
+    employeeId: r.employee_id,
+    department: escapeHtml(r.department ?? ""),
+    collected: r.collected,
+    missed: r.missed,
+    cancelled: r.cancelled,
+    amount: Number(r.amount),
+  }));
+
+  return {
+    people,
+    summary: {
+      days: daily?.days ?? 0,
+      people: people.length,
+      meals: people.reduce((s, p) => s + p.collected, 0),
+      missed: people.reduce((s, p) => s + p.missed, 0),
+      cancelled: people.reduce((s, p) => s + p.cancelled, 0),
+      amount: people.reduce((s, p) => s + p.amount, 0),
+    },
+  };
+}
+
 export async function clientDue(clientId: string): Promise<number> {
   const [row] = await db.execute<{ monthly_bill: string }>(sql`
     SELECT monthly_bill FROM clients WHERE id = ${clientId}
@@ -246,6 +299,78 @@ export async function clientSpend(clientId: string) {
     // Broken out so the dashboard can show what was paid for nothing.
     monthNoShowSpend: Number(row!.month_no_show),
   };
+}
+
+/**
+ * How each dish performs: what it costs to cook against what it is charged at.
+ *
+ * Grouped by dish rather than by day, because the decision it informs is a
+ * menu decision. A dish that loses money every Tuesday is a pricing problem,
+ * not a Tuesday problem.
+ */
+export async function mealPerformance(range: Range) {
+  const rows = await db.execute<{
+    meal_name: string;
+    days_served: number;
+    people: number;
+    charged_price: string;
+    total_cost: string;
+    total_charged: string;
+  }>(sql`
+    WITH served AS (
+      SELECT w.day, w.meal_name, m.price AS charged_price
+      FROM weekly_menu w
+      LEFT JOIN menu_items m ON m.id = w.menu_item_id
+    ), daily AS (
+      SELECT a.date,
+             to_char(a.date, 'FMDay') AS day_name,
+             count(*) FILTER (WHERE a.status IN ('collected','no_show'))::int AS people,
+             COALESCE(sum(a.amount) FILTER (WHERE a.status IN ('collected','no_show')), 0) AS charged
+      FROM meal_attendance a
+      WHERE a.date BETWEEN ${range.from} AND ${range.to}
+      GROUP BY a.date
+    ), costs AS (
+      SELECT used_date, COALESCE(sum(cost), 0) AS cost
+      FROM consumptions
+      WHERE used_date BETWEEN ${range.from} AND ${range.to}
+      GROUP BY used_date
+    )
+    SELECT s.meal_name,
+           count(d.date)::int                          AS days_served,
+           COALESCE(sum(d.people), 0)::int             AS people,
+           COALESCE(max(s.charged_price), 0)           AS charged_price,
+           COALESCE(sum(c.cost), 0)                    AS total_cost,
+           COALESCE(sum(d.charged), 0)                 AS total_charged
+    FROM daily d
+    JOIN served s ON trim(s.day) = trim(d.day_name)
+    LEFT JOIN costs c ON c.used_date = d.date
+    WHERE s.meal_name IS NOT NULL
+    GROUP BY s.meal_name
+    ORDER BY sum(d.charged) - sum(c.cost)
+  `);
+
+  return rows.map((r) => {
+    const people = r.people;
+    const totalCost = Number(r.total_cost);
+    const totalCharged = Number(r.total_charged);
+    const costPerMeal = people > 0 ? Math.round(totalCost / people) : 0;
+    const chargedPerMeal = Number(r.charged_price);
+
+    return {
+      mealName: escapeHtml(r.meal_name.trim()),
+      daysServed: r.days_served,
+      people,
+      totalCost,
+      totalCharged,
+      costPerMeal,
+      chargedPerMeal,
+      profitPerMeal: chargedPerMeal - costPerMeal,
+      totalProfit: totalCharged - totalCost,
+      // What the price would have to be to break even. Rounded up to the next
+      // five taka, because nobody prices a meal at 87.
+      suggestedPrice: costPerMeal > 0 ? Math.ceil(costPerMeal / 5) * 5 : chargedPerMeal,
+    };
+  });
 }
 
 export const refreshDashboardViews = () =>

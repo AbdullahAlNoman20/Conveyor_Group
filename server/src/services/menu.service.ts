@@ -112,10 +112,10 @@ export async function getWeeklyMenu() {
  */
 export async function getIngredients(menuItemId: string) {
   const rows = await db.execute<{
-    id: number; item_id: string; name: string; unit: string;
+    id: number; item_id: string; name: string; unit: string; default_unit: string | null;
     default_qty: string | null; current_qty: string; avg_unit_cost: string;
   }>(sql`
-    SELECT mi.id, mi.item_id, i.name, i.unit, mi.default_qty,
+    SELECT mi.id, mi.item_id, i.name, i.unit, mi.default_qty, mi.default_unit,
            i.current_qty, i.avg_unit_cost
     FROM menu_item_ingredients mi
     JOIN inventory_items i ON i.id = mi.item_id
@@ -127,7 +127,8 @@ export async function getIngredients(menuItemId: string) {
     id: r.id,
     itemId: r.item_id,
     name: escapeHtml(r.name),
-    unit: r.unit,
+    unit: r.default_unit || r.unit,
+    stockUnit: r.unit,
     defaultQty: r.default_qty === null ? null : Number(r.default_qty),
     inStock: Number(r.current_qty),
     avgUnitCost: Number(r.avg_unit_cost),
@@ -137,7 +138,7 @@ export async function getIngredients(menuItemId: string) {
 /** Replaces a dish's ingredient list wholesale. */
 export async function setIngredients(
   menuItemId: string,
-  items: { itemId: string; defaultQty?: number | null; note?: string }[],
+  items: { itemId: string; defaultQty?: number | null; defaultUnit?: string; note?: string }[],
 ) {
   const dish = await menuRepo.byId(menuItemId);
   if (!dish) throw notFound("MENU_ITEM_NOT_FOUND");
@@ -160,6 +161,7 @@ export async function setIngredients(
           menuItemId,
           itemId: i.itemId,
           defaultQty: i.defaultQty === null || i.defaultQty === undefined ? null : String(i.defaultQty),
+          defaultUnit: i.defaultUnit || null,
           note: sanitizeText(i.note, 120) || null,
         })),
       );

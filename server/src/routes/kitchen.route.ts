@@ -18,6 +18,10 @@ import { audit } from "../middleware/audit.js";
 
 const dateQuery = z.object({ date: z.iso.date().optional() });
 
+// Every report screen sends a plain range, worked out by the picker, so the
+// server never has to know what "this month" meant on the client.
+const rangeQuery = z.object({ from: z.iso.date(), to: z.iso.date() });
+
 /**
  * Procurement is the Manager's job; the Super Admin sees everything for
  * oversight but doesn't run the kitchen day to day.
@@ -101,7 +105,13 @@ export default async function kitchenRoutes(app: FastifyInstance) {
   });
 
   /* ── purchases ─────────────────────────────────────────────────────── */
-  app.get("/purchases", async () => ({ success: true, data: await kitchen.listPurchases() }));
+  app.get("/purchases", async (req) => {
+    const q = z.object({
+      from: z.iso.date().optional(),
+      to: z.iso.date().optional(),
+    }).parse(req.query);
+    return { success: true, data: await kitchen.listPurchases(q) };
+  });
 
   app.get<{ Params: { id: string } }>("/purchases/:id",
     async (req) => ({ success: true, data: await kitchen.getPurchase(req.params.id) }));
@@ -141,5 +151,17 @@ export default async function kitchenRoutes(app: FastifyInstance) {
   app.get("/costs/monthly", { preHandler: [canCost] }, async (req) => {
     const q = costRangeSchema.parse(req.query);
     return { success: true, data: await kitchen.monthlyCost(q.year, q.month) };
+  });
+
+  // Any range, not just a calendar month.
+  app.get("/costs/period", { preHandler: [canCost] }, async (req) => {
+    const { from, to } = rangeQuery.parse(req.query);
+    return { success: true, data: { ...(await kitchen.costInPeriod(from, to)), from, to } };
+  });
+
+  // Which dishes make money and which lose it.
+  app.get("/costs/dishes", { preHandler: [canCost] }, async (req) => {
+    const { from, to } = rangeQuery.parse(req.query);
+    return { success: true, data: await kitchen.dishProfitability(from, to) };
   });
 }

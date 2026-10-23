@@ -17,7 +17,7 @@ import { PERMISSIONS as P } from "../constants/roles";
  * `base` is the role's URL prefix, so the same page is reachable at
  * /app/manager/... or /app/accounts/... without duplicating the config.
  */
-export function buildNavGroups(base, can) {
+export function buildNavGroups(base, can, role) {
   const groups = [
     {
       title: "Overview",
@@ -65,16 +65,25 @@ export function buildNavGroups(base, can) {
       title: "Reports",
       items: [
         { to: `${base}/reports`, label: "Who Ate", Icon: BarChart3, permission: P.REPORT_VIEW },
-        { to: `${base}/financial-dashboard`, label: "Salary Summary", Icon: Wallet, permission: P.REPORT_VIEW },
+        // Super Admin only: the route lives there and nowhere else, so showing
+        // it to anyone else lands them on a redirect to the home page.
+        { to: `${base}/financial-dashboard`, label: "Salary Summary", Icon: Wallet, permission: P.REPORT_VIEW, superAdminOnly: true },
         { to: `${base}/client-statements`, label: "Client Statements", Icon: FileText, permission: P.STATEMENT_VIEW },
         { to: `${base}/system-backup`, label: "System Backup", Icon: HardDriveDownload, permission: P.BACKUP_EXPORT },
       ],
     },
   ];
 
-  // Drop anything the user can't reach, then drop groups left empty — an
+  // Dropping what the user cannot reach, then dropping groups left empty. An
   // empty heading reads like something is broken.
   return groups
-    .map((g) => ({ ...g, items: g.items.filter((i) => !i.permission || can(i.permission)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter(
+        (i) =>
+          (!i.permission || can(i.permission)) &&
+          (!i.superAdminOnly || role === "super_admin"),
+      ),
+    }))
     .filter((g) => g.items.length > 0);
 }

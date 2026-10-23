@@ -2,7 +2,7 @@
 import { clientRepo } from "../repositories/client.repo.js";
 import { orderRepo } from "../repositories/order.repo.js";
 import { getForClient } from "./attendance.service.js";
-import { businessDate } from "../lib/clock.js";
+import { businessDate, orderWindowOpen } from "../lib/clock.js";
 import { getSettings } from "./settings.service.js";
 import { AppError } from "../lib/errors.js";
 import { signedUrl } from "../storage/supabase.js";
@@ -101,6 +101,15 @@ async function evaluate(
   // rather than discovering it from a rejected order.
   const today = await getForClient(client.id, businessDate());
   const attendanceStatus = today?.status ?? "pending";
+
+  // Phrased the same way everywhere, and honest about the clock: outside the
+  // counter hours "not collected yet" would be misleading.
+  const attendanceLabel = {
+    collected: "Collected",
+    cancelled: "Cancelled",
+    no_show: "Missed",
+    pending: orderWindowOpen() ? "Not collected yet" : "Window closed",
+  }[attendanceStatus];
 
   return {
     ok: true,

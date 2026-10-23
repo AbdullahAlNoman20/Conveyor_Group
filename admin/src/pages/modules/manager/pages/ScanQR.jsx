@@ -25,6 +25,7 @@ import { useToast } from "../../../../components/hooks/useToast";
 import QRScannerCamera from "../../../../components/shared/QRScannerCamera";
 import OrderTokenModal from "../../../../components/shared/OrderTokenModal";
 import Loader from "../../../../components/shared/Loader";
+import { mealStatusLabel } from "../../../../components/shared/mealStatus";
 
 /**
  * SRS §13.3 — QR Scanner Module.
@@ -355,14 +356,10 @@ export default function ScanQR() {
             <InfoRow
               icon={CalendarCheck}
               label="Today's Meal"
-              value={
-                {
-                  pending: "Not collected yet",
-                  cancelled: "Cancelled by employee",
-                  collected: "Already collected",
-                  no_show: "Missed",
-                }[result.client.attendanceStatus] || "Not collected yet"
-              }
+              value={mealStatusLabel(result.client.attendanceStatus, {
+                windowOpen: window_?.open !== false,
+                windowLabel: window_?.label,
+              })}
             />
             <InfoRow
               icon={Clock}

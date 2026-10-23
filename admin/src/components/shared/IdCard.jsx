@@ -1,6 +1,6 @@
 // admin/src/components/shared/IdCard.jsx
-import { QRCodeSVG } from "qrcode.react";
 import logo from "../../assets/logo.jpeg";
+import MealQr from "./MealQr";
 
 /**
  * The employee ID card, used on screen and in print from the same component.
@@ -83,11 +83,7 @@ export default function IdCard({ client, size = "normal" }) {
 
         <div className="flex shrink-0 flex-col items-center justify-center">
           <div className="rounded-lg border border-ink-200 p-1.5">
-            <QRCodeSVG
-              value={client.qrPayload || client.employeeId || ""}
-              size={compact ? 76 : 92}
-              level="M"
-            />
+            <MealQr value={client.qrPayload || client.employeeId || ""} size={compact ? 76 : 92} />
           </div>
           <p className="mt-1 text-[8px] font-semibold uppercase tracking-wider text-ink-400">
             Scan to collect

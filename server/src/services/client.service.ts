@@ -1,5 +1,5 @@
 // server/src/services/client.service.ts
-import { and, ne, sql } from "drizzle-orm";
+import { and, inArray, ne, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { clients, users } from "../db/schema.js";
 import { clientRepo, type ClientRow } from "../repositories/client.repo.js";
@@ -369,12 +369,15 @@ export async function runLifecycleAction(
  * means the token isn't handed out every time someone opens the employee list.
  */
 export async function idCardData(ids?: string[]) {
+  // `inArray`, not ANY(): the driver expands a JS array into separate
+  // parameters, so ANY() receives a tuple and Postgres rejects the whole
+  // query. The failure looked like a card that never finished loading.
   const rows = await db
     .select()
     .from(clients)
     .where(
       ids?.length
-        ? and(ne(clients.status, "archived"), sql`${clients.id} = ANY(${ids})`)
+        ? and(ne(clients.status, "archived"), inArray(clients.id, ids))
         : ne(clients.status, "archived"),
     )
     .orderBy(clients.name);

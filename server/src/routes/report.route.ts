@@ -1,6 +1,7 @@
 // backend/src/routes/report.route.ts
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
+import { z } from "zod";
 import { requirePermission } from "../middleware/rbac.js";
 import { PERMISSIONS } from "../constants/permissions.js";
 import { reportRangeQuery, statementQuery } from "../schemas/index.js";
@@ -15,9 +16,29 @@ import { badRequest } from "../lib/errors.js";
 export default async function reportRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authenticate);
 
+  // Range based, for the Who Ate screen's day, month and year views.
+  app.get("/who-ate/period", {
+    preHandler: [requirePermission(PERMISSIONS.REPORT_VIEW)],
+  }, async (req) => {
+    const { from, to } = z.object({
+      from: z.iso.date(),
+      to: z.iso.date(),
+    }).parse(req.query);
+    return { success: true, data: { ...(await reports.whoAteInPeriod(from, to)), from, to } };
+  });
+
   app.get("/who-ate", { preHandler: [requirePermission(PERMISSIONS.REPORT_VIEW)] }, async (req) => {
     const q = reportRangeQuery.parse(req.query);
     return { success: true, data: await reports.whoAte(reports.resolveRange(q.preset, q.from, q.to)) };
+  });
+
+  // Dish by dish profit and loss, for menu pricing decisions.
+  app.get("/meal-performance", {
+    preHandler: [requirePermission(PERMISSIONS.KITCHEN_COST_VIEW, PERMISSIONS.REPORT_VIEW)],
+  }, async (req) => {
+    const q = reportRangeQuery.parse(req.query);
+    const range = reports.resolveRange(q.preset, q.from, q.to);
+    return { success: true, data: { range, meals: await reports.mealPerformance(range) } };
   });
 
   app.get("/statement", { preHandler: [requirePermission(PERMISSIONS.STATEMENT_VIEW)] }, async (req) => {

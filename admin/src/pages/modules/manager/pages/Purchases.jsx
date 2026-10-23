@@ -5,6 +5,7 @@ import { apiGet, apiPost, uploadFile } from "../../../../components/services/api
 import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
 import { useToast } from "../../../../components/hooks/useToast";
 import ItemPicker, { UNITS } from "../../../../components/shared/ItemPicker";
+import DateRangePicker, { useDateRange } from "../../../../components/shared/DateRangePicker";
 import Loader from "../../../../components/shared/Loader";
 import Modal from "../../../../components/shared/Modal";
 
@@ -18,7 +19,12 @@ export default function Purchases() {
   const [items, setItems] = useState([]);
   const [lists, setLists] = useState([]);
   const [history, setHistory] = useState([]);
+  const [historySummary, setHistorySummary] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Defaults to the month, because a buyer checking what was spent is almost
+  // always looking at a month rather than one day.
+  const ctrl = useDateRange("month");
 
   const [listId, setListId] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(today());
@@ -40,10 +46,12 @@ export default function Purchases() {
   async function refresh() {
     const [l, h] = await Promise.all([
       apiGet("/kitchen/lists").catch(() => []),
-      apiGet("/kitchen/purchases").catch(() => []),
+      apiGet(`/kitchen/purchases?from=${ctrl.range.from}&to=${ctrl.range.to}`)
+        .catch(() => ({ items: [], summary: null })),
     ]);
     setLists(l.filter((x) => x.status === "draft"));
-    setHistory(h);
+    setHistory(h.items ?? []);
+    setHistorySummary(h.summary ?? null);
   }
 
   useEffect(() => {
@@ -51,7 +59,8 @@ export default function Purchases() {
       await Promise.all([loadItems(), refresh()]);
       setLoading(false);
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctrl.range.from, ctrl.range.to]);
 
   if (loading) return <Loader full label="Loading purchases..." />;
 
@@ -78,6 +87,10 @@ export default function Purchases() {
           qty: String(i.qty),
           unit: i.unit,
           lineCost: "",
+          // Kept so the buyer can see what was planned against what they
+          // actually came back with.
+          plannedQty: i.qty,
+          plannedUnit: i.unit,
         })),
       );
       push("List loaded. Now put in the price of each item.", "info");
@@ -360,12 +373,34 @@ export default function Purchases() {
                   </div>
                 </div>
 
-                {item && unitCost > 0 && (
-                  <p className="mt-2 text-xs text-ink-400">
-                    Tk {Math.round(unitCost)}/{item.unit}
-                    {item.avgUnitCost > 0 && ` · previous avg Tk ${item.avgUnitCost}/${item.unit}`}
-                  </p>
-                )}
+                {/* The rate is worked out, not typed. Entering the total off
+                    the voucher is what the buyer has in hand, and a per unit
+                    figure typed by hand is a rounding error waiting to happen. */}
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  {line.plannedQty != null && (
+                    <span
+                      className={
+                        Number(line.qty) !== Number(line.plannedQty)
+                          ? "font-medium text-amber-700"
+                          : "text-ink-400"
+                      }
+                    >
+                      Planned {line.plannedQty} {line.plannedUnit}
+                    </span>
+                  )}
+
+                  {unitCost > 0 && (
+                    <span className="font-semibold text-brand-600">
+                      Tk {Math.round(unitCost)} per {line.unit || item?.unit}
+                    </span>
+                  )}
+
+                  {item?.avgUnitCost > 0 && (
+                    <span className="text-ink-400">
+                      Last Tk {item.avgUnitCost} per {item.unit}
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -480,9 +515,20 @@ export default function Purchases() {
 
       {/* History */}
       <section className="rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
-        <h2 className="mb-3 text-sm font-bold text-ink-700">Recent Purchases</h2>
+        <h2 className="mb-3 text-sm font-bold text-ink-700">Past Purchases</h2>
 
-        <div className="space-y-2">
+        <DateRangePicker ctrl={ctrl} />
+
+        {historySummary && historySummary.count > 0 && (
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <Mini label="Purchases" value={historySummary.count} />
+            <Mini label="Goods" value={`Tk ${historySummary.goodsCost.toLocaleString()}`} />
+            <Mini label="Transport" value={`Tk ${historySummary.transportCost.toLocaleString()}`} />
+            <Mini label="Total" value={`Tk ${historySummary.totalCost.toLocaleString()}`} strong />
+          </div>
+        )}
+
+        <div className="mt-3 space-y-2">
           {history.map((p) => (
             <button
               key={p.id}
@@ -521,7 +567,9 @@ export default function Purchases() {
           ))}
 
           {history.length === 0 && (
-            <p className="py-8 text-center text-sm text-ink-400">No purchases yet.</p>
+            <p className="py-8 text-center text-sm text-ink-400">
+              No purchases in this period.
+            </p>
           )}
         </div>
       </section>

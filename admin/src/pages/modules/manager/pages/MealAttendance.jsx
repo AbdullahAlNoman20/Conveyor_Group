@@ -10,11 +10,13 @@ import Badge from "../../../../components/shared/Badge";
 import Loader from "../../../../components/shared/Loader";
 import AvatarImage from "../../../../components/shared/AvatarImage";
 
+// The register is read after the fact as often as during the day, so a pending
+// row is described by what it will become rather than by what it is not.
 const STATUS_LABEL = {
-  collected: "Took meal",
+  collected: "Collected",
   cancelled: "Cancelled",
   no_show: "Missed",
-  pending: "Not yet",
+  pending: "Not collected yet",
 };
 
 const STATUS_TONE = {

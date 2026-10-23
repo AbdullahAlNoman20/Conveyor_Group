@@ -88,9 +88,22 @@ export async function todayStatusFor(client: ClientRow) {
 
   const windowOpen = orderWindowOpen();
 
+  /**
+   * "Not collected yet" only means something while the counter is open. Said
+   * at 9 pm it reads as a bug, when the honest answer is that the window has
+   * closed and the day is about to be settled.
+   */
+  const label = {
+    collected: "Collected",
+    cancelled: "Cancelled",
+    no_show: "Missed",
+    pending: windowOpen ? "Not collected yet" : "Window closed",
+  }[status];
+
   return {
     date,
     status,
+    label,
     mealName: meal?.name ?? null,
     mealPrice: meal?.price ?? 0,
     amountCharged: Number(row?.amount ?? 0),
@@ -200,8 +213,6 @@ export async function sweepNoShows(date = businessDate()) {
   }
 
   const result = await db.transaction(async (tx) => {
-    // Complimentary clients are recorded as no-shows for reporting, but their
-    // chargeable amount is zero, so they are never billed.
     //
     // `charged` means "already added to the running bill", so it starts false
     // and is flipped by the billing step below. Writing it as true up front
@@ -211,7 +222,7 @@ export async function sweepNoShows(date = businessDate()) {
       INSERT INTO meal_attendance
         (date, client_id, client_name, employee_id, department, status, amount, charged, decided_at)
       SELECT ${date}, c.id, c.name, c.employee_id, c.department, 'no_show',
-             CASE WHEN c.meal_benefit = 'Complimentary' THEN 0 ELSE ${meal.price} END,
+             ${meal.price},
              false,
              now()
       FROM clients c
@@ -248,8 +259,8 @@ export async function sweepNoShows(date = businessDate()) {
       SELECT client_id, user_id, amount FROM applied
     `);
 
-    // Complimentary no-shows owe nothing, so they are settled immediately
-    // rather than left looking unbilled forever.
+    // A zero priced day, which only happens when no dish was set, is settled
+    // straight away rather than left looking unbilled forever.
     await tx.execute(sql`
       UPDATE meal_attendance
       SET charged = true, updated_at = now()
@@ -326,12 +337,22 @@ export async function dailyRegister(date = businessDate()) {
       c.name
   `);
 
+  const windowOpen = orderWindowOpen();
+
+  const LABELS: Record<string, string> = {
+    collected: "Collected",
+    cancelled: "Cancelled",
+    no_show: "Missed",
+    pending: windowOpen ? "Not collected yet" : "Window closed",
+  };
+
   const entries = rows.map((r) => ({
     clientId: r.client_id,
     name: escapeHtml(r.client_name),
     employeeId: r.employee_id,
     department: escapeHtml(r.department ?? ""),
     status: r.status,
+    label: LABELS[r.status] ?? r.status,
     amount: Number(r.amount),
     cancelledAt: r.cancelled_at,
   }));

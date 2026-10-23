@@ -219,10 +219,11 @@ export async function suggestForDate(forDate: string) {
   }
 
   const items = await db.execute<{
-    item_id: string; name: string; unit: string;
+    item_id: string; name: string; unit: string; default_unit: string | null;
     default_qty: string | null; current_qty: string; avg_unit_cost: string;
   }>(sql`
-    SELECT mi.item_id, i.name, i.unit, mi.default_qty, i.current_qty, i.avg_unit_cost
+    SELECT mi.item_id, i.name, i.unit, mi.default_qty, mi.default_unit,
+           i.current_qty, i.avg_unit_cost
     FROM menu_item_ingredients mi
     JOIN inventory_items i ON i.id = mi.item_id
     WHERE mi.menu_item_id = ${row.menu_item_id} AND i.active = true
@@ -236,7 +237,10 @@ export async function suggestForDate(forDate: string) {
     items: items.map((r) => ({
       itemId: r.item_id,
       name: escapeHtml(r.name),
-      unit: r.unit,
+      // The recipe's own unit is carried through, so a line written in grams
+      // on the dish stays in grams on the shopping list.
+      unit: r.default_unit || r.unit,
+      stockUnit: r.unit,
       qty: r.default_qty === null ? "" : String(Number(r.default_qty)),
       inStock: n(r.current_qty),
       avgUnitCost: n(r.avg_unit_cost),
@@ -461,30 +465,52 @@ export async function recordPurchase(input: {
   return { id, goodsCost, transportCost, otherCost, totalCost };
 }
 
-export async function listPurchases(limit = 30) {
+export async function listPurchases(opts: { from?: string; to?: string; limit?: number } = {}) {
+  const from = opts.from ?? "1970-01-01";
+  const to = opts.to ?? "2999-12-31";
+  const limit = opts.limit ?? 200;
+
   const rows = await db.execute<{
     id: string; purchase_date: string; total_cost: string; transport_cost: string;
+    goods_cost: string; other_cost: string;
     voucher_path: string | null; notes: string | null; item_count: number;
   }>(sql`
     SELECT p.id, p.purchase_date::text AS purchase_date, p.total_cost, p.transport_cost,
-           p.voucher_path, p.notes, count(pi.id)::int AS item_count
+           p.goods_cost, p.other_cost, p.voucher_path, p.notes,
+           count(pi.id)::int AS item_count
     FROM purchases p
     LEFT JOIN purchase_items pi ON pi.purchase_id = p.id
+    WHERE p.purchase_date BETWEEN ${from} AND ${to}
     GROUP BY p.id
     ORDER BY p.purchase_date DESC, p.created_at DESC
     LIMIT ${limit}
   `);
 
-  return Promise.all(rows.map(async (r) => ({
+  const items = await Promise.all(rows.map(async (r) => ({
     id: r.id,
     date: r.purchase_date,
+    goodsCost: n(r.goods_cost) || n(r.total_cost),
     totalCost: n(r.total_cost),
     transportCost: n(r.transport_cost),
+    otherCost: n(r.other_cost),
     itemCount: r.item_count,
     notes: escapeHtml(r.notes ?? ""),
     voucher: await signedUrl(r.voucher_path),
     voucherIsPdf: Boolean(r.voucher_path && r.voucher_path.toLowerCase().endsWith(".pdf")),
   })));
+
+  // Returned with the list so the screen does not have to add it up itself,
+  // and so the total always matches whatever range was asked for.
+  return {
+    items,
+    summary: {
+      count: items.length,
+      goodsCost: items.reduce((s, p) => s + p.goodsCost, 0),
+      transportCost: items.reduce((s, p) => s + p.transportCost, 0),
+      otherCost: items.reduce((s, p) => s + p.otherCost, 0),
+      totalCost: items.reduce((s, p) => s + p.totalCost, 0),
+    },
+  };
 }
 
 export async function getPurchase(id: string) {
@@ -694,6 +720,162 @@ async function menuPriceFor(date: string): Promise<{ name: string | null; price:
     WHERE w.day = ${dayName}
   `);
   return { name: row?.meal_name ?? null, price: n(row?.price) };
+}
+
+/**
+ * Day by day cost across any range, for the cost screen's table.
+ *
+ * Takes plain dates rather than a year and a month, so one function answers
+ * a day, a week, a month or a year and the screen does not have to pick a
+ * different endpoint per view.
+ */
+export async function costInPeriod(from: string, to: string) {
+  const [costRows, attendanceRows, purchaseRows, roster] = await Promise.all([
+    db.execute<{ d: string; cost: string }>(sql`
+      SELECT used_date::text AS d, sum(cost) AS cost
+      FROM consumptions WHERE used_date BETWEEN ${from} AND ${to}
+      GROUP BY used_date ORDER BY used_date
+    `),
+    db.execute<{ d: string; decided: number; cancelled: number }>(sql`
+      SELECT date::text AS d,
+             count(*) FILTER (WHERE status IN ('collected','no_show'))::int AS decided,
+             count(*) FILTER (WHERE status = 'cancelled')::int AS cancelled
+      FROM meal_attendance WHERE date BETWEEN ${from} AND ${to}
+      GROUP BY date
+    `),
+    db.execute<{ d: string; spent: string }>(sql`
+      SELECT purchase_date::text AS d, sum(total_cost) AS spent
+      FROM purchases WHERE purchase_date BETWEEN ${from} AND ${to}
+      GROUP BY purchase_date
+    `),
+    db.execute<{ c: number }>(sql`
+      SELECT count(*)::int AS c FROM clients
+      WHERE status = 'active' AND meal_plan = 'Fixed Company Meal'
+    `),
+  ]);
+
+  const rosterCount = roster[0]?.c ?? 0;
+  const attendanceByDate = new Map(attendanceRows.map((r) => [r.d, r]));
+  const purchaseByDate = new Map(purchaseRows.map((r) => [r.d, n(r.spent)]));
+
+  const dates = [...new Set([
+    ...costRows.map((r) => r.d),
+    ...attendanceRows.map((r) => r.d),
+  ])].sort();
+
+  const days = await Promise.all(dates.map(async (d) => {
+    const cost = n(costRows.find((r) => r.d === d)?.cost);
+    const att = attendanceByDate.get(d);
+    // Before the nightly sweep nobody has an attendance row yet, so the head
+    // count falls back to the roster minus whoever cancelled.
+    const people = att && att.decided > 0
+      ? att.decided
+      : Math.max(0, rosterCount - (att?.cancelled ?? 0));
+
+    const menu = await menuPriceFor(d);
+    const costPerMeal = people > 0 ? Math.round(cost / people) : 0;
+
+    return {
+      date: d,
+      mealName: menu.name,
+      people,
+      cost,
+      purchased: purchaseByDate.get(d) ?? 0,
+      costPerMeal,
+      chargedPerMeal: menu.price,
+      marginPerMeal: menu.price - costPerMeal,
+      totalCharged: menu.price * people,
+      totalMargin: (menu.price - costPerMeal) * people,
+    };
+  }));
+
+  const totalCost = days.reduce((s, d) => s + d.cost, 0);
+  const totalMeals = days.reduce((s, d) => s + d.people, 0);
+  const totalCharged = days.reduce((s, d) => s + d.totalCharged, 0);
+
+  return {
+    days,
+    summary: {
+      daysCooked: days.length,
+      totalMeals,
+      totalCost,
+      totalPurchased: days.reduce((s, d) => s + d.purchased, 0),
+      totalCharged,
+      totalMargin: totalCharged - totalCost,
+      avgCostPerMeal: totalMeals > 0 ? Math.round(totalCost / totalMeals) : 0,
+      avgChargedPerMeal: totalMeals > 0 ? Math.round(totalCharged / totalMeals) : 0,
+    },
+  };
+}
+
+/**
+ * Profit and loss for each dish over a period.
+ *
+ * Grouped by the dish rather than the date, because the decision it feeds is
+ * a menu decision. A dish that loses money every Tuesday is a pricing problem,
+ * not a Tuesday problem.
+ */
+export async function dishProfitability(from: string, to: string) {
+  const rows = await db.execute<{
+    meal_name: string; price: string | null; days: number;
+    total_cost: string; total_people: number;
+  }>(sql`
+    WITH day_cost AS (
+      SELECT used_date AS d, sum(cost) AS cost
+      FROM consumptions WHERE used_date BETWEEN ${from} AND ${to}
+      GROUP BY used_date
+    ), day_people AS (
+      SELECT date AS d, count(*) FILTER (WHERE status IN ('collected','no_show'))::int AS people
+      FROM meal_attendance WHERE date BETWEEN ${from} AND ${to}
+      GROUP BY date
+    ), joined AS (
+      SELECT w.meal_name, m.price, c.d, c.cost, COALESCE(p.people, 0) AS people
+      FROM day_cost c
+      LEFT JOIN day_people p ON p.d = c.d
+      LEFT JOIN weekly_menu w ON trim(w.day) = trim(to_char(c.d, 'FMDay'))
+      LEFT JOIN menu_items m ON m.id = w.menu_item_id
+    )
+    SELECT COALESCE(meal_name, 'Not set') AS meal_name,
+           max(price) AS price,
+           count(*)::int AS days,
+           sum(cost) AS total_cost,
+           sum(people)::int AS total_people
+    FROM joined
+    GROUP BY meal_name
+    ORDER BY sum(cost) DESC
+  `);
+
+  const dishes = rows.map((r) => {
+    const people = r.total_people;
+    const cost = n(r.total_cost);
+    const charged = n(r.price);
+    const costPerMeal = people > 0 ? Math.round(cost / people) : 0;
+
+    return {
+      name: escapeHtml(r.meal_name.trim()),
+      days: r.days,
+      people,
+      totalCost: cost,
+      costPerMeal,
+      chargedPerMeal: charged,
+      // Rounded up to the next five taka, because nobody prices a meal at 87.
+      suggestedPrice: costPerMeal > 0 ? Math.ceil(costPerMeal / 5) * 5 : charged,
+      profitPerMeal: charged - costPerMeal,
+      totalCharged: charged * people,
+      totalProfit: (charged - costPerMeal) * people,
+    };
+  });
+
+  return {
+    dishes,
+    summary: {
+      totalCost: dishes.reduce((s, d) => s + d.totalCost, 0),
+      totalCharged: dishes.reduce((s, d) => s + d.totalCharged, 0),
+      totalProfit: dishes.reduce((s, d) => s + d.totalProfit, 0),
+      totalMeals: dishes.reduce((s, d) => s + d.people, 0),
+      losingDishes: dishes.filter((d) => d.profitPerMeal < 0).length,
+    },
+  };
 }
 
 export async function dailyCost(date = businessDate()) {

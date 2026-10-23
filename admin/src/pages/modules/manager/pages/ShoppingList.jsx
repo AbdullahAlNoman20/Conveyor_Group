@@ -329,9 +329,22 @@ export default function ShoppingList() {
                 </div>
 
                 {item && (
-                  <p className="mt-2 text-xs text-ink-400">
-                    {item.currentQty} {item.unit} in stock
-                    {item.avgUnitCost > 0 && `, last rate Tk ${item.avgUnitCost} per ${item.unit}`}
+                  <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-400">
+                    <span>
+                      {item.currentQty} {item.unit} in stock
+                    </span>
+                    {item.avgUnitCost > 0 && (
+                      <span>
+                        Last Tk {item.avgUnitCost} per {item.unit}
+                      </span>
+                    )}
+                    {/* Flagged rather than blocked: buying less than the recipe
+                        asks for is a normal call to make at the market. */}
+                    {Number(line.qty) > 0 && Number(line.qty) <= item.currentQty && (
+                      <span className="font-medium text-emerald-600">
+                        Enough in stock already
+                      </span>
+                    )}
                   </p>
                 )}
               </div>

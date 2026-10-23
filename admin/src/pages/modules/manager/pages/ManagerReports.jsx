@@ -1,223 +1,202 @@
-import { useState } from "react";
-import { FileSpreadsheet, Printer } from "lucide-react";
-import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
+// admin/src/pages/modules/manager/pages/ManagerReports.jsx
+import { useEffect, useState } from "react";
+import { Download, Printer, Users, Utensils, AlertTriangle, Wallet } from "lucide-react";
+import { apiGet } from "../../../../components/services/api";
 import { exportToExcel } from "../../../../components/utils/exportExcel";
 import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
-import ShareButton from "../../../../components/shared/ShareButton";
-import AvatarImage from "../../../../components/shared/AvatarImage";
+import { useToast } from "../../../../components/hooks/useToast";
+import DateRangePicker, { useDateRange } from "../../../../components/shared/DateRangePicker";
 import StatCard from "../../../../components/shared/StatCard";
+import AvatarImage from "../../../../components/shared/AvatarImage";
 import Loader from "../../../../components/shared/Loader";
 
-const RANGES = [
-  ["today", "Today"],
-  ["month", "This Month"],
-];
+const tk = (v) => `Tk ${Number(v || 0).toLocaleString()}`;
 
 export default function ManagerReports() {
-  const orders = useLiveCollection("orders");
-  const [range, setRange] = useState("today");
+  const { push } = useToast();
+  const ctrl = useDateRange("day");
 
-  if (!orders) return <Loader full label="Loading reports..." />;
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const now = new Date();
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
 
-  const inRange = orders.filter((o) => {
-    const d = new Date(o.createdAt);
+    apiGet(`/reports/who-ate/period?from=${ctrl.range.from}&to=${ctrl.range.to}`)
+      .then((result) => mounted && setData(result))
+      .catch(() => mounted && setData(null))
+      .finally(() => mounted && setLoading(false));
 
-    if (range === "today") {
-      return d.toDateString() === now.toDateString();
-    }
-
-    return (
-      d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-    );
-  });
-
-  const dinerMap = {};
-
-  inRange.forEach((o) => {
-    if (!dinerMap[o.clientName]) {
-      dinerMap[o.clientName] = {
-        name: o.clientName,
-        days: new Set(),
-        total: 0,
-        orders: 0,
-      };
-    }
-
-    dinerMap[o.clientName].days.add(new Date(o.createdAt).toDateString());
-
-    dinerMap[o.clientName].total += o.amount;
-    dinerMap[o.clientName].orders += 1;
-  });
-
-  const diners = Object.values(dinerMap)
-    .map((d) => ({
-      name: d.name,
-      daysEaten: d.days.size,
-      total: d.total,
-      orders: d.orders,
-    }))
-    .sort((a, b) => b.total - a.total);
-
-  const totalAmount = inRange.reduce((s, o) => s + o.amount, 0);
-
-  const rangeLabel = RANGES.find(([k]) => k === range)[1];
+    return () => {
+      mounted = false;
+    };
+  }, [ctrl.range.from, ctrl.range.to]);
 
   function downloadExcel() {
+    if (!data?.people?.length) {
+      push("Nothing to export for this period.", "error");
+      return;
+    }
+
     exportToExcel(
-      diners.map((d) => ({
-        Employee: d.name,
-        "Days Eaten": d.daysEaten,
-        Orders: d.orders,
-        "Total (Tk)": d.total,
+      data.people.map((p) => ({
+        Employee: p.name,
+        "Employee ID": p.employeeId || "",
+        Department: p.department || "",
+        Collected: p.collected,
+        Missed: p.missed,
+        Cancelled: p.cancelled,
+        "Deducted (Tk)": p.amount,
       })),
-      `who-ate-${range}-${now.toISOString().slice(0, 10)}`,
+      `who-ate-${data.from}-to-${data.to}`,
     );
   }
 
-  function printReport() {
+  function print() {
+    if (!data) return;
     printOnLetterhead({
-      title: `Who Ate — ${rangeLabel}`,
+      title: `Who Ate, ${ctrl.label}`,
       bodyHtml: `
-        <h2 style="margin:0 0 4px">Who Ate — ${rangeLabel}</h2>
-        <p style="color:#595959;font-size:13px;margin:0 0 20px">
-          ${diners.length} diners · Tk ${totalAmount.toLocaleString()} total
-        </p>
-
+        <h2 style="margin:0 0 4px">Who Ate</h2>
+        <p style="color:#595959;font-size:13px;margin:0 0 20px">${ctrl.label}</p>
         <table>
           <thead>
-            <tr>
-              <th>Employee</th>
-              <th>Days Eaten</th>
-              <th>Amount</th>
-            </tr>
+            <tr><th>Employee</th><th>ID</th><th>Collected</th><th>Missed</th><th>Cancelled</th><th>Deducted</th></tr>
           </thead>
-
           <tbody>
-            ${diners
+            ${data.people
               .map(
-                (d) => `
-                  <tr>
-                    <td>${d.name}</td>
-                    <td>${d.daysEaten}</td>
-                    <td>Tk ${d.total}</td>
-                  </tr>
-                `,
+                (p) =>
+                  `<tr><td>${p.name}</td><td>${p.employeeId || ""}</td><td>${p.collected}</td><td>${p.missed}</td><td>${p.cancelled}</td><td>Tk ${p.amount}</td></tr>`,
               )
               .join("")}
           </tbody>
         </table>
-
-        <div class="row total">
-          <span>Total</span>
-          <span>Tk ${totalAmount.toLocaleString()}</span>
-        </div>
+        <div class="row"><span class="label">Meals collected</span><span>${data.summary.meals}</span></div>
+        <div class="row"><span class="label">Missed</span><span>${data.summary.missed}</span></div>
+        <div class="row total"><span>Total deducted</span><span>Tk ${data.summary.amount}</span></div>
       `,
     });
   }
 
   return (
-    <div className="w-full min-w-0 space-y-4 overflow-x-hidden sm:space-y-6">
-      {/* Header */}
-      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">
-            Who Ate — Reports
-          </h1>
-
-          <p className="mt-1 max-w-2xl text-sm leading-5 text-ink-400">
-            How many employees ate and how much was deducted from salary.
-          </p>
-        </div>
+    <div className="w-full min-w-0 space-y-5 overflow-x-hidden sm:space-y-6">
+      <div className="min-w-0">
+        <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">Who Ate</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-500">
+          Who took a meal, who missed it, and what was deducted. Pick any day,
+          month or year.
+        </p>
       </div>
 
-      {/* Range Selector */}
-      <div className="flex w-full gap-1 rounded-lg bg-ink-50 p-1 sm:w-fit">
-        {RANGES.map(([key, label]) => (
+      <div className="rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
+        <DateRangePicker ctrl={ctrl} />
+
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
           <button
-            key={key}
-            onClick={() => setRange(key)}
-            className={`flex-1 rounded-md px-4 py-2.5 text-sm font-semibold transition-colors sm:flex-none sm:py-2 ${
-              range === key
-                ? "bg-white text-brand-700 shadow-sm"
-                : "text-ink-500 hover:text-ink-700"
-            }`}
+            onClick={print}
+            className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50"
           >
-            {label}
+            <Printer size={14} /> Print
           </button>
-        ))}
-      </div>
-
-      {/* Statistics */}
-      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-        <StatCard label="Diners" value={diners.length} accent="brand" />
-
-        <StatCard
-          label="Total Deducted"
-          value={`Tk ${totalAmount.toLocaleString()}`}
-          accent="amber"
-        />
-      </div>
-
-      {/* Employee Breakdown */}
-      <div className="min-w-0 overflow-hidden rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
-        <h2 className="mb-3 text-sm font-bold text-ink-700">
-          Employee Breakdown
-        </h2>
-
-        <div className="space-y-2">
-          {diners.map((d) => (
-            <div
-              key={d.name}
-              className="flex min-w-0 items-center gap-2 rounded-lg bg-ink-50 px-2.5 py-2.5 text-sm sm:gap-3 sm:px-3"
-            >
-              {/* Avatar */}
-              <AvatarImage name={d.name} size={32} className="shrink-0" />
-
-              {/* Employee Name */}
-              <span className="min-w-0 flex-1 truncate font-medium text-ink-800">
-                {d.name}
-              </span>
-
-              {/* Days */}
-              <span className="hidden shrink-0 text-xs text-ink-400 sm:inline">
-                {d.daysEaten} day(s)
-              </span>
-
-              {/* Amount */}
-              <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-ink-900">
-                Tk {d.total}
-              </span>
-            </div>
-          ))}
-
-          {diners.length === 0 && (
-            <p className="py-8 text-center text-sm text-ink-400">
-              No orders in this range.
-            </p>
-          )}
+          <button
+            onClick={downloadExcel}
+            className="flex min-h-10 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50"
+          >
+            <Download size={14} /> Excel
+          </button>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
-        <button
-          onClick={downloadExcel}
-          className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50 sm:h-8 sm:px-2.5"
-        >
-          <FileSpreadsheet size={14} className="shrink-0" />
-          <span>Excel</span>
-        </button>
+      {loading ? (
+        <Loader label="Loading..." />
+      ) : !data || data.people.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-ink-200 p-10 text-center text-sm text-ink-400">
+          Nothing recorded for {ctrl.label}.
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 sm:gap-4">
+            <StatCard label="Meals Collected" value={data.summary.meals} Icon={Utensils} accent="brand" />
+            <StatCard label="People" value={data.summary.people} Icon={Users} accent="ink" />
+            <StatCard
+              label="Missed"
+              value={data.summary.missed}
+              Icon={AlertTriangle}
+              accent={data.summary.missed > 0 ? "amber" : "emerald"}
+            />
+            <StatCard label="Total Deducted" value={tk(data.summary.amount)} Icon={Wallet} accent="emerald" />
+          </div>
 
-        <button
-          onClick={printReport}
-          className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50 sm:h-8 sm:px-2.5"
-        >
-          <Printer size={14} className="shrink-0" />
-          <span>Print</span>
-        </button>
-      </div>
+          {/* Desktop table */}
+          <div className="hidden w-full overflow-x-auto rounded-xl border border-ink-100 bg-white sm:block">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-ink-50 text-xs uppercase text-ink-400">
+                <tr>
+                  <th className="px-3 py-2.5">Employee</th>
+                  <th className="px-3 py-2.5">Department</th>
+                  <th className="px-3 py-2.5 text-right">Collected</th>
+                  <th className="px-3 py-2.5 text-right">Missed</th>
+                  <th className="px-3 py-2.5 text-right">Cancelled</th>
+                  <th className="px-3 py-2.5 text-right">Deducted</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink-100">
+                {data.people.map((p) => (
+                  <tr key={p.clientId}>
+                    <td className="px-3 py-2.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <AvatarImage name={p.name} size={28} className="shrink-0" />
+                        <span className="min-w-0 truncate font-medium text-ink-800">{p.name}</span>
+                      </div>
+                    </td>
+                    <td className="max-w-[160px] truncate px-3 py-2.5 text-ink-500">
+                      {p.department || "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-semibold text-emerald-600">
+                      {p.collected}
+                    </td>
+                    <td
+                      className={`px-3 py-2.5 text-right font-semibold ${
+                        p.missed > 0 ? "text-amber-600" : "text-ink-400"
+                      }`}
+                    >
+                      {p.missed}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-ink-500">{p.cancelled}</td>
+                    <td className="px-3 py-2.5 text-right font-bold text-ink-900">
+                      {tk(p.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="space-y-2 sm:hidden">
+            {data.people.map((p) => (
+              <div key={p.clientId} className="rounded-xl border border-ink-100 bg-white p-3">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <AvatarImage name={p.name} size={34} className="shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink-900">{p.name}</p>
+                    <p className="truncate text-xs text-ink-400">{p.department || "—"}</p>
+                  </div>
+                  <span className="shrink-0 text-sm font-bold text-ink-900">{tk(p.amount)}</span>
+                </div>
+
+                <div className="mt-2 flex gap-3 text-xs">
+                  <span className="text-emerald-600">{p.collected} collected</span>
+                  {p.missed > 0 && <span className="text-amber-600">{p.missed} missed</span>}
+                  {p.cancelled > 0 && <span className="text-ink-400">{p.cancelled} cancelled</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -8,7 +8,15 @@ import { usePermission } from "../../../../components/hooks/usePermission";
  * a hard-coded list, so granting this Manager an extra duty makes its link
  * appear without a code change.
  */
+import { useAuth } from "../../../../components/hooks/useAuth";
+
 export default function ManagerLayout() {
   const { can } = usePermission();
-  return <DashboardLayout navGroups={buildNavGroups("/app/manager", can)} roleLabel="Manager" />;
+  const { user } = useAuth();
+  return (
+    <DashboardLayout
+      navGroups={buildNavGroups("/app/manager", can, user?.role)}
+      roleLabel="Manager"
+    />
+  );
 }

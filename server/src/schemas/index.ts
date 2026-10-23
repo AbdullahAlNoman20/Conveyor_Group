@@ -240,7 +240,10 @@ export const shoppingListSchema = z.object({
 export const recipeSchema = z.object({
   items: z.array(z.object({
     itemId: reqText(40),
+    // Optional on purpose. A dish can list what it needs without committing to
+    // an amount, and the shopping list is where the amount is settled anyway.
     defaultQty: z.coerce.number().positive().max(1_000_000).nullable().optional(),
+    defaultUnit: z.enum(ENUMS.INVENTORY_UNITS).optional(),
     note: text(120).optional(),
   })).max(60),
 });

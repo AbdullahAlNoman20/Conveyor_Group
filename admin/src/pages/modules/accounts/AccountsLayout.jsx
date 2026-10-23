@@ -8,7 +8,15 @@ import { usePermission } from "../../../components/hooks/usePermission";
  * from the shared permission-filtered config, so granting an extra duty makes
  * its link appear here without touching this file.
  */
+import { useAuth } from "../../../components/hooks/useAuth";
+
 export default function AccountsLayout() {
   const { can } = usePermission();
-  return <DashboardLayout navGroups={buildNavGroups("/app/accounts", can)} roleLabel="Accounts" />;
+  const { user } = useAuth();
+  return (
+    <DashboardLayout
+      navGroups={buildNavGroups("/app/accounts", can, user?.role)}
+      roleLabel="Accounts"
+    />
+  );
 }

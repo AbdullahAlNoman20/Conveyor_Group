@@ -92,9 +92,11 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
   await assertNotCancelled(args.client.id, orderDate);
 
   const meal = await todaysFixedMeal();
-  const isComplimentary = args.client.mealBenefit === "Complimentary";
+  // Everyone is charged the same price for the same food. Meal benefit is a
+  // label on the employee record, not a discount, so two people eating the
+  // same dish always produce the same line on their statement.
   // The price comes from the menu row, never from the request body.
-  const amount = isComplimentary ? 0 : meal.price;
+  const amount = meal.price;
 
   const created = await db.transaction(async (tx) => {
     await consumeMealSlot(orderDate);
@@ -112,7 +114,7 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
       priority: "normal",
       specialInstructions: args.specialInstructions,
       amount: String(amount), // no VAT anywhere
-      paymentMethod: isComplimentary ? "complimentary" : "salary",
+      paymentMethod: "salary",
       status: "ready",
       selfPlaced: args.selfPlaced,
       instantOrder: args.instantOrder,

@@ -7,7 +7,7 @@ import { dataStore } from "../../../../components/services/dataStore";
 import { sanitizeText } from "../../../../components/utils/sanitize";
 import { useToast } from "../../../../components/hooks/useToast";
 import FileUpload from "../../../../components/shared/FileUpload";
-import ItemPicker from "../../../../components/shared/ItemPicker";
+import ItemPicker, { UNITS } from "../../../../components/shared/ItemPicker";
 import Button from "../../../../components/shared/Button";
 import Loader from "../../../../components/shared/Loader";
 
@@ -82,7 +82,14 @@ export default function MenuItemForm() {
           allergens: existing.allergens ?? [],
         });
 
-        setIngredients(await apiGet(`/menu/${id}/ingredients`).catch(() => []));
+        const recipe = await apiGet(`/menu/${id}/ingredients`).catch(() => []);
+        setIngredients(
+          recipe.map((g) => ({
+            itemId: g.itemId,
+            defaultQty: g.defaultQty ?? "",
+            defaultUnit: g.unit,
+          })),
+        );
       }
 
       setLoading(false);
@@ -101,7 +108,7 @@ export default function MenuItemForm() {
   }
 
   const addIngredient = () =>
-    setIngredients((rows) => [...rows, { itemId: "", defaultQty: "" }]);
+    setIngredients((rows) => [...rows, { itemId: "", defaultQty: "", defaultUnit: "" }]);
 
   const removeIngredient = (idx) =>
     setIngredients((rows) => rows.filter((_, i) => i !== idx));
@@ -154,8 +161,11 @@ export default function MenuItemForm() {
         await apiPut(`/menu/${menuItemId}/ingredients`, {
           items: list.map((g) => ({
             itemId: g.itemId,
+            // Optional. A dish can list what it needs without committing to an
+            // amount, and the shopping list is where that is settled anyway.
             defaultQty:
               g.defaultQty === "" || g.defaultQty === null ? null : Number(g.defaultQty),
+            defaultUnit: g.defaultUnit || byId.get(g.itemId)?.unit,
           })),
         });
       } else if (list.length) {
@@ -331,9 +341,9 @@ export default function MenuItemForm() {
               <Soup size={15} /> Ingredients
             </h2>
             <p className="mt-1 text-xs leading-5 text-ink-500">
-              What the kitchen needs to cook this dish. Whenever it is planned
-              for a day, the shopping list fills itself in from this, so only
-              the amounts have to be typed.
+              What the kitchen needs to cook this dish. The amount is optional,
+              and it is only a starting point. Whenever this dish is planned for
+              a day, the shopping list fills itself in from here.
             </p>
           </div>
 
@@ -350,7 +360,14 @@ export default function MenuItemForm() {
                     <ItemPicker
                       items={stockItems}
                       value={g.itemId}
-                      onChange={(itemId) => setIngredient(idx, { itemId })}
+                      onChange={(itemId) =>
+                        setIngredient(idx, {
+                          itemId,
+                          // Default to how the store room counts it, which is
+                          // right most of the time and still changeable.
+                          defaultUnit: g.defaultUnit || byId.get(itemId)?.unit || "",
+                        })
+                      }
                       onItemCreated={loadStockItems}
                     />
                   </div>
@@ -363,13 +380,19 @@ export default function MenuItemForm() {
                       inputMode="decimal"
                       value={g.defaultQty ?? ""}
                       onChange={(e) => setIngredient(idx, { defaultQty: e.target.value })}
-                      placeholder="Usual qty"
-                      className="w-28 rounded-lg border border-ink-200 px-2 py-2 text-sm outline-none transition focus:border-brand-500"
+                      placeholder="Qty"
+                      className="w-24 rounded-lg border border-ink-200 px-2 py-2 text-sm outline-none transition focus:border-brand-500"
                     />
 
-                    <span className="w-10 shrink-0 text-xs text-ink-400">
-                      {item?.unit ?? ""}
-                    </span>
+                    <select
+                      value={g.defaultUnit || item?.unit || ""}
+                      onChange={(e) => setIngredient(idx, { defaultUnit: e.target.value })}
+                      className="w-24 rounded-lg border border-ink-200 px-2 py-2 text-sm outline-none transition focus:border-brand-500"
+                    >
+                      {UNITS.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
 
                     <button
                       type="button"

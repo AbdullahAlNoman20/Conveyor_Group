@@ -345,6 +345,9 @@ export const menuItemIngredients = pgTable("menu_item_ingredients", {
   // Optional: the planner says what a dish needs, the shopping list says how
   // much. A default here only saves typing.
   defaultQty: numeric("default_qty", { precision: 12, scale: 3 }),
+  // Written in whatever unit the kitchen thinks in. Converted when the goods
+  // are received, not here.
+  defaultUnit: text("default_unit"),
   note: text("note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
