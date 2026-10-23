@@ -26,6 +26,7 @@ import QRScannerCamera from "../../../../components/shared/QRScannerCamera";
 import OrderTokenModal from "../../../../components/shared/OrderTokenModal";
 import Loader from "../../../../components/shared/Loader";
 import { mealStatusLabel } from "../../../../components/shared/mealStatus";
+import { buzzOnBlocked } from "../../../../components/utils/haptics";
 
 /**
  * SRS §13.3 — QR Scanner Module.
@@ -120,19 +121,36 @@ export default function ScanQR() {
       setInstantOrder(order);
       setResult(null);
     } catch (err) {
+      // The server refused what the screen thought was servable, so the same
+      // signal applies.
+      buzzOnBlocked();
       push(err?.message || "Couldn't place the order. Please try again.", "error");
     } finally {
       setPlacingInstant(false);
     }
   }
 
+  /**
+   * Shows the result and buzzes when the person cannot be served.
+   *
+   * The counter being shut is just as much a refusal as a cancelled meal, so
+   * the clock is folded in here rather than left to the button's disabled
+   * state, which nobody feels.
+   */
+  function showResult(next) {
+    setResult(next);
+
+    const servable = next?.ok && next.client?.canOrderToday && !windowClosed;
+    if (!servable) buzzOnBlocked();
+  }
+
   // Every check (suspended / expired / replaced card) runs server-side.
   // Front-end validation alone was trivially bypassable.
   async function handleDecoded(text) {
     try {
-      setResult(await apiPost("/qr/scan", { payload: text }));
+      showResult(await apiPost("/qr/scan", { payload: text }));
     } catch (err) {
-      setResult({ ok: false, message: err.message, via: "scan" });
+      showResult({ ok: false, message: err.message, via: "scan" });
     }
   }
 
@@ -148,9 +166,9 @@ export default function ScanQR() {
   async function lookupByName(client) {
     setSelectedId(client.id);
     try {
-      setResult(await apiPost(`/qr/lookup/${client.id}`));
+      showResult(await apiPost(`/qr/lookup/${client.id}`));
     } catch (err) {
-      setResult({ ok: false, message: err.message, via: "manual" });
+      showResult({ ok: false, message: err.message, via: "manual" });
     }
   }
 

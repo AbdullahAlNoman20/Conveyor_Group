@@ -28,6 +28,7 @@ import {
 import { createInstantFixedMealOrder } from "../../../../components/services/selfOrder";
 import { dataStore } from "../../../../components/services/dataStore";
 import { apiGet } from "../../../../components/services/api";
+import { buzzOnBlocked } from "../../../../components/utils/haptics";
 
 const WEEKDAYS = [
   "Sunday",
@@ -94,6 +95,9 @@ export default function ClientDashboard() {
       setScannerOpen(false);
       setManualCode("");
     } catch (err) {
+      // The phone is usually at arm's length on the station screen, so a buzz
+      // reaches the person when a toast might not.
+      buzzOnBlocked();
       push(err?.message || "Couldn't place your order. Please try again.", "error");
     } finally {
       setPlacing(false);
