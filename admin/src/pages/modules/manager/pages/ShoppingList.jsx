@@ -1,12 +1,13 @@
 // admin/src/pages/modules/manager/pages/ShoppingList.jsx
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Save, Printer, ClipboardList, PackageCheck, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Save, Printer, ClipboardList, Eye, Wand2 } from "lucide-react";
 import { apiDelete, apiGet, apiPost, apiPut } from "../../../../components/services/api";
 import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
 import { useToast } from "../../../../components/hooks/useToast";
-import ItemPicker from "../../../../components/shared/ItemPicker";
+import ItemPicker, { UNITS } from "../../../../components/shared/ItemPicker";
 import Loader from "../../../../components/shared/Loader";
 import Badge from "../../../../components/shared/Badge";
+import Modal from "../../../../components/shared/Modal";
 
 const tomorrow = () => {
   const d = new Date();
@@ -24,8 +25,10 @@ export default function ShoppingList() {
   const [editingId, setEditingId] = useState(null);
   const [forDate, setForDate] = useState(tomorrow());
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState([{ itemId: "", qty: "", note: "" }]);
+  const [lines, setLines] = useState([]);
+  const [mealName, setMealName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [viewing, setViewing] = useState(null);
 
   async function loadItems() {
     setItems(await apiGet("/kitchen/items").catch(() => []));
@@ -42,7 +45,42 @@ export default function ShoppingList() {
     })();
   }, []);
 
-  if (loading) return <Loader full label="Loading shopping lists..." />;
+  /**
+   * Fills the list from the dish planned for that day.
+   *
+   * Runs whenever the date changes on a new list, because that is the whole
+   * point of recording ingredients on the planner. An existing list is left
+   * alone, so opening one to edit never wipes what was typed.
+   */
+  useEffect(() => {
+    if (loading || editingId) return;
+    let mounted = true;
+
+    apiGet(`/kitchen/lists/suggest?date=${forDate}`)
+      .then((data) => {
+        if (!mounted) return;
+        setMealName(data.mealName || "");
+        setLines(
+          data.items.length
+            ? data.items.map((i) => ({
+                itemId: i.itemId,
+                qty: i.qty,
+                unit: i.unit,
+                note: "",
+              }))
+            : [{ itemId: "", qty: "", unit: "", note: "" }],
+        );
+      })
+      .catch(() => {
+        if (mounted) setLines([{ itemId: "", qty: "", unit: "", note: "" }]);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [forDate, editingId, loading]);
+
+  if (loading) return <Loader full label="Loading..." />;
 
   const byId = new Map(items.map((i) => [i.id, i]));
 
@@ -51,7 +89,7 @@ export default function ShoppingList() {
   }
 
   function addLine() {
-    setLines((rows) => [...rows, { itemId: "", qty: "", note: "" }]);
+    setLines((rows) => [...rows, { itemId: "", qty: "", unit: "", note: "" }]);
   }
 
   function removeLine(idx) {
@@ -62,37 +100,45 @@ export default function ShoppingList() {
     setEditingId(null);
     setForDate(tomorrow());
     setNotes("");
-    setLines([{ itemId: "", qty: "", note: "" }]);
+    setLines([]);
   }
 
-  async function openList(id) {
+  async function openList(id, mode = "edit") {
     try {
       const list = await apiGet(`/kitchen/lists/${id}`);
+
+      if (mode === "view") {
+        setViewing(list);
+        return;
+      }
+
       setEditingId(list.status === "purchased" ? null : list.id);
       setForDate(list.forDate);
       setNotes(list.notes || "");
       setLines(
         list.items.length
-          ? list.items.map((i) => ({ itemId: i.itemId, qty: String(i.qty), note: i.note }))
-          : [{ itemId: "", qty: "", note: "" }],
+          ? list.items.map((i) => ({
+              itemId: i.itemId,
+              qty: String(i.qty),
+              unit: i.unit,
+              note: i.note,
+            }))
+          : [{ itemId: "", qty: "", unit: "", note: "" }],
       );
+
       if (list.status === "purchased") {
-        push("This list was already purchased — opened as a copy.", "info");
+        push("That list was already bought, so it opened as a copy.", "info");
       }
     } catch (err) {
-      push(err?.message || "Couldn't open that list.", "error");
+      push(err?.message || "Could not open that list.", "error");
     }
   }
 
   const validLines = lines.filter((l) => l.itemId && Number(l.qty) > 0);
-  const estimatedCost = validLines.reduce(
-    (s, l) => s + Number(l.qty) * (byId.get(l.itemId)?.avgUnitCost ?? 0),
-    0,
-  );
 
   async function save() {
     if (!validLines.length) {
-      push("Add at least one item with a quantity.", "error");
+      push("Put at least one item with an amount.", "error");
       return;
     }
 
@@ -104,6 +150,7 @@ export default function ShoppingList() {
         items: validLines.map((l) => ({
           itemId: l.itemId,
           qty: Number(l.qty),
+          unit: l.unit || byId.get(l.itemId)?.unit,
           note: l.note || undefined,
         })),
       };
@@ -113,9 +160,9 @@ export default function ShoppingList() {
 
       await loadLists();
       resetForm();
-      push("Shopping list saved.", "success");
+      push("List saved.", "success");
     } catch (err) {
-      push(err?.message || "Couldn't save the list.", "error");
+      push(err?.message || "Could not save the list.", "error");
     } finally {
       setSaving(false);
     }
@@ -127,35 +174,38 @@ export default function ShoppingList() {
       await loadLists();
       push("List deleted.", "success");
     } catch (err) {
-      push(err?.message || "Couldn't delete that list.", "error");
+      push(err?.message || "Could not delete that list.", "error");
     }
   }
 
-  async function printList(id) {
+  function printList(list) {
+    printOnLetterhead({
+      title: `Shopping List, ${list.forDate}`,
+      bodyHtml: `
+        <h2 style="margin:0 0 4px">Market Shopping List</h2>
+        <p style="color:#595959;font-size:13px;margin:0 0 20px">For ${list.forDate}</p>
+        <table>
+          <thead><tr><th>Item</th><th>Buy</th><th>In Stock</th><th>Note</th></tr></thead>
+          <tbody>
+            ${list.items
+              .map(
+                (i) =>
+                  `<tr><td>${i.name}</td><td>${i.qty} ${i.unit}</td><td>${i.inStock} ${i.stockUnit}</td><td>${i.note || ""}</td></tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>
+        ${list.notes ? `<div class="row"><span class="label">Notes</span><span>${list.notes}</span></div>` : ""}
+        <div class="row total"><span>Items</span><span>${list.items.length}</span></div>
+      `,
+    });
+  }
+
+  async function printById(id) {
     try {
-      const list = await apiGet(`/kitchen/lists/${id}`);
-      printOnLetterhead({
-        title: `Shopping List — ${list.forDate}`,
-        bodyHtml: `
-          <h2 style="margin:0 0 4px">Market Shopping List</h2>
-          <p style="color:#595959;font-size:13px;margin:0 0 20px">For ${list.forDate}</p>
-          <table>
-            <thead><tr><th>Item</th><th>Quantity</th><th>In Stock</th><th>Note</th></tr></thead>
-            <tbody>
-              ${list.items
-                .map(
-                  (i) =>
-                    `<tr><td>${i.name}</td><td>${i.qty} ${i.unit}</td><td>${i.inStock} ${i.unit}</td><td>${i.note || ""}</td></tr>`,
-                )
-                .join("")}
-            </tbody>
-          </table>
-          ${list.notes ? `<div class="row"><span class="label">Notes</span><span>${list.notes}</span></div>` : ""}
-          <div class="row total"><span>Items</span><span>${list.items.length}</span></div>
-        `,
-      });
+      printList(await apiGet(`/kitchen/lists/${id}`));
     } catch (err) {
-      push(err?.message || "Couldn't print that list.", "error");
+      push(err?.message || "Could not print that list.", "error");
     }
   }
 
@@ -164,8 +214,8 @@ export default function ShoppingList() {
       <div className="min-w-0">
         <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">Shopping List</h1>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-500">
-          Write down what to buy for tomorrow. Each item shows how much is
-          already in stock, so you only buy what is short.
+          Pick the day and the list fills itself in from the dish on the
+          planner. Just put the amounts, and add anything extra you need.
         </p>
       </div>
 
@@ -197,13 +247,13 @@ export default function ShoppingList() {
               type="date"
               value={forDate}
               onChange={(e) => setForDate(e.target.value)}
-              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
             />
           </div>
 
           <div>
             <label htmlFor="notes" className="mb-1 block text-xs font-semibold text-ink-700">
-              Notes (optional)
+              Notes
             </label>
             <input
               id="notes"
@@ -211,15 +261,23 @@ export default function ShoppingList() {
               onChange={(e) => setNotes(e.target.value)}
               maxLength={300}
               placeholder="e.g. buy from Karwan Bazar"
-              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
             />
           </div>
         </div>
 
+        {mealName && !editingId && (
+          <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-2 text-xs leading-5 text-brand-700">
+            <Wand2 size={13} className="shrink-0" />
+            Filled in from <span className="font-semibold">{mealName}</span>, the
+            dish planned for that day.
+          </p>
+        )}
+
         <div className="mt-4 space-y-2">
           {lines.map((line, idx) => {
             const item = byId.get(line.itemId);
-            const short = item && Number(line.qty) > item.currentQty;
+            const unit = line.unit || item?.unit || "";
 
             return (
               <div key={idx} className="rounded-lg border border-ink-100 bg-ink-50/50 p-3">
@@ -228,7 +286,9 @@ export default function ShoppingList() {
                     <ItemPicker
                       items={items}
                       value={line.itemId}
-                      onChange={(id) => setLine(idx, { itemId: id })}
+                      onChange={(id) =>
+                        setLine(idx, { itemId: id, unit: byId.get(id)?.unit || "" })
+                      }
                       onItemCreated={loadItems}
                     />
                   </div>
@@ -242,60 +302,56 @@ export default function ShoppingList() {
                       value={line.qty}
                       onChange={(e) => setLine(idx, { qty: e.target.value })}
                       placeholder="Qty"
-                      className="w-24 rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                      className="w-24 rounded-lg border border-ink-200 px-2 py-2 text-sm outline-none focus:border-brand-500"
                     />
 
-                    <span className="w-12 shrink-0 text-xs text-ink-400">
-                      {item?.unit ?? ""}
-                    </span>
+                    {/* The unit is chosen per line, so a market list can be
+                        written in grams for something stocked in kilograms. */}
+                    <select
+                      value={unit}
+                      onChange={(e) => setLine(idx, { unit: e.target.value })}
+                      className="w-24 rounded-lg border border-ink-200 px-2 py-2 text-sm outline-none focus:border-brand-500"
+                    >
+                      {UNITS.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
 
                     <button
                       type="button"
                       onClick={() => removeLine(idx)}
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-400 transition hover:bg-brand-50 hover:text-brand-600"
-                      aria-label="Remove line"
+                      aria-label="Remove"
                     >
                       <Trash2 size={15} />
                     </button>
                   </div>
                 </div>
 
-                {/* Stock context is the whole point of the screen — show it the
-                    moment an item is picked. */}
                 {item && (
-                  <p
-                    className={`mt-2 flex items-center gap-1.5 text-xs ${
-                      short ? "font-medium text-amber-700" : "text-ink-400"
-                    }`}
-                  >
-                    {short ? <AlertTriangle size={12} /> : <PackageCheck size={12} />}
+                  <p className="mt-2 text-xs text-ink-400">
                     {item.currentQty} {item.unit} in stock
                     {item.avgUnitCost > 0 && `, last rate Tk ${item.avgUnitCost} per ${item.unit}`}
-                    {short && ". Not enough, you need to buy this."}
                   </p>
                 )}
               </div>
             );
           })}
-        </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={addLine}
-            className="flex items-center gap-1.5 rounded-lg border border-dashed border-ink-300 px-3 py-2 text-xs font-semibold text-ink-600 transition hover:border-brand-400 hover:text-brand-600"
-          >
-            <Plus size={14} /> Add item
-          </button>
-
-          {estimatedCost > 0 && (
-            <p className="text-xs text-ink-500">
-              About{" "}
-              <span className="font-bold text-ink-800">Tk {Math.round(estimatedCost)}</span>{" "}
-              at last month's rates
+          {lines.length === 0 && (
+            <p className="rounded-lg bg-ink-50 px-3 py-6 text-center text-sm text-ink-400">
+              No dish is planned for that day. Add the items by hand below.
             </p>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={addLine}
+          className="mt-3 flex items-center gap-1.5 rounded-lg border border-dashed border-ink-300 px-3 py-2 text-xs font-semibold text-ink-600 transition hover:border-brand-400 hover:text-brand-600"
+        >
+          <Plus size={14} /> Add extra item
+        </button>
 
         <button
           type="button"
@@ -329,13 +385,20 @@ export default function ShoppingList() {
                 </div>
                 <p className="mt-0.5 truncate text-xs text-ink-400">
                   {l.itemCount} item{l.itemCount === 1 ? "" : "s"}
-                  {l.notes && ` · ${l.notes}`}
+                  {l.notes && `, ${l.notes}`}
                 </p>
               </div>
 
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
                 <button
-                  onClick={() => printList(l.id)}
+                  onClick={() => openList(l.id, "view")}
+                  className="flex min-h-9 items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold transition hover:bg-ink-50"
+                >
+                  <Eye size={13} /> View
+                </button>
+
+                <button
+                  onClick={() => printById(l.id)}
                   className="flex min-h-9 items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold transition hover:bg-ink-50"
                 >
                   <Printer size={13} /> Print
@@ -352,7 +415,7 @@ export default function ShoppingList() {
                   <button
                     onClick={() => removeList(l.id)}
                     className="flex h-9 w-9 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-400 transition hover:text-brand-600"
-                    aria-label="Delete list"
+                    aria-label="Delete"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -362,12 +425,62 @@ export default function ShoppingList() {
           ))}
 
           {lists.length === 0 && (
-              <p className="py-8 text-center text-sm text-ink-400">
-                No lists yet. Make one above.
-              </p>
+            <p className="py-8 text-center text-sm text-ink-400">
+              No lists yet. Make one above.
+            </p>
           )}
         </div>
       </section>
+
+      {/* Viewer */}
+      <Modal
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        title={viewing ? `List for ${new Date(viewing.forDate).toLocaleDateString()}` : ""}
+        size="lg"
+      >
+        {viewing && (
+          <div className="space-y-4">
+            {viewing.notes && <p className="text-sm text-ink-500">{viewing.notes}</p>}
+
+            <div className="w-full overflow-x-auto">
+              <table className="w-full min-w-[480px] text-left text-sm">
+                <thead className="bg-ink-50 text-xs uppercase text-ink-400">
+                  <tr>
+                    <th className="px-3 py-2.5">Item</th>
+                    <th className="px-3 py-2.5 text-right">Buy</th>
+                    <th className="px-3 py-2.5 text-right">In Stock</th>
+                    <th className="px-3 py-2.5 text-right">About</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ink-100">
+                  {viewing.items.map((i) => (
+                    <tr key={i.id}>
+                      <td className="px-3 py-2.5 font-medium text-ink-800">{i.name}</td>
+                      <td className="px-3 py-2.5 text-right text-ink-700">
+                        {i.qty} {i.unit}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-ink-500">
+                        {i.inStock} {i.stockUnit}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-ink-500">
+                        Tk {i.estimatedCost}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <button
+              onClick={() => printList(viewing)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+            >
+              <Printer size={15} /> Print
+            </button>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

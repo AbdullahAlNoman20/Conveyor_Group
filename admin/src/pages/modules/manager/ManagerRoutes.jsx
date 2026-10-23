@@ -9,6 +9,8 @@ const Inventory = lazy(() => import("./pages/Inventory"));
 const CostAnalysis = lazy(() => import("./pages/CostAnalysis"));
 const SuperAdminClients = lazy(() => import("../super-admin/pages/SuperAdminClients"));
 const SuperAdminMenu = lazy(() => import("../super-admin/pages/SuperAdminMenu"));
+const ClientProfileView = lazy(() => import("../super-admin/pages/ClientProfileView"));
+const IdCards = lazy(() => import("../super-admin/pages/IdCards"));
 const MealPlanner = lazy(() => import("./pages/MealPlanner"));
 const ManagerReports = lazy(() => import("./pages/ManagerReports"));
 const ClientStatements = lazy(() => import("./pages/ClientStatements"));
@@ -29,6 +31,8 @@ const ManagerRoutes = [
   // Reachable only when the permission is granted; the server refuses
   // otherwise, so an unauthorised visit shows an empty screen, not data.
   { path: "clients", element: <SuperAdminClients /> },
+  { path: "clients/:id", element: <ClientProfileView /> },
+  { path: "id-cards", element: <IdCards /> },
   { path: "menu", element: <SuperAdminMenu /> },
 ];
 

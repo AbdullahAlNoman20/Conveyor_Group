@@ -1,6 +1,7 @@
 // backend/src/services/menu.service.ts
+import { eq, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { weeklyMenu } from "../db/schema.js";
+import { menuItemIngredients, weeklyMenu } from "../db/schema.js";
 import { menuRepo } from "../repositories/menu.repo.js";
 import { CACHE_KEYS, cached, invalidate } from "../lib/redis.js";
 import { genId } from "../lib/ids.js";
@@ -99,9 +100,77 @@ export async function getWeeklyMenu() {
     const rows = await menuRepo.week();
     return rows
       .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day))
-      .map((d) => ({ day: d.day, meal: escapeHtml(d.mealName) }));
+      .map((d) => ({ day: d.day, meal: escapeHtml(d.mealName), menuItemId: d.menuItemId }));
   });
 }
+
+/**
+ * The raw items a dish is made from.
+ *
+ * Recorded once on the planner and reused by every shopping list for that
+ * dish, so nobody has to remember what goes into a khichuri at the market.
+ */
+export async function getIngredients(menuItemId: string) {
+  const rows = await db.execute<{
+    id: number; item_id: string; name: string; unit: string;
+    default_qty: string | null; current_qty: string; avg_unit_cost: string;
+  }>(sql`
+    SELECT mi.id, mi.item_id, i.name, i.unit, mi.default_qty,
+           i.current_qty, i.avg_unit_cost
+    FROM menu_item_ingredients mi
+    JOIN inventory_items i ON i.id = mi.item_id
+    WHERE mi.menu_item_id = ${menuItemId}
+    ORDER BY i.name
+  `);
+
+  return rows.map((r) => ({
+    id: r.id,
+    itemId: r.item_id,
+    name: escapeHtml(r.name),
+    unit: r.unit,
+    defaultQty: r.default_qty === null ? null : Number(r.default_qty),
+    inStock: Number(r.current_qty),
+    avgUnitCost: Number(r.avg_unit_cost),
+  }));
+}
+
+/** Replaces a dish's ingredient list wholesale. */
+export async function setIngredients(
+  menuItemId: string,
+  items: { itemId: string; defaultQty?: number | null; note?: string }[],
+) {
+  const dish = await menuRepo.byId(menuItemId);
+  if (!dish) throw notFound("MENU_ITEM_NOT_FOUND");
+
+  await db.transaction(async (tx) => {
+    await tx.delete(menuItemIngredients).where(eq(menuItemIngredients.menuItemId, menuItemId));
+
+    // Two lines for the same item would make the shopping list show it twice,
+    // so duplicates are collapsed rather than rejected.
+    const seen = new Set<string>();
+    const rows = items.filter((i) => {
+      if (seen.has(i.itemId)) return false;
+      seen.add(i.itemId);
+      return true;
+    });
+
+    if (rows.length) {
+      await tx.insert(menuItemIngredients).values(
+        rows.map((i) => ({
+          menuItemId,
+          itemId: i.itemId,
+          defaultQty: i.defaultQty === null || i.defaultQty === undefined ? null : String(i.defaultQty),
+          note: sanitizeText(i.note, 120) || null,
+        })),
+      );
+    }
+  });
+
+  await invalidate(CACHE_KEYS.weeklyMenu);
+  emitCollectionChanged("menu", ["manager", "accounts", "super_admin"]);
+  return getIngredients(menuItemId);
+}
+
 
 export async function saveWeeklyMenu(days: { day: string; meal: string }[], userId: string) {
   const menu = await menuRepo.all();
@@ -124,6 +193,8 @@ export async function saveWeeklyMenu(days: { day: string; meal: string }[], user
   emitCollectionChanged("weeklyMenu", ["manager", "super_admin", "client"]);
   return getWeeklyMenu();
 }
+
+export { menuItemIngredients };
 
 async function bust(): Promise<void> {
   await invalidate(CACHE_KEYS.menuAll, CACHE_KEYS.menuAvail);

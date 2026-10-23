@@ -3,7 +3,7 @@ import {
   LayoutDashboard, UserCircle, ScanLine, ClipboardCheck, CalendarRange,
   ClipboardList, Receipt, Package, Calculator, BarChart3, FileText,
   Users, UserCog, UserPlus, Archive, UtensilsCrossed, Wallet,
-  HardDriveDownload, Monitor, ShieldCheck,
+  HardDriveDownload, Monitor, ShieldCheck, IdCard as IdCardIcon,
 } from "lucide-react";
 import { PERMISSIONS as P } from "../constants/roles";
 
@@ -54,6 +54,7 @@ export function buildNavGroups(base, can) {
       title: "Employees",
       items: [
         { to: `${base}/clients`, label: "Employees", Icon: Users, permission: P.CLIENT_VIEW },
+        { to: `${base}/id-cards`, label: "ID Cards", Icon: IdCardIcon, permission: P.CLIENT_MANAGE },
         { to: `${base}/account-requests`, label: "Registrations", Icon: UserPlus, permission: P.ACCOUNT_REQUEST_MANAGE },
         { to: `${base}/managers`, label: "Staff Accounts", Icon: UserCog, permission: P.STAFF_MANAGE },
         { to: `${base}/permissions`, label: "Access Control", Icon: ShieldCheck, permission: P.PERMISSION_MANAGE },

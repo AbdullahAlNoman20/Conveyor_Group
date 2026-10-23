@@ -26,6 +26,7 @@ const ScanQR = lazy(() => import("../manager/pages/ScanQR"));
 const MealPlanner = lazy(() => import("../manager/pages/MealPlanner"));
 const ManagerReports = lazy(() => import("../manager/pages/ManagerReports"));
 const AccessControl = lazy(() => import("./pages/AccessControl"));
+const IdCards = lazy(() => import("./pages/IdCards"));
 const SuperAdminProfile = lazy(() => import("./pages/SuperAdminProfile"));
 
 const SuperAdminRoutes = [
@@ -46,6 +47,8 @@ const SuperAdminRoutes = [
   { path: "kitchen/shopping-list", element: <ShoppingList /> },
   { path: "kitchen/purchases", element: <Purchases /> },
   { path: "permissions", element: <AccessControl /> },
+  { path: "id-cards", element: <IdCards /> },
+  { path: "meal-planner", element: <MealPlanner /> },
   { path: "scan-qr", element: <ScanQR /> },
   { path: "attendance", element: <MealAttendance /> },
   { path: "meal-planner", element: <MealPlanner /> },

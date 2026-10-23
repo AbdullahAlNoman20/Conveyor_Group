@@ -230,8 +230,19 @@ export const shoppingListSchema = z.object({
   items: z.array(z.object({
     itemId: reqText(40),
     qty,
+    // Chosen per line, because a market list may be written in grams for an
+    // item the store room counts in kilograms.
+    unit: z.enum(ENUMS.INVENTORY_UNITS).optional(),
     note: text(120).optional(),
   })).max(100),
+});
+
+export const recipeSchema = z.object({
+  items: z.array(z.object({
+    itemId: reqText(40),
+    defaultQty: z.coerce.number().positive().max(1_000_000).nullable().optional(),
+    note: text(120).optional(),
+  })).max(60),
 });
 
 export const purchaseSchema = z.object({
@@ -239,11 +250,17 @@ export const purchaseSchema = z.object({
   purchaseDate: z.iso.date(),
   voucherPath: text(255).optional(),
   notes: text(300).optional(),
+  // Delivery and any other charge on the voucher. Spread across the lines, so
+  // leaving them out would understate what the food really cost.
+  transportCost: money.optional(),
+  otherCost: money.optional(),
+  otherCostLabel: text(60).optional(),
   // Per-line cost is required: without it the moving average can't be
-  // maintained, and cost-per-meal would be unanswerable.
+  // maintained, and cost per meal would be unanswerable.
   items: z.array(z.object({
     itemId: reqText(40),
     qty,
+    unit: z.enum(ENUMS.INVENTORY_UNITS).optional(),
     lineCost: money,
   })).min(1).max(100),
 });

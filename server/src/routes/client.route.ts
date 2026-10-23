@@ -14,6 +14,7 @@ import { paged } from "../lib/pagination.js";
 import { audit } from "../middleware/audit.js";
 import { deriveEmail } from "../lib/ids.js";
 import { notFound } from "../lib/errors.js";
+import { z } from "zod";
 
 export default async function clientRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authenticate);
@@ -135,6 +136,20 @@ export default async function clientRoutes(app: FastifyInstance) {
     await audit(req, { action: `client.${action}`, entity: "clients", entityId: req.params.id, before, after });
     return { success: true, data: await clientService.getClient(after.id) };
   });
+
+  /**
+   * ID card data, including the QR token the ordinary listing withholds.
+   * Gated on the employee-management permission rather than plain viewing,
+   * because a card can be used to collect a meal.
+   */
+  app.get("/id-cards", { preHandler: [requirePermission(PERMISSIONS.CLIENT_MANAGE)] }, async (req) => {
+    const { ids } = z.object({ ids: z.string().max(4000).optional() }).parse(req.query);
+    const list = ids ? ids.split(",").map((s) => s.trim()).filter(Boolean) : undefined;
+    return { success: true, data: await clientService.idCardData(list) };
+  });
+
+  app.get("/export", { preHandler: [requirePermission(PERMISSIONS.CLIENT_VIEW)] },
+    async () => ({ success: true, data: await clientService.exportRows() }));
 
   app.get("/meta/departments", {
     preHandler: [requirePermission(PERMISSIONS.CLIENT_VIEW)],

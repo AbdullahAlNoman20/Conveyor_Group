@@ -332,14 +332,36 @@ export const shoppingListItems = pgTable("shopping_list_items", {
   listId: text("list_id").notNull().references(() => shoppingLists.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => inventoryItems.id, { onDelete: "restrict" }),
   qty: numeric("qty", { precision: 12, scale: 3 }).notNull(),
+  // A line may be written in grams while the item is stocked in kilograms, so
+  // the unit travels with the line and is converted on the way into stock.
+  unit: text("unit"),
   note: text("note"),
 }, (t) => [index("shopping_list_items_list_idx").on(t.listId)]);
+
+export const menuItemIngredients = pgTable("menu_item_ingredients", {
+  id: serial("id").primaryKey(),
+  menuItemId: text("menu_item_id").notNull().references(() => menuItems.id, { onDelete: "cascade" }),
+  itemId: text("item_id").notNull().references(() => inventoryItems.id, { onDelete: "restrict" }),
+  // Optional: the planner says what a dish needs, the shopping list says how
+  // much. A default here only saves typing.
+  defaultQty: numeric("default_qty", { precision: 12, scale: 3 }),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("menu_item_ingredients_uq").on(t.menuItemId, t.itemId),
+  index("menu_item_ingredients_menu_idx").on(t.menuItemId),
+]);
 
 export const purchases = pgTable("purchases", {
   id: text("id").primaryKey(),
   listId: text("list_id").references(() => shoppingLists.id, { onDelete: "set null" }),
   purchaseDate: date("purchase_date").notNull(),
   voucherPath: text("voucher_path"),
+  // What the goods themselves cost, before delivery and any other charge.
+  goodsCost: numeric("goods_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+  transportCost: numeric("transport_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+  otherCost: numeric("other_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+  otherCostLabel: text("other_cost_label"),
   totalCost: numeric("total_cost", { precision: 12, scale: 2 }).notNull().default("0"),
   notes: text("notes"),
   createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
@@ -350,7 +372,10 @@ export const purchaseItems = pgTable("purchase_items", {
   id: serial("id").primaryKey(),
   purchaseId: text("purchase_id").notNull().references(() => purchases.id, { onDelete: "cascade" }),
   itemId: text("item_id").notNull().references(() => inventoryItems.id, { onDelete: "restrict" }),
+  // Stored in the item's own unit after conversion, so stock arithmetic never
+  // has to guess what "500" meant.
   qty: numeric("qty", { precision: 12, scale: 3 }).notNull(),
+  unit: text("unit"),
   lineCost: numeric("line_cost", { precision: 12, scale: 2 }).notNull(),
 }, (t) => [index("purchase_items_purchase_idx").on(t.purchaseId)]);
 

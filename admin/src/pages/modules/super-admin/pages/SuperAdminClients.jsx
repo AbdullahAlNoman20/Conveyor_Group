@@ -11,13 +11,17 @@ import {
   RotateCcw,
   Archive,
   FileSpreadsheet,
+  Download,
+  IdCard as IdCardIcon,
 } from "lucide-react";
 import { dataStore } from "../../../../components/services/dataStore";
 import {
   sanitizeText,
   sanitizeEmail,
 } from "../../../../components/utils/sanitize";
-import { apiPost } from "../../../../components/services/api";
+import { apiGet, apiPost } from "../../../../components/services/api";
+import { exportToExcel } from "../../../../components/utils/exportExcel";
+import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
 import Button from "../../../../components/shared/Button";
 import FormField from "../../../../components/shared/FormField";
@@ -42,6 +46,7 @@ const EMPTY_FORM = {
 
 export default function SuperAdminClients() {
   const { push } = useToast();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [clients, setClients] = useState(null);
@@ -54,9 +59,30 @@ export default function SuperAdminClients() {
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
+  const [exporting, setExporting] = useState(false);
+
+  // The same screen is mounted under both roles, so links are built from the
+  // role rather than hard coded to the Super Admin prefix.
+  const base = user?.role === "manager" ? "/app/manager" : "/app/super-admin";
+
   useEffect(() => {
     (async () => setClients(await dataStore.load("clients")))();
   }, []);
+
+  /** Pulled from the server rather than the cached list, so the file carries
+   *  every field including archived employees. */
+  async function exportAll() {
+    setExporting(true);
+    try {
+      const rows = await apiGet("/clients/export");
+      exportToExcel(rows, `employees-${new Date().toISOString().slice(0, 10)}`, "Employees");
+      push(`Exported ${rows.length} employees.`, "success");
+    } catch (err) {
+      push(err?.message || "Could not export.", "error");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const filtered = (clients || []).filter(
     (c) =>
@@ -210,6 +236,25 @@ export default function SuperAdminClients() {
               className="w-full justify-center sm:w-auto"
             >
               {showArchived ? "Show Active" : "Recycle Bin"}
+            </Button>
+
+            <Button
+              variant="secondary"
+              icon={IdCardIcon}
+              onClick={() => navigate(`${base}/id-cards`)}
+              className="w-full justify-center sm:w-auto"
+            >
+              ID Cards
+            </Button>
+
+            <Button
+              variant="secondary"
+              icon={Download}
+              onClick={exportAll}
+              loading={exporting}
+              className="w-full justify-center sm:w-auto"
+            >
+              Export Excel
             </Button>
 
             <Button

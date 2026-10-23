@@ -68,6 +68,57 @@ a {
   touch-action: manipulation;
 }
 
+/* Printing.
+
+   `print-color-adjust: exact` is what keeps the brand colours and the dark ID
+   card background on the page; without it browsers strip backgrounds to save
+   ink and the card comes out white on white.
+
+   `print-area` hides every sibling so one card, or a sheet of cards, prints on
+   its own without the sidebar and header around it. */
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-area {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* A card split across a page break is useless, so each one is kept whole. */
+  .print-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

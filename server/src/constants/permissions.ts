@@ -116,6 +116,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     P.MENU_VIEW,
     P.WEEKLY_MENU_MANAGE,
     P.CLIENT_VIEW,
+    // Needed to open a profile and print a replacement card at the counter.
+    P.CLIENT_MANAGE,
     P.ORDER_VIEW,
     P.ORDER_SCAN,
     P.ATTENDANCE_VIEW,
@@ -129,6 +131,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
 
   accounts: [
     P.MENU_VIEW,
+    // Accounts plans the week, because the plan is what decides the shopping.
+    P.WEEKLY_MENU_MANAGE,
     P.CLIENT_VIEW,
     P.ORDER_VIEW,
     P.ATTENDANCE_VIEW,

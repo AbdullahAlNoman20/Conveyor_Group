@@ -1,9 +1,10 @@
 // admin/src/pages/modules/manager/pages/Purchases.jsx
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, Camera, Receipt, Save, Loader2, FileText } from "lucide-react";
+import { Plus, Trash2, Camera, Receipt, Save, Loader2, FileText, Printer, Eye } from "lucide-react";
 import { apiGet, apiPost, uploadFile } from "../../../../components/services/api";
+import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
 import { useToast } from "../../../../components/hooks/useToast";
-import ItemPicker from "../../../../components/shared/ItemPicker";
+import ItemPicker, { UNITS } from "../../../../components/shared/ItemPicker";
 import Loader from "../../../../components/shared/Loader";
 import Modal from "../../../../components/shared/Modal";
 
@@ -22,7 +23,10 @@ export default function Purchases() {
   const [listId, setListId] = useState("");
   const [purchaseDate, setPurchaseDate] = useState(today());
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState([{ itemId: "", qty: "", lineCost: "" }]);
+  const [lines, setLines] = useState([{ itemId: "", qty: "", unit: "", lineCost: "" }]);
+  const [transportCost, setTransportCost] = useState("");
+  const [otherCost, setOtherCost] = useState("");
+  const [otherCostLabel, setOtherCostLabel] = useState("");
   const [voucherPreview, setVoucherPreview] = useState("");
   const [voucherPath, setVoucherPath] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -57,7 +61,8 @@ export default function Purchases() {
     setLines((rows) => rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   }
 
-  const addLine = () => setLines((rows) => [...rows, { itemId: "", qty: "", lineCost: "" }]);
+  const addLine = () =>
+    setLines((rows) => [...rows, { itemId: "", qty: "", unit: "", lineCost: "" }]);
   const removeLine = (idx) =>
     setLines((rows) => (rows.length === 1 ? rows : rows.filter((_, i) => i !== idx)));
 
@@ -68,7 +73,12 @@ export default function Purchases() {
     try {
       const list = await apiGet(`/kitchen/lists/${id}`);
       setLines(
-        list.items.map((i) => ({ itemId: i.itemId, qty: String(i.qty), lineCost: "" })),
+        list.items.map((i) => ({
+          itemId: i.itemId,
+          qty: String(i.qty),
+          unit: i.unit,
+          lineCost: "",
+        })),
       );
       push("List loaded. Now put in the price of each item.", "info");
     } catch (err) {
@@ -100,7 +110,38 @@ export default function Purchases() {
   const validLines = lines.filter(
     (l) => l.itemId && Number(l.qty) > 0 && l.lineCost !== "" && Number(l.lineCost) >= 0,
   );
-  const totalCost = validLines.reduce((s, l) => s + Number(l.lineCost), 0);
+
+  const goodsCost = validLines.reduce((s, l) => s + Number(l.lineCost), 0);
+  const extraCost = (Number(transportCost) || 0) + (Number(otherCost) || 0);
+  const totalCost = goodsCost + extraCost;
+
+  function printVoucher(p) {
+    printOnLetterhead({
+      title: `Purchase Voucher, ${p.date}`,
+      bodyHtml: `
+        <h2 style="margin:0 0 4px">Purchase Voucher</h2>
+        <p style="color:#595959;font-size:13px;margin:0 0 20px">
+          ${p.id}, ${new Date(p.date).toLocaleDateString()}
+        </p>
+        <table>
+          <thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Cost</th></tr></thead>
+          <tbody>
+            ${p.items
+              .map(
+                (i) =>
+                  `<tr><td>${i.name}</td><td>${i.qty} ${i.unit}</td><td>Tk ${i.unitCost}</td><td>Tk ${i.lineCost}</td></tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>
+        <div class="row"><span class="label">Goods</span><span>Tk ${p.goodsCost}</span></div>
+        ${p.transportCost > 0 ? `<div class="row"><span class="label">Transport</span><span>Tk ${p.transportCost}</span></div>` : ""}
+        ${p.otherCost > 0 ? `<div class="row"><span class="label">${p.otherCostLabel || "Other"}</span><span>Tk ${p.otherCost}</span></div>` : ""}
+        ${p.notes ? `<div class="row"><span class="label">Notes</span><span>${p.notes}</span></div>` : ""}
+        <div class="row total"><span>Total</span><span>Tk ${p.totalCost}</span></div>
+      `,
+    });
+  }
 
   async function save() {
     if (!validLines.length) {
@@ -115,20 +156,27 @@ export default function Purchases() {
         purchaseDate,
         voucherPath: voucherPath || undefined,
         notes: notes || undefined,
+        transportCost: Number(transportCost) || 0,
+        otherCost: Number(otherCost) || 0,
+        otherCostLabel: otherCostLabel || undefined,
         items: validLines.map((l) => ({
           itemId: l.itemId,
           qty: Number(l.qty),
+          unit: l.unit || byId.get(l.itemId)?.unit,
           lineCost: Number(l.lineCost),
         })),
       });
 
       await Promise.all([loadItems(), refresh()]);
-      setLines([{ itemId: "", qty: "", lineCost: "" }]);
+      setLines([{ itemId: "", qty: "", unit: "", lineCost: "" }]);
       setListId("");
       setNotes("");
+      setTransportCost("");
+      setOtherCost("");
+      setOtherCostLabel("");
       setVoucherPreview("");
       setVoucherPath("");
-      push(`Purchase recorded  Tk ${totalCost} added to stock.`, "success");
+      push(`Saved. Tk ${totalCost} added to the store room.`, "success");
     } catch (err) {
       push(err?.message || "Couldn't record the purchase.", "error");
     } finally {
@@ -259,7 +307,9 @@ export default function Purchases() {
                     <ItemPicker
                       items={items}
                       value={line.itemId}
-                      onChange={(id) => setLine(idx, { itemId: id })}
+                      onChange={(id) =>
+                        setLine(idx, { itemId: id, unit: byId.get(id)?.unit || "" })
+                      }
                       onItemCreated={loadItems}
                     />
                   </div>
@@ -276,9 +326,17 @@ export default function Purchases() {
                       className="w-20 rounded-lg border border-ink-200 px-2 py-2 text-sm outline-none focus:border-brand-500"
                     />
 
-                    <span className="w-10 shrink-0 text-xs text-ink-400">
-                      {item?.unit ?? ""}
-                    </span>
+                    {/* The unit is converted on the server, so buying 500 g of
+                        something stocked in kilograms adds 0.5, not 500. */}
+                    <select
+                      value={line.unit || item?.unit || ""}
+                      onChange={(e) => setLine(idx, { unit: e.target.value })}
+                      className="w-20 rounded-lg border border-ink-200 px-2 py-2 text-sm outline-none focus:border-brand-500"
+                    >
+                      {UNITS.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
 
                     <input
                       type="number"
@@ -335,11 +393,78 @@ export default function Purchases() {
           />
         </div>
 
-        {/* Total is derived, never typed — the voucher and the stock valuation
-            can't disagree this way. */}
-          <div className="flex items-center justify-between rounded-lg bg-brand-50 px-4 py-3">
+        {/* Delivery and any other charge on the voucher. They are spread
+            across the items on the server, so the real cost of the food
+            reaches the store room and the per meal figure. */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div>
+            <label htmlFor="transport" className="mb-1 block text-xs font-semibold text-ink-700">
+              Transport cost
+            </label>
+            <input
+              id="transport"
+              type="number"
+              min="0"
+              step="1"
+              inputMode="decimal"
+              value={transportCost}
+              onChange={(e) => setTransportCost(e.target.value)}
+              placeholder="Tk 0"
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="otherLabel" className="mb-1 block text-xs font-semibold text-ink-700">
+              Other cost, what for
+            </label>
+            <input
+              id="otherLabel"
+              value={otherCostLabel}
+              onChange={(e) => setOtherCostLabel(e.target.value)}
+              maxLength={60}
+              placeholder="e.g. loading charge"
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="otherCost" className="mb-1 block text-xs font-semibold text-ink-700">
+              Other cost
+            </label>
+            <input
+              id="otherCost"
+              type="number"
+              min="0"
+              step="1"
+              inputMode="decimal"
+              value={otherCost}
+              onChange={(e) => setOtherCost(e.target.value)}
+              placeholder="Tk 0"
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+            />
+          </div>
+        </div>
+
+        {/* The total is worked out, never typed, so the voucher and the stock
+            value cannot disagree. */}
+        <div className="mt-4 space-y-1.5 rounded-lg bg-brand-50 px-4 py-3">
+          <div className="flex items-center justify-between text-sm text-ink-600">
+            <span>Goods</span>
+            <span className="font-semibold">Tk {goodsCost}</span>
+          </div>
+
+          {extraCost > 0 && (
+            <div className="flex items-center justify-between text-sm text-ink-600">
+              <span>Transport and other</span>
+              <span className="font-semibold">Tk {extraCost}</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between border-t border-brand-200 pt-1.5">
             <span className="text-sm font-semibold text-ink-700">Total</span>
-          <span className="text-xl font-bold text-brand-600">Tk {totalCost}</span>
+            <span className="text-xl font-bold text-brand-600">Tk {totalCost}</span>
+          </div>
         </div>
 
         <button
@@ -382,13 +507,16 @@ export default function Purchases() {
                 </p>
                 <p className="truncate text-xs text-ink-400">
                   {p.itemCount} item{p.itemCount === 1 ? "" : "s"}
-                  {p.notes && ` · ${p.notes}`}
+                  {p.transportCost > 0 && `, transport Tk ${p.transportCost}`}
+                  {p.notes && `, ${p.notes}`}
                 </p>
               </div>
 
               <span className="shrink-0 text-sm font-bold text-brand-600">
                 Tk {p.totalCost}
               </span>
+
+              <Eye size={14} className="shrink-0 text-ink-300" />
             </button>
           ))}
 
@@ -401,17 +529,41 @@ export default function Purchases() {
       <Modal open={!!viewing} onClose={() => setViewing(null)} title="Purchase Details" size="md">
         {viewing && (
           <div className="space-y-4">
-            <p className="text-sm text-ink-500">
-              {new Date(viewing.date).toLocaleDateString()}
-              {viewing.notes && ` · ${viewing.notes}`}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-ink-500">
+                {new Date(viewing.date).toLocaleDateString()}
+                {viewing.notes && `, ${viewing.notes}`}
+              </p>
 
+              <button
+                onClick={() => printVoucher(viewing)}
+                className="flex min-h-9 items-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold transition hover:bg-ink-50"
+              >
+                <Printer size={13} /> Print
+              </button>
+            </div>
+
+            {/* A photographed receipt shows inline; a PDF invoice opens in a
+                tab, because an embedded viewer is unreliable across browsers. */}
             {viewing.voucher && (
-              <img
-                src={viewing.voucher}
-                alt="Voucher"
-                className="max-h-72 w-full rounded-lg border border-ink-200 object-contain"
-              />
+              viewing.voucherIsPdf ? (
+                <a
+                  href={viewing.voucher}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="flex items-center justify-center gap-2 rounded-lg border border-ink-200 bg-ink-50 py-6 text-sm font-semibold text-brand-600 transition hover:bg-ink-100"
+                >
+                  <FileText size={16} /> Open the voucher PDF
+                </a>
+              ) : (
+                <a href={viewing.voucher} target="_blank" rel="noreferrer noopener">
+                  <img
+                    src={viewing.voucher}
+                    alt="Voucher"
+                    className="max-h-72 w-full rounded-lg border border-ink-200 object-contain transition hover:opacity-90"
+                  />
+                </a>
+              )
             )}
 
             <div className="overflow-x-auto">
@@ -437,9 +589,30 @@ export default function Purchases() {
               </table>
             </div>
 
-            <div className="flex items-center justify-between border-t border-ink-100 pt-3 text-base font-bold text-ink-900">
-              <span>Total</span>
-              <span>Tk {viewing.totalCost}</span>
+            <div className="space-y-1.5 border-t border-ink-100 pt-3 text-sm">
+              <div className="flex items-center justify-between text-ink-600">
+                <span>Goods</span>
+                <span>Tk {viewing.goodsCost}</span>
+              </div>
+
+              {viewing.transportCost > 0 && (
+                <div className="flex items-center justify-between text-ink-600">
+                  <span>Transport</span>
+                  <span>Tk {viewing.transportCost}</span>
+                </div>
+              )}
+
+              {viewing.otherCost > 0 && (
+                <div className="flex items-center justify-between text-ink-600">
+                  <span>{viewing.otherCostLabel || "Other"}</span>
+                  <span>Tk {viewing.otherCost}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between border-t border-ink-100 pt-1.5 text-base font-bold text-ink-900">
+                <span>Total</span>
+                <span>Tk {viewing.totalCost}</span>
+              </div>
             </div>
           </div>
         )}

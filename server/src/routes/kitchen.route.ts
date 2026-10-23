@@ -71,6 +71,12 @@ export default async function kitchenRoutes(app: FastifyInstance) {
   /* ── shopping lists ────────────────────────────────────────────────── */
   app.get("/lists", async () => ({ success: true, data: await kitchen.listShoppingLists() }));
 
+  // Pre-fills a new list from the dish planned for that day.
+  app.get("/lists/suggest", { preHandler: [canShop] }, async (req) => {
+    const { date } = z.object({ date: z.iso.date() }).parse(req.query);
+    return { success: true, data: await kitchen.suggestForDate(date) };
+  });
+
   app.get<{ Params: { id: string } }>("/lists/:id",
     async (req) => ({ success: true, data: await kitchen.getShoppingList(req.params.id) }));
 

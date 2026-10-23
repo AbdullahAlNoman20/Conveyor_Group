@@ -1,5 +1,5 @@
 // server/src/services/client.service.ts
-import { sql } from "drizzle-orm";
+import { and, ne, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { clients, users } from "../db/schema.js";
 import { clientRepo, type ClientRow } from "../repositories/client.repo.js";
@@ -8,7 +8,7 @@ import { hashPassword } from "../lib/password.js";
 import { deriveEmail, generatePassword, genId } from "../lib/ids.js";
 import { conflict, notFound } from "../lib/errors.js";
 import { escapeHtml, sanitizeEmail, sanitizeText } from "../lib/sanitize.js";
-import { markOrphan, signedUrl } from "../storage/supabase.js";
+import { markOrphan, signedUrl, signedUrlMany } from "../storage/supabase.js";
 import { revokeAllForUser } from "./auth.service.js";
 import { emitCollectionChanged } from "../sockets/index.js";
 import { logger } from "../lib/logger.js";
@@ -359,6 +359,66 @@ export async function runLifecycleAction(
 
   emitCollectionChanged("clients", ["super_admin", "manager"]);
   return { before: client, after: after! };
+}
+
+/**
+ * Everything needed to print ID cards, and nothing else.
+ *
+ * The card's QR has to carry the token, which the ordinary staff listing
+ * withholds on purpose. Keeping that to a single, separately gated endpoint
+ * means the token isn't handed out every time someone opens the employee list.
+ */
+export async function idCardData(ids?: string[]) {
+  const rows = await db
+    .select()
+    .from(clients)
+    .where(
+      ids?.length
+        ? and(ne(clients.status, "archived"), sql`${clients.id} = ANY(${ids})`)
+        : ne(clients.status, "archived"),
+    )
+    .orderBy(clients.name);
+
+  const urls = await signedUrlMany(rows.map((c) => c.photoPath));
+
+  return rows.map((c) => ({
+    id: c.id,
+    name: escapeHtml(c.name),
+    employeeId: c.employeeId,
+    department: escapeHtml(c.department ?? ""),
+    designation: escapeHtml(c.designation ?? ""),
+    status: c.status,
+    qrStatus: c.qrStatus,
+    issuedOn: c.qrIssuedAt.toISOString().slice(0, 10),
+    photo: c.photoPath ? urls.get(c.photoPath) ?? null : null,
+    qrPayload: JSON.stringify({
+      clientId: c.id,
+      employeeId: c.employeeId,
+      qrToken: c.qrToken,
+    }),
+  }));
+}
+
+/** Flat rows for the employee spreadsheet export. */
+export async function exportRows() {
+  const rows = await db.select().from(clients).orderBy(clients.name);
+
+  return rows.map((c) => ({
+    Name: c.name,
+    "Employee ID": c.employeeId,
+    Email: c.email ?? "",
+    Phone: c.phone ?? "",
+    Department: c.department ?? "",
+    Designation: c.designation ?? "",
+    "Employment Type": c.employmentType,
+    "Meal Plan": c.mealPlan,
+    "Meal Benefit": c.mealBenefit,
+    "Outstanding Due (Tk)": Number(c.monthlyBill),
+    "QR Status": c.qrStatus,
+    "Card Issued": c.qrIssuedAt.toISOString().slice(0, 10),
+    Status: c.status,
+    "Joined On": c.createdAt.toISOString().slice(0, 10),
+  }));
 }
 
 export async function departments(): Promise<string[]> {

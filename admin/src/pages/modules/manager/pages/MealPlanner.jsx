@@ -1,18 +1,19 @@
-// FILE: src/pages/modules/manager/pages/MealPlanner.jsx
-
+// admin/src/pages/modules/manager/pages/MealPlanner.jsx
 import { useEffect, useState } from "react";
-import { CalendarRange, Save } from "lucide-react";
+import { CalendarRange, Save, Soup } from "lucide-react";
+import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
 import { dataStore } from "../../../../components/services/dataStore";
 import { useToast } from "../../../../components/hooks/useToast";
-import { useLiveCollection } from "../../../../components/hooks/useLiveCollection";
-import Loader from "../../../../components/shared/Loader";
 import DishImage from "../../../../components/shared/DishImage";
+import Loader from "../../../../components/shared/Loader";
 
 export default function MealPlanner() {
   const { push } = useToast();
   const menu = useLiveCollection("menu");
+
   const [weekly, setWeekly] = useState(null);
   const [draft, setDraft] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -22,212 +23,103 @@ export default function MealPlanner() {
     })();
   }, []);
 
-  if (!weekly || !draft || !menu) {
-    return <Loader full label="Loading weekly meal planner..." />;
-  }
+  if (!menu || !draft) return <Loader full label="Loading the plan..." />;
 
-  // Only "Fixed Meal" category items are valid choices for the daily lunch —
-  // Beverages / Evening Snacks / Custom Menu items don't belong on this
-  // planner, per the SRS's Fixed Company Meal definition.
-  const fixedMealOptions = menu.filter(
-    (m) => m.category === "Fixed Meal" && m.available !== false,
-  );
+  const fixedMeals = menu.filter((m) => m.category === "Fixed Meal" && m.available);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(weekly);
 
-  function updateDay(day, mealName) {
-    setDraft((list) =>
-      list.map((d) => (d.day === day ? { ...d, meal: mealName } : d)),
-    );
+  function setMeal(day, meal) {
+    setDraft((rows) => rows.map((d) => (d.day === day ? { ...d, meal } : d)));
   }
 
   async function save() {
+    setSaving(true);
     try {
       const next = await dataStore.save("weeklyMenu", draft);
       setWeekly(next);
       setDraft(next);
-      push(
-        "Weekly menu updated. Fixed Meal clients will see these choices automatically.",
-        "success",
-      );
+      push("Weekly plan saved.", "success");
     } catch (err) {
-      push(err.message || "Could not save the weekly menu.", "error");
+      push(err?.message || "Could not save the plan.", "error");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <div className="min-h-full space-y-5 sm:space-y-6">
-      {/* Header */}
-      <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-              <CalendarRange size={21} />
-            </div>
-
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">
-                Weekly Menu Planner
-              </h1>
-              <p className="mt-1 text-xs text-ink-500 sm:text-sm">
-                Plan the daily Fixed Meal lunch menu for the week.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex w-full gap-2 sm:w-auto">
-
-
-            <button
-              onClick={save}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-600 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700 sm:flex-none sm:px-4 sm:text-sm"
-            >
-              <Save size={16} />
-              Save Menu
-            </button>
-          </div>
+    <div className="w-full min-w-0 space-y-5 overflow-x-hidden sm:space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-xl font-bold text-ink-900 sm:text-2xl">
+            <CalendarRange size={20} /> Weekly Menu
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-ink-500">
+            Pick the dish for each day. Everyone on the fixed meal plan gets
+            that day's dish.
+          </p>
         </div>
+
+        <button
+          onClick={save}
+          disabled={saving || !dirty}
+          className="flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-500"
+        >
+          <Save size={16} /> {saving ? "Saving..." : "Save Plan"}
+        </button>
       </div>
 
-      {/* Desktop / Tablet */}
-      <div className="hidden overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm sm:block">
-        <div className="border-b border-ink-100 bg-ink-50/70 px-5 py-3">
-          <div className="grid grid-cols-[180px_minmax(0,1fr)] items-center gap-4 text-xs font-semibold uppercase tracking-wide text-ink-400">
-            <div className="flex items-center gap-1.5">
-              <CalendarRange size={14} />
-              Day
-            </div>
-            <div>Lunch (Fixed Meal)</div>
-          </div>
-        </div>
+      {/* The shopping list reads the dish's ingredients, so a dish with none
+          recorded quietly produces an empty list. Saying so here saves the
+          Accounts team working it out at the market. */}
+      <p className="flex items-start gap-2 rounded-lg bg-ink-50 px-3 py-2.5 text-xs leading-5 text-ink-500">
+        <Soup size={13} className="mt-0.5 shrink-0" />
+        The shopping list fills itself in from each dish's ingredients. Set
+        those under Menu Management when you add or edit a dish.
+      </p>
 
-        <div className="divide-y divide-ink-100">
-          {draft.map((d) => {
-            const selected = fixedMealOptions.find((m) => m.name === d.meal);
-
-            return (
-              <div
-                key={d.day}
-                className="grid grid-cols-[180px_minmax(0,1fr)] items-center gap-4 px-5 py-4 transition hover:bg-ink-50/40"
-              >
-                <div className="font-semibold text-ink-800">{d.day}</div>
-
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-ink-100 bg-ink-50 shadow-sm">
-                    <DishImage
-                      name={d.meal}
-                      className="h-12 w-12 object-cover"
-                      rounded="rounded-full"
-                      height={48}
-                    />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-ink-800">
-                          {d.meal || "Select a meal"}
-                        </p>
-
-                        {selected && (
-                          <p className="mt-0.5 text-xs text-ink-400">
-                            Tk {selected.price}
-                          </p>
-                        )}
-                      </div>
-
-                      <select
-                        value={d.meal}
-                        onChange={(e) => updateDay(d.day, e.target.value)}
-                        className="w-full rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink-700 outline-none transition   focus:ring-brand-100 md:w-72"
-                      >
-                        {!selected && d.meal && (
-                          <option value={d.meal}>{d.meal} (not in menu)</option>
-                        )}
-
-                        {fixedMealOptions.map((m) => (
-                          <option key={m.id} value={m.name}>
-                            {m.name} · Tk {m.price}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Mobile */}
-      <div className="space-y-3 sm:hidden">
+      <div className="space-y-3">
         {draft.map((d) => {
-          const selected = fixedMealOptions.find((m) => m.name === d.meal);
+          const dish = menu.find((m) => m.name === d.meal);
 
           return (
             <div
               key={d.day}
-              className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm"
+              className="flex min-w-0 flex-col gap-3 rounded-xl border border-ink-100 bg-white p-4 sm:flex-row sm:items-center"
             >
-              {/* Day header */}
-              <div className="flex items-center justify-between border-b border-ink-100 bg-ink-50/60 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
-                    <CalendarRange size={15} />
-                  </div>
+              <div className="w-full shrink-0 sm:w-28">
+                <p className="text-sm font-bold text-ink-900">{d.day}</p>
+              </div>
 
-                  <span className="text-sm font-bold text-ink-800">
-                    {d.day}
-                  </span>
+              {dish && (
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
+                  <DishImage
+                    name={dish.name}
+                    src={dish.image}
+                    className="h-full w-full object-cover"
+                    rounded="rounded-lg"
+                    height={48}
+                  />
                 </div>
+              )}
 
-                <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-400 ring-1 ring-ink-100">
-                  Fixed Meal
+              <select
+                value={d.meal}
+                onChange={(e) => setMeal(d.day, e.target.value)}
+                className="min-w-0 flex-1 rounded-lg border border-ink-200 px-3 py-2 text-sm outline-none transition focus:border-brand-500"
+              >
+                <option value="">Not set</option>
+                {fixedMeals.map((m) => (
+                  <option key={m.id} value={m.name}>
+                    {m.name} — Tk {m.price}
+                  </option>
+                ))}
+              </select>
+
+              {dish && (
+                <span className="shrink-0 whitespace-nowrap rounded-lg bg-ink-50 px-2.5 py-1.5 text-xs font-bold text-brand-600">
+                  Tk {dish.price}
                 </span>
-              </div>
-
-              {/* Meal */}
-              <div className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-ink-100 bg-ink-50 shadow-sm">
-                    <DishImage
-                      name={d.meal}
-                      className="h-14 w-14 object-cover"
-                      rounded="rounded-full"
-                      height={56}
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink-800">
-                      {d.meal || "Select a meal"}
-                    </p>
-
-                    {selected && (
-                      <p className="mt-1 text-xs font-medium text-ink-400">
-                        Tk {selected.price}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <select
-                    value={d.meal}
-                    onChange={(e) => updateDay(d.day, e.target.value)}
-                    className="w-full rounded-xl border border-ink-200 bg-white px-3 py-3 text-sm text-ink-700 outline-none transition   focus:ring-brand-100"
-                  >
-                    {!selected && d.meal && (
-                      <option value={d.meal}>{d.meal} (not in menu)</option>
-                    )}
-
-                    {fixedMealOptions.map((m) => (
-                      <option key={m.id} value={m.name}>
-                        {m.name} · Tk {m.price}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
             </div>
           );
         })}

@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { authenticate } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/rbac.js";
 import { PERMISSIONS } from "../constants/permissions.js";
-import { menuItemPatchSchema, menuItemSchema, weeklyMenuSchema } from "../schemas/index.js";
+import { menuItemPatchSchema, menuItemSchema, recipeSchema, weeklyMenuSchema } from "../schemas/index.js";
 import * as menuService from "../services/menu.service.js";
 import { audit } from "../middleware/audit.js";
 
@@ -13,6 +13,23 @@ export default async function menuRoutes(app: FastifyInstance) {
   app.get("/", async () => ({ success: true, data: await menuService.listMenu() }));
 
   app.get("/weekly/plan", async () => ({ success: true, data: await menuService.getWeeklyMenu() }));
+
+  app.get<{ Params: { id: string } }>("/:id/ingredients", async (req) => ({
+    success: true, data: await menuService.getIngredients(req.params.id),
+  }));
+
+  // Recorded with the dish itself, so every week that serves it already knows
+  // what to buy.
+  app.put<{ Params: { id: string } }>("/:id/ingredients", {
+    preHandler: [requirePermission(PERMISSIONS.MENU_MANAGE)],
+  }, async (req) => {
+    const body = recipeSchema.parse(req.body);
+    const after = await menuService.setIngredients(req.params.id, body.items);
+    await audit(req, {
+      action: "menu.ingredients_saved", entity: "menu_items", entityId: req.params.id, after,
+    });
+    return { success: true, data: after };
+  });
 
   app.put("/weekly/plan", { preHandler: [requirePermission(PERMISSIONS.WEEKLY_MENU_MANAGE)] }, async (req) => {
     const body = weeklyMenuSchema.parse(req.body);

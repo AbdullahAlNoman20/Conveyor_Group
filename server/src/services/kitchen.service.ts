@@ -12,6 +12,7 @@ import {
 } from "../db/schema.js";
 import { genId } from "../lib/ids.js";
 import { businessDate } from "../lib/clock.js";
+import { convertQty } from "../lib/units.js";
 import { AppError, conflict, notFound } from "../lib/errors.js";
 import { escapeHtml, sanitizeText } from "../lib/sanitize.js";
 import { markOrphan, signedUrl } from "../storage/supabase.js";
@@ -196,6 +197,53 @@ export async function listShoppingLists(limit = 30) {
   }));
 }
 
+/**
+ * What to buy for a given day, taken from the dish on the planner.
+ *
+ * The planner already records what a dish is made from, so the shopping list
+ * starts filled in and only the amounts need typing. Current stock travels
+ * with each line so nothing already on the shelf gets bought twice.
+ */
+export async function suggestForDate(forDate: string) {
+  const dayName = new Date(`${forDate}T00:00:00Z`).toLocaleDateString("en-US", {
+    weekday: "long",
+    timeZone: "UTC",
+  });
+
+  const [row] = await db.execute<{ meal_name: string; menu_item_id: string | null }>(sql`
+    SELECT meal_name, menu_item_id FROM weekly_menu WHERE day = ${dayName}
+  `);
+
+  if (!row?.menu_item_id) {
+    return { forDate, dayName, mealName: row?.meal_name ?? null, items: [] };
+  }
+
+  const items = await db.execute<{
+    item_id: string; name: string; unit: string;
+    default_qty: string | null; current_qty: string; avg_unit_cost: string;
+  }>(sql`
+    SELECT mi.item_id, i.name, i.unit, mi.default_qty, i.current_qty, i.avg_unit_cost
+    FROM menu_item_ingredients mi
+    JOIN inventory_items i ON i.id = mi.item_id
+    WHERE mi.menu_item_id = ${row.menu_item_id} AND i.active = true
+    ORDER BY i.name
+  `);
+
+  return {
+    forDate,
+    dayName,
+    mealName: escapeHtml(row.meal_name),
+    items: items.map((r) => ({
+      itemId: r.item_id,
+      name: escapeHtml(r.name),
+      unit: r.unit,
+      qty: r.default_qty === null ? "" : String(Number(r.default_qty)),
+      inStock: n(r.current_qty),
+      avgUnitCost: n(r.avg_unit_cost),
+    })),
+  };
+}
+
 export async function getShoppingList(id: string) {
   const list = await db.query.shoppingLists.findFirst({ where: eq(shoppingLists.id, id) });
   if (!list) throw notFound();
@@ -203,10 +251,10 @@ export async function getShoppingList(id: string) {
   // Current stock travels with the line so the Manager can see, at the moment
   // of shopping, whether anything actually needs buying.
   const rows = await db.execute<{
-    id: number; item_id: string; name: string; unit: string;
+    id: number; item_id: string; name: string; unit: string; line_unit: string | null;
     qty: string; note: string | null; current_qty: string; avg_unit_cost: string;
   }>(sql`
-    SELECT li.id, li.item_id, i.name, i.unit, li.qty, li.note,
+    SELECT li.id, li.item_id, i.name, i.unit, li.unit AS line_unit, li.qty, li.note,
            i.current_qty, i.avg_unit_cost
     FROM shopping_list_items li
     JOIN inventory_items i ON i.id = li.item_id
@@ -219,17 +267,24 @@ export async function getShoppingList(id: string) {
     forDate: list.forDate,
     status: list.status,
     notes: escapeHtml(list.notes ?? ""),
-    items: rows.map((r) => ({
-      id: r.id,
-      itemId: r.item_id,
-      name: escapeHtml(r.name),
-      unit: r.unit,
-      qty: n(r.qty),
-      note: escapeHtml(r.note ?? ""),
-      inStock: n(r.current_qty),
-      avgUnitCost: n(r.avg_unit_cost),
-      estimatedCost: Math.round(n(r.qty) * n(r.avg_unit_cost)),
-    })),
+    items: rows.map((r) => {
+      const lineUnit = r.line_unit || r.unit;
+      // Stock and the last rate are held in the item's own unit, so the line
+      // is converted before the two are compared or multiplied.
+      const inBaseUnit = convertQty(n(r.qty), lineUnit, r.unit);
+      return {
+        id: r.id,
+        itemId: r.item_id,
+        name: escapeHtml(r.name),
+        unit: lineUnit,
+        stockUnit: r.unit,
+        qty: n(r.qty),
+        note: escapeHtml(r.note ?? ""),
+        inStock: n(r.current_qty),
+        avgUnitCost: n(r.avg_unit_cost),
+        estimatedCost: Math.round(inBaseUnit * n(r.avg_unit_cost)),
+      };
+    }),
   };
 }
 
@@ -237,7 +292,10 @@ export async function saveShoppingList(input: {
   id?: string;
   forDate: string;
   notes?: string;
-  items: { itemId: string; qty: number; note?: string }[];
+  // The unit travels with the line: a market list may be written in grams for
+  // an item the store room counts in kilograms, and the conversion happens
+  // when the goods are received rather than here.
+  items: { itemId: string; qty: number; unit?: string; note?: string }[];
   userId: string;
 }) {
   const id = input.id ?? genId("SL");
@@ -272,6 +330,7 @@ export async function saveShoppingList(input: {
           listId: id,
           itemId: it.itemId,
           qty: String(it.qty),
+          unit: it.unit || null,
           note: sanitizeText(it.note, 120) || null,
         })),
       );
@@ -308,7 +367,10 @@ export async function recordPurchase(input: {
   purchaseDate: string;
   voucherPath?: string;
   notes?: string;
-  items: { itemId: string; qty: number; lineCost: number }[];
+  transportCost?: number;
+  otherCost?: number;
+  otherCostLabel?: string;
+  items: { itemId: string; qty: number; unit?: string; lineCost: number }[];
   userId: string;
 }) {
   if (!input.items.length) {
@@ -316,7 +378,11 @@ export async function recordPurchase(input: {
   }
 
   const id = genId("PUR");
-  const totalCost = input.items.reduce((s, it) => s + it.lineCost, 0);
+  const goodsCost = input.items.reduce((s, it) => s + it.lineCost, 0);
+  const transportCost = input.transportCost ?? 0;
+  const otherCost = input.otherCost ?? 0;
+  const extraCost = transportCost + otherCost;
+  const totalCost = goodsCost + extraCost;
 
   await db.transaction(async (tx) => {
     await tx.insert(purchases).values({
@@ -324,6 +390,10 @@ export async function recordPurchase(input: {
       listId: input.listId ?? null,
       purchaseDate: input.purchaseDate,
       voucherPath: input.voucherPath ?? null,
+      goodsCost: String(goodsCost),
+      transportCost: String(transportCost),
+      otherCost: String(otherCost),
+      otherCostLabel: sanitizeText(input.otherCostLabel, 60) || null,
       totalCost: String(totalCost),
       notes: sanitizeText(input.notes, 300) || null,
       createdBy: input.userId,
@@ -335,16 +405,28 @@ export async function recordPurchase(input: {
       });
       if (!item) throw notFound();
 
+      // A line can be written in grams for an item stocked in kilograms, so it
+      // is converted before it touches the stock figure.
+      const qty = convertQty(line.qty, line.unit || item.unit, item.unit);
+      if (qty <= 0) continue;
+
+      // Delivery and other charges are spread across the lines in proportion
+      // to their value. Leaving them out would understate what the food really
+      // cost, and so understate the cost of a meal.
+      const share = goodsCost > 0 ? (line.lineCost / goodsCost) * extraCost : 0;
+      const landedCost = line.lineCost + share;
+
       const oldQty = n(item.currentQty);
       const oldAvg = n(item.avgUnitCost);
-      const newQty = oldQty + line.qty;
-      const unitCost = line.qty > 0 ? line.lineCost / line.qty : 0;
-      const newAvg = newQty > 0 ? (oldQty * oldAvg + line.lineCost) / newQty : unitCost;
+      const newQty = oldQty + qty;
+      const unitCost = landedCost / qty;
+      const newAvg = newQty > 0 ? (oldQty * oldAvg + landedCost) / newQty : unitCost;
 
       await tx.insert(purchaseItems).values({
         purchaseId: id,
         itemId: line.itemId,
-        qty: String(line.qty),
+        qty: String(qty),
+        unit: item.unit,
         lineCost: String(line.lineCost),
       });
 
@@ -359,7 +441,7 @@ export async function recordPurchase(input: {
         itemId: line.itemId,
         movedDate: input.purchaseDate,
         kind: "purchase",
-        qtyDelta: String(line.qty),
+        qtyDelta: String(qty),
         unitCost: String(unitCost.toFixed(2)),
         balanceQty: String(newQty),
         refId: id,
@@ -374,17 +456,17 @@ export async function recordPurchase(input: {
     }
   });
 
-  emitCollectionChanged("inventory", ["manager", "super_admin"]);
-  emitCollectionChanged("shoppingLists", ["manager", "super_admin"]);
-  return { id, totalCost };
+  emitCollectionChanged("inventory", ["manager", "accounts", "super_admin"]);
+  emitCollectionChanged("shoppingLists", ["manager", "accounts", "super_admin"]);
+  return { id, goodsCost, transportCost, otherCost, totalCost };
 }
 
 export async function listPurchases(limit = 30) {
   const rows = await db.execute<{
-    id: string; purchase_date: string; total_cost: string;
+    id: string; purchase_date: string; total_cost: string; transport_cost: string;
     voucher_path: string | null; notes: string | null; item_count: number;
   }>(sql`
-    SELECT p.id, p.purchase_date::text AS purchase_date, p.total_cost,
+    SELECT p.id, p.purchase_date::text AS purchase_date, p.total_cost, p.transport_cost,
            p.voucher_path, p.notes, count(pi.id)::int AS item_count
     FROM purchases p
     LEFT JOIN purchase_items pi ON pi.purchase_id = p.id
@@ -397,9 +479,11 @@ export async function listPurchases(limit = 30) {
     id: r.id,
     date: r.purchase_date,
     totalCost: n(r.total_cost),
+    transportCost: n(r.transport_cost),
     itemCount: r.item_count,
     notes: escapeHtml(r.notes ?? ""),
     voucher: await signedUrl(r.voucher_path),
+    voucherIsPdf: Boolean(r.voucher_path && r.voucher_path.toLowerCase().endsWith(".pdf")),
   })));
 }
 
@@ -410,19 +494,27 @@ export async function getPurchase(id: string) {
   const lines = await db.execute<{
     name: string; unit: string; qty: string; line_cost: string;
   }>(sql`
-    SELECT i.name, i.unit, pi.qty, pi.line_cost
+    SELECT i.name, COALESCE(pi.unit, i.unit) AS unit, pi.qty, pi.line_cost
     FROM purchase_items pi
     JOIN inventory_items i ON i.id = pi.item_id
     WHERE pi.purchase_id = ${id}
     ORDER BY i.name
   `);
 
+  const voucherPath = row.voucherPath;
+
   return {
     id: row.id,
     date: row.purchaseDate,
+    goodsCost: n(row.goodsCost) || n(row.totalCost),
+    transportCost: n(row.transportCost),
+    otherCost: n(row.otherCost),
+    otherCostLabel: escapeHtml(row.otherCostLabel ?? ""),
     totalCost: n(row.totalCost),
     notes: escapeHtml(row.notes ?? ""),
-    voucher: await signedUrl(row.voucherPath),
+    voucher: await signedUrl(voucherPath),
+    // The viewer needs to know whether to show an image or a download link.
+    voucherIsPdf: Boolean(voucherPath && voucherPath.toLowerCase().endsWith(".pdf")),
     items: lines.map((l) => ({
       name: escapeHtml(l.name),
       unit: l.unit,
