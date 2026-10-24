@@ -23,7 +23,9 @@
     "db:studio": "drizzle-kit studio",
     "seed": "tsx --env-file=.env scripts/seed.ts",
     "typecheck": "tsc --noEmit",
-    "audit:deps": "npm audit --audit-level=high"
+    "audit:deps": "npm audit --audit-level=high",
+    "db:reset-data": "tsx --env-file=.env scripts/reset-data.ts",
+"render:reset-data": "tsx --env-file=.env.render scripts/reset-data.ts"
   },
   "dependencies": {
     "@fastify/compress": "^9.2.0",

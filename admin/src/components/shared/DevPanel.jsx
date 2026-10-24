@@ -7,7 +7,7 @@ import {
 import { apiGet, apiPost } from "../services/api";
 import { usePermission } from "../hooks/usePermission";
 import { useToast } from "../hooks/useToast";
-
+import { syncDevClock } from "../utils/devClock";
 /**
  * Local-development control panel.
  *
@@ -39,6 +39,9 @@ export default function DevPanel() {
       if (result?.businessDate) setClock(result);
       else setClock(await apiGet("/dev/clock").catch(() => clock));
       push(successMessage, "success");
+      // Moves this tab to the new day right away. Other tabs and phones
+      // follow within 20 seconds.
+      await syncDevClock();
       // A clock jump changes what nearly every screen should show.
       setTimeout(() => window.location.reload(), 600);
     } catch (err) {

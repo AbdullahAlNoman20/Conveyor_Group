@@ -6,6 +6,7 @@ import { apiGet, apiPut } from "../../../../components/services/api";
 import { dataStore } from "../../../../components/services/dataStore";
 import { sanitizeText } from "../../../../components/utils/sanitize";
 import { useToast } from "../../../../components/hooks/useToast";
+import { useRoleBase } from "../../../../components/hooks/useRoleBase";
 import FileUpload from "../../../../components/shared/FileUpload";
 import ItemPicker, { UNITS } from "../../../../components/shared/ItemPicker";
 import Button from "../../../../components/shared/Button";
@@ -37,6 +38,7 @@ export default function MenuItemForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { push } = useToast();
+  const base = useRoleBase();
 
   const isEdit = Boolean(id);
 
@@ -174,7 +176,7 @@ export default function MenuItemForm() {
       }
 
       push(isEdit ? "Dish updated." : "Dish added.", "success");
-      navigate("/app/super-admin/menu");
+      navigate(`${base}/menu`);
     } catch (err) {
       push(err?.message || "Could not save the dish. Please try again.", "error");
     } finally {
@@ -186,7 +188,7 @@ export default function MenuItemForm() {
     <div className="mx-auto w-full max-w-3xl space-y-5 overflow-x-hidden">
       <button
         type="button"
-        onClick={() => navigate("/app/super-admin/menu")}
+        onClick={() => navigate(`${base}/menu`)}
         className="flex items-center gap-1 text-sm font-semibold text-ink-500 transition hover:text-brand-600"
       >
         <ArrowLeft size={16} /> Back to Menu
@@ -369,6 +371,7 @@ export default function MenuItemForm() {
                         })
                       }
                       onItemCreated={loadStockItems}
+                      newItemUnit={g.defaultUnit || item?.unit || "kg"}
                     />
                   </div>
 
@@ -428,7 +431,7 @@ export default function MenuItemForm() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate("/app/super-admin/menu")}
+            onClick={() => navigate(`${base}/menu`)}
             className="w-full justify-center sm:w-auto"
           >
             Cancel

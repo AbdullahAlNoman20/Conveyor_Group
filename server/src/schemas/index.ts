@@ -257,7 +257,12 @@ export const purchaseSchema = z.object({
   // leaving them out would understate what the food really cost.
   transportCost: money.optional(),
   otherCost: money.optional(),
-  otherCostLabel: text(60).optional(),
+  otherCostLabel: text(300).optional(),
+  // Any number of extra charges on the voucher (labour, ice, packing).
+  extraCosts: z.array(z.object({
+    label: text(40).optional(),
+    amount: money,
+  })).max(10).optional(),
   // Per-line cost is required: without it the moving average can't be
   // maintained, and cost per meal would be unanswerable.
   items: z.array(z.object({

@@ -64,6 +64,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(compress, { global: true, encodings: ["br", "gzip"], threshold: 1024 });
 
   await app.register(rateLimit, {
+    // No limits while testing: local dev, or the Render demo with DEV_TOOLS on.
+    // The VPS can never have DEV_TOOLS (env.ts refuses), so limits always
+    // apply there. Route level limits (login, scan, cancel) inherit this too.
+    allowList: () => process.env.NODE_ENV !== "production" || env.DEV_TOOLS,
     global: true,
     max: 300,
     timeWindow: "1 minute",

@@ -7,6 +7,7 @@ import { printOnLetterhead } from "../../../../components/utils/printLetterhead"
 import { useToast } from "../../../../components/hooks/useToast";
 import DateRangePicker, { useDateRange } from "../../../../components/shared/DateRangePicker";
 import Loader from "../../../../components/shared/Loader";
+import Pagination, { usePagination } from "../../../../components/shared/Pagination";
 
 const tk = (v) => `Tk ${Number(v || 0).toLocaleString()}`;
 
@@ -200,7 +201,9 @@ export default function CostAnalysis() {
   );
 }
 
-function DayTable({ days }) {
+function DayTable({ days: allDays }) {
+  const { page, setPage, totalPages, pageItems: days } = usePagination(allDays, 10);
+
   return (
     <>
       <div className="hidden w-full overflow-x-auto rounded-xl border border-ink-100 bg-white sm:block">
@@ -272,11 +275,20 @@ function DayTable({ days }) {
           </div>
         ))}
       </div>
+
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} className="mt-3" />
     </>
   );
 }
 
 function DishTable({ data }) {
+  const {
+    page,
+    setPage,
+    totalPages,
+    pageItems: pagedDishes,
+  } = usePagination(data?.dishes ?? [], 8);
+
   if (!data?.dishes?.length) {
     return (
       <p className="rounded-xl border border-dashed border-ink-200 p-10 text-center text-sm text-ink-400">
@@ -296,7 +308,7 @@ function DishTable({ data }) {
         </p>
       )}
 
-      {data.dishes.map((d) => {
+      {pagedDishes.map((d) => {
         const losing = d.profitPerMeal < 0;
 
         return (
@@ -348,6 +360,8 @@ function DishTable({ data }) {
           </div>
         );
       })}
+
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }

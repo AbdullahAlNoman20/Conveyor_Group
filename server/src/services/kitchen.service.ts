@@ -397,7 +397,7 @@ export async function recordPurchase(input: {
       goodsCost: String(goodsCost),
       transportCost: String(transportCost),
       otherCost: String(otherCost),
-      otherCostLabel: sanitizeText(input.otherCostLabel, 60) || null,
+      otherCostLabel: sanitizeText(input.otherCostLabel, 300) || null,
       totalCost: String(totalCost),
       notes: sanitizeText(input.notes, 300) || null,
       createdBy: input.userId,
@@ -558,6 +558,22 @@ export async function getPurchase(id: string) {
  * valued at the item's moving average. This is the only input to the daily
  * cooking cost — buying rice for five days must not land on one day's meal.
  */
+/**
+ * Usage can only be written or changed on the day itself. Once the day is
+ * over its food cost is final, otherwise last month's cost per meal could
+ * quietly change after the bills went out.
+ */
+function assertSameDay(date: string) {
+  if (date !== businessDate()) {
+    throw new AppError(
+      "VALIDATION_ERROR",
+      409,
+      { date },
+      "This day is over. Usage can only be added or changed on the same day.",
+    );
+  }
+}
+
 export async function recordConsumption(input: {
   usedDate: string;
   items: { itemId: string; qty: number; note?: string }[];
@@ -565,6 +581,12 @@ export async function recordConsumption(input: {
 }) {
   if (!input.items.length) {
     throw new AppError("VALIDATION_ERROR", 422, {}, "Add at least one item that was used.");
+  }
+  assertSameDay(input.usedDate);
+
+  const ids = input.items.map((i) => i.itemId);
+  if (new Set(ids).size !== ids.length) {
+    throw new AppError("VALIDATION_ERROR", 422, {}, "The same item is added twice. Keep it once.");
   }
 
   let totalCost = 0;
@@ -623,12 +645,95 @@ export async function recordConsumption(input: {
   return { totalCost };
 }
 
+/**
+ * What the kitchen most likely used on a date, so usage is a quick check
+ * instead of typing from memory.
+ *
+ * Built from that day's dish recipe and that day's shopping list. The list
+ * amount wins when both exist, because it is what was actually bought for the
+ * day. Amounts come back in the store room unit, which is what usage is
+ * recorded in. Items already written down for that day are left out, so
+ * nothing gets taken out of stock twice.
+ */
+export async function suggestUsageForDate(date: string) {
+  const dayName = DAY_NAMES[new Date(`${date}T00:00:00Z`).getUTCDay()]!;
+
+  const [menuRow] = await db.execute<{ meal_name: string }>(sql`
+    SELECT meal_name FROM weekly_menu WHERE day = ${dayName}
+  `);
+
+  const rows = await db.execute<{
+    item_id: string; name: string; stock_unit: string; current_qty: string;
+    avg_unit_cost: string; qty: string | null; unit: string | null; from_list: boolean;
+  }>(sql`
+    WITH recipe AS (
+      SELECT mi.item_id, mi.default_qty AS qty, mi.default_unit AS unit
+      FROM weekly_menu w
+      JOIN menu_item_ingredients mi ON mi.menu_item_id = w.menu_item_id
+      WHERE w.day = ${dayName}
+    ), list AS (
+      SELECT DISTINCT ON (li.item_id) li.item_id, li.qty, li.unit
+      FROM shopping_list_items li
+      JOIN shopping_lists l ON l.id = li.list_id
+      WHERE l.for_date = ${date}
+      ORDER BY li.item_id, l.created_at DESC
+    )
+    SELECT i.id AS item_id, i.name, i.unit AS stock_unit, i.current_qty, i.avg_unit_cost,
+           COALESCE(list.qty, recipe.qty) AS qty,
+           CASE WHEN list.qty IS NOT NULL THEN list.unit ELSE recipe.unit END AS unit,
+           (list.item_id IS NOT NULL) AS from_list
+    FROM inventory_items i
+    LEFT JOIN recipe ON recipe.item_id = i.id
+    LEFT JOIN list ON list.item_id = i.id
+    WHERE i.active = true
+      AND (recipe.item_id IS NOT NULL OR list.item_id IS NOT NULL)
+      AND NOT EXISTS (
+        SELECT 1 FROM consumptions c WHERE c.used_date = ${date} AND c.item_id = i.id
+      )
+    ORDER BY i.name
+  `);
+
+  const round3 = (v: number) => Math.round(v * 1000) / 1000;
+
+  return {
+    date,
+    dayName,
+    mealName: menuRow?.meal_name ? escapeHtml(menuRow.meal_name) : null,
+    items: rows.map((r) => {
+      const inStock = n(r.current_qty);
+      let qty: number | null = null;
+
+      if (r.qty !== null) {
+        try {
+          qty = round3(convertQty(n(r.qty), r.unit || r.stock_unit, r.stock_unit));
+        } catch {
+          // Units that cannot be converted (piece to kg) leave the amount blank
+          // for a person to fill, rather than guessing.
+          qty = (r.unit || r.stock_unit) === r.stock_unit ? round3(n(r.qty)) : null;
+        }
+      }
+
+      return {
+        itemId: r.item_id,
+        name: escapeHtml(r.name),
+        unit: r.stock_unit,
+        inStock,
+        avgUnitCost: n(r.avg_unit_cost),
+        // Never suggest more than the shelf holds, the save would refuse it.
+        qty: qty === null ? null : Math.min(qty, inStock),
+        shortBy: qty !== null && qty > inStock ? round3(qty - inStock) : 0,
+        fromList: r.from_list,
+      };
+    }),
+  };
+}
+
 export async function listConsumption(date: string) {
   const rows = await db.execute<{
-    id: string; name: string; unit: string; qty: string; unit_cost: string;
+    id: string; item_id: string; name: string; unit: string; qty: string; unit_cost: string;
     cost: string; note: string | null;
   }>(sql`
-    SELECT c.id, i.name, i.unit, c.qty, c.unit_cost, c.cost, c.note
+    SELECT c.id, c.item_id, i.name, i.unit, c.qty, c.unit_cost, c.cost, c.note
     FROM consumptions c
     JOIN inventory_items i ON i.id = c.item_id
     WHERE c.used_date = ${date}
@@ -637,6 +742,7 @@ export async function listConsumption(date: string) {
 
   const items = rows.map((r) => ({
     id: r.id,
+    itemId: r.item_id,
     name: escapeHtml(r.name),
     unit: r.unit,
     qty: n(r.qty),
@@ -645,12 +751,137 @@ export async function listConsumption(date: string) {
     note: escapeHtml(r.note ?? ""),
   }));
 
-  return { date, items, totalCost: items.reduce((s, i) => s + i.cost, 0) };
+  return {
+    date,
+    items,
+    totalCost: items.reduce((s, i) => s + i.cost, 0),
+    // Only today's entries can be changed.
+    editable: date === businessDate(),
+  };
+}
+
+/** Usage over any range, grouped by day, for the history screen. */
+export async function listUsageInRange(from: string, to: string) {
+  const rows = await db.execute<{
+    id: string; d: string; name: string; unit: string; qty: string;
+    unit_cost: string; cost: string; note: string | null;
+  }>(sql`
+    SELECT c.id, c.used_date::text AS d, i.name, i.unit, c.qty, c.unit_cost, c.cost, c.note
+    FROM consumptions c
+    JOIN inventory_items i ON i.id = c.item_id
+    WHERE c.used_date BETWEEN ${from} AND ${to}
+    ORDER BY c.used_date DESC, i.name
+    LIMIT 5000
+  `);
+
+  const today = businessDate();
+  const byDay = new Map<string, {
+    date: string; editable: boolean; totalCost: number;
+    items: { id: string; name: string; unit: string; qty: number; unitCost: number; cost: number; note: string }[];
+  }>();
+
+  for (const r of rows) {
+    let day = byDay.get(r.d);
+    if (!day) {
+      day = { date: r.d, editable: r.d === today, totalCost: 0, items: [] };
+      byDay.set(r.d, day);
+    }
+    const cost = n(r.cost);
+    day.totalCost += cost;
+    day.items.push({
+      id: r.id,
+      name: escapeHtml(r.name),
+      unit: r.unit,
+      qty: n(r.qty),
+      unitCost: n(r.unit_cost),
+      cost,
+      note: escapeHtml(r.note ?? ""),
+    });
+  }
+
+  const days = [...byDay.values()];
+  return {
+    from,
+    to,
+    days,
+    summary: {
+      days: days.length,
+      entries: rows.length,
+      totalCost: days.reduce((s, d) => s + d.totalCost, 0),
+    },
+  };
+}
+
+/**
+ * Changes the amount or note of a usage entry, same day only.
+ * The stock moves by the difference, at the rate the entry was saved with.
+ */
+export async function updateConsumption(
+  id: string,
+  input: { qty: number; note?: string },
+  userId: string,
+) {
+  const row = await db.query.consumptions.findFirst({ where: eq(consumptions.id, id) });
+  if (!row) throw notFound();
+  assertSameDay(row.usedDate);
+
+  const oldQty = n(row.qty);
+  const delta = Math.round((input.qty - oldQty) * 1000) / 1000; // + means more was used
+  const unitCost = n(row.unitCost);
+  const cost = Math.round(input.qty * unitCost);
+
+  await db.transaction(async (tx) => {
+    // One guarded update, so two people editing at once cannot push stock
+    // below zero.
+    const [item] = await tx.execute<{ current_qty: string; name: string; unit: string }>(sql`
+      UPDATE inventory_items
+      SET current_qty = current_qty - ${delta}, updated_at = now()
+      WHERE id = ${row.itemId} AND current_qty - ${delta} >= 0
+      RETURNING current_qty, name, unit
+    `);
+
+    if (!item) {
+      const current = await tx.query.inventoryItems.findFirst({
+        where: eq(inventoryItems.id, row.itemId),
+      });
+      const max = n(current?.currentQty) + oldQty;
+      throw new AppError(
+        "VALIDATION_ERROR",
+        409,
+        { available: max },
+        `Not enough in stock. At most ${max} ${current?.unit ?? ""} can be used.`,
+      );
+    }
+
+    await tx.update(consumptions).set({
+      qty: String(input.qty),
+      cost: String(cost),
+      note: input.note === undefined ? row.note : sanitizeText(input.note, 120) || null,
+    }).where(eq(consumptions.id, id));
+
+    if (delta !== 0) {
+      await tx.insert(inventoryMovements).values({
+        id: genId("MOV"),
+        itemId: row.itemId,
+        movedDate: row.usedDate,
+        kind: "adjustment",
+        qtyDelta: String(-delta),
+        unitCost: String(unitCost),
+        balanceQty: String(n(item.current_qty)),
+        note: "Usage changed",
+        createdBy: userId,
+      });
+    }
+  });
+
+  emitCollectionChanged("inventory", ["manager", "accounts", "super_admin"]);
+  return listConsumption(row.usedDate);
 }
 
 export async function deleteConsumption(id: string, userId: string) {
   const row = await db.query.consumptions.findFirst({ where: eq(consumptions.id, id) });
   if (!row) throw notFound();
+  assertSameDay(row.usedDate);
 
   // Puts the quantity back and leaves a movement, so the correction is visible
   // rather than the original entry silently vanishing.

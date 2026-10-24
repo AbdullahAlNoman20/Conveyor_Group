@@ -17,6 +17,7 @@ const CostAnalysis = lazy(() => import("./pages/CostAnalysis"));
 // do, so there is nothing role specific to duplicate here.
 const SuperAdminClients = lazy(() => import("../super-admin/pages/SuperAdminClients"));
 const SuperAdminMenu = lazy(() => import("../super-admin/pages/SuperAdminMenu"));
+const MenuItemForm = lazy(() => import("../super-admin/pages/MenuItemForm"));
 const ClientProfileView = lazy(() => import("../super-admin/pages/ClientProfileView"));
 const IdCards = lazy(() => import("../super-admin/pages/IdCards"));
 const FinancialDashboard = lazy(() => import("../super-admin/pages/FinancialDashboard"));
@@ -35,6 +36,9 @@ const ManagerRoutes = [
 
   { path: "meal-planner", element: <MealPlanner /> },
   { path: "menu", element: <SuperAdminMenu /> },
+  // Same paths as SuperAdminRoutes. Upor er grep e onno naam ashle oi naam dao.
+  { path: "menu/new", element: <MenuItemForm /> },
+  { path: "menu/:id", element: <MenuItemForm /> },
 
   { path: "kitchen/shopping-list", element: <ShoppingList /> },
   { path: "kitchen/purchases", element: <Purchases /> },

@@ -2,13 +2,14 @@
 import { sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { escapeHtml } from "../lib/sanitize.js";
+import { businessDate, now as clockNow } from "../lib/clock.js";
 
 export interface Range { from: string; to: string }
 
 export function resolveRange(preset: string, from?: string, to?: string): Range {
-  const now = new Date();
+  const now = clockNow();
   const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const today = iso(now);
+  const today = businessDate();
 
   switch (preset) {
     case "today": return { from: today, to: today };
@@ -55,9 +56,10 @@ export async function whoAte(range: Range) {
 }
 
 export async function dinersLast7Days() {
+  const today = businessDate();
   const rows = await db.execute<{ day: string; diners: number }>(sql`
     WITH days AS (
-      SELECT generate_series(current_date - INTERVAL '6 day', current_date, INTERVAL '1 day')::date AS d
+      SELECT generate_series(${today}::date - INTERVAL '6 day', ${today}::date, INTERVAL '1 day')::date AS d
     )
     SELECT to_char(days.d, 'Dy') AS day,
            COALESCE(count(DISTINCT o.client_id), 0)::int AS diners
@@ -69,6 +71,7 @@ export async function dinersLast7Days() {
 }
 
 export async function dashboardTotals() {
+  const today = businessDate();
   const [row] = await db.execute<{
     clients_total: number; clients_active: number; diners_today: number;
     amount_today: string; month_orders: number; amount_month: string;
@@ -77,14 +80,14 @@ export async function dashboardTotals() {
       (SELECT count(*)::int FROM clients WHERE status <> 'archived') AS clients_total,
       (SELECT count(*)::int FROM clients WHERE status = 'active')    AS clients_active,
       (SELECT count(DISTINCT client_id)::int FROM orders
-        WHERE order_date = current_date AND status NOT IN ('cancelled','rejected')) AS diners_today,
+        WHERE order_date = ${today}::date AND status NOT IN ('cancelled','rejected')) AS diners_today,
       (SELECT COALESCE(sum(amount),0) FROM orders
-        WHERE order_date = current_date AND status NOT IN ('cancelled','rejected')) AS amount_today,
+        WHERE order_date = ${today}::date AND status NOT IN ('cancelled','rejected')) AS amount_today,
       (SELECT count(*)::int FROM orders
-        WHERE date_trunc('month', order_date) = date_trunc('month', current_date)
+        WHERE date_trunc('month', order_date) = date_trunc('month', ${today}::date)
           AND status NOT IN ('cancelled','rejected')) AS month_orders,
       (SELECT COALESCE(sum(amount),0) FROM orders
-        WHERE date_trunc('month', order_date) = date_trunc('month', current_date)
+        WHERE date_trunc('month', order_date) = date_trunc('month', ${today}::date)
           AND status NOT IN ('cancelled','rejected')) AS amount_month
   `);
   return {
@@ -267,23 +270,26 @@ export async function clientDue(clientId: string): Promise<number> {
  * up here too — otherwise the bars undercount against the running balance.
  */
 export async function clientSpend(clientId: string) {
+  const today = businessDate();
   const [row] = await db.execute<{
     today_count: number; today_sum: string; week_sum: string;
     month_count: number; month_sum: string; month_no_show: string;
   }>(sql`
     SELECT
-      count(*) FILTER (WHERE date = current_date AND status = 'collected')::int AS today_count,
-      COALESCE(sum(amount) FILTER (WHERE date = current_date), 0) AS today_sum,
-      COALESCE(sum(amount) FILTER (WHERE date >= date_trunc('week', current_date)), 0) AS week_sum,
+      count(*) FILTER (WHERE date = ${today}::date AND status = 'collected')::int AS today_count,
+      COALESCE(sum(amount) FILTER (WHERE date = ${today}::date), 0) AS today_sum,
+      COALESCE(sum(amount) FILTER (
+        WHERE date >= date_trunc('week', ${today}::date) AND date <= ${today}::date
+      ), 0) AS week_sum,
       count(*) FILTER (
-        WHERE date_trunc('month', date) = date_trunc('month', current_date)
+        WHERE date_trunc('month', date) = date_trunc('month', ${today}::date)
           AND status = 'collected'
       )::int AS month_count,
       COALESCE(sum(amount) FILTER (
-        WHERE date_trunc('month', date) = date_trunc('month', current_date)
+        WHERE date_trunc('month', date) = date_trunc('month', ${today}::date)
       ), 0) AS month_sum,
       COALESCE(sum(amount) FILTER (
-        WHERE date_trunc('month', date) = date_trunc('month', current_date)
+        WHERE date_trunc('month', date) = date_trunc('month', ${today}::date)
           AND status = 'no_show'
       ), 0) AS month_no_show
     FROM meal_attendance

@@ -15,6 +15,7 @@ import {
 } from "../schemas/index.js";
 import * as kitchen from "../services/kitchen.service.js";
 import { audit } from "../middleware/audit.js";
+import { businessDate } from "../lib/clock.js";
 
 const dateQuery = z.object({ date: z.iso.date().optional() });
 
@@ -117,8 +118,24 @@ export default async function kitchenRoutes(app: FastifyInstance) {
     async (req) => ({ success: true, data: await kitchen.getPurchase(req.params.id) }));
 
   app.post("/purchases", { preHandler: [canPurchase] }, async (req) => {
-    const body = purchaseSchema.parse(req.body);
-    const result = await kitchen.recordPurchase({ ...body, userId: req.auth!.userId });
+    const { extraCosts, ...body } = purchaseSchema.parse(req.body);
+
+    // Several other costs become one total plus a readable label. The total is
+    // what gets spread over the items, same as before.
+    const extras = (extraCosts ?? []).filter((e) => e.amount > 0);
+    const otherCost = extras.length
+      ? Math.round(extras.reduce((s, e) => s + e.amount, 0) * 100) / 100
+      : body.otherCost;
+    const otherCostLabel = extras.length
+      ? extras.map((e) => `${e.label?.trim() || "Other"}: Tk ${e.amount}`).join(", ").slice(0, 300)
+      : body.otherCostLabel;
+
+    const result = await kitchen.recordPurchase({
+      ...body,
+      otherCost,
+      otherCostLabel,
+      userId: req.auth!.userId,
+    });
     await audit(req, { action: "purchase.recorded", entity: "purchases", entityId: result.id, after: result });
     return { success: true, data: result };
   });
@@ -126,13 +143,38 @@ export default async function kitchenRoutes(app: FastifyInstance) {
   /* ── daily usage ───────────────────────────────────────────────────── */
   app.get("/consumption", async (req) => {
     const { date } = dateQuery.parse(req.query);
-    return { success: true, data: await kitchen.listConsumption(date ?? new Date().toISOString().slice(0, 10)) };
+    return { success: true, data: await kitchen.listConsumption(date ?? businessDate()) };
+  });
+
+  // That day's likely usage, from the dish recipe and the day's shopping list.
+  app.get("/consumption/suggest", { preHandler: [canStock] }, async (req) => {
+    const { date } = dateQuery.parse(req.query);
+    return { success: true, data: await kitchen.suggestUsageForDate(date ?? businessDate()) };
   });
 
   app.post("/consumption", { preHandler: [canStock] }, async (req) => {
     const body = consumptionSchema.parse(req.body);
     const result = await kitchen.recordConsumption({ ...body, userId: req.auth!.userId });
     await audit(req, { action: "consumption.recorded", entity: "consumptions", after: { date: body.usedDate, ...result } });
+    return { success: true, data: result };
+  });
+
+  // Usage over a day, month or year, grouped by day.
+  app.get("/consumption/range", async (req) => {
+    const q = z.object({ from: z.iso.date(), to: z.iso.date() })
+      .refine((v) => v.from <= v.to, { message: "From must be before To." })
+      .parse(req.query);
+    return { success: true, data: await kitchen.listUsageInRange(q.from, q.to) };
+  });
+
+  // Same day only. The service refuses anything older.
+  app.patch<{ Params: { id: string } }>("/consumption/:id", { preHandler: [canStock] }, async (req) => {
+    const body = z.object({
+      qty: z.coerce.number().positive().max(1_000_000),
+      note: z.string().trim().max(120).optional(),
+    }).parse(req.body);
+    const result = await kitchen.updateConsumption(req.params.id, body, req.auth!.userId);
+    await audit(req, { action: "consumption.updated", entity: "consumptions", entityId: req.params.id, after: body });
     return { success: true, data: result };
   });
 

@@ -15,6 +15,8 @@ const ManagerReports = lazy(() => import("../manager/pages/ManagerReports"));
 const ClientStatements = lazy(() => import("../manager/pages/ClientStatements"));
 const SuperAdminClients = lazy(() => import("../super-admin/pages/SuperAdminClients"));
 const ClientProfileView = lazy(() => import("../super-admin/pages/ClientProfileView"));
+const SuperAdminMenu = lazy(() => import("../super-admin/pages/SuperAdminMenu"));
+const MenuItemForm = lazy(() => import("../super-admin/pages/MenuItemForm"));
 
 const AccountsRoutes = [
   { index: true, element: <AccountsDashboard /> },
@@ -24,6 +26,9 @@ const AccountsRoutes = [
   { path: "kitchen/inventory", element: <Inventory /> },
   { path: "kitchen/costs", element: <CostAnalysis /> },
   { path: "meal-planner", element: <MealPlanner /> },
+  { path: "menu", element: <SuperAdminMenu /> },
+  { path: "menu/new", element: <MenuItemForm /> },
+  { path: "menu/:id", element: <MenuItemForm /> },
   { path: "attendance", element: <MealAttendance /> },
   { path: "reports", element: <ManagerReports /> },
   { path: "client-statements", element: <ClientStatements /> },

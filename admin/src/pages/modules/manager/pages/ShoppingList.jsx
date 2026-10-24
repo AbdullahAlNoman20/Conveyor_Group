@@ -290,6 +290,7 @@ export default function ShoppingList() {
                         setLine(idx, { itemId: id, unit: byId.get(id)?.unit || "" })
                       }
                       onItemCreated={loadItems}
+                      newItemUnit={unit || "kg"}
                     />
                   </div>
 
@@ -308,7 +309,7 @@ export default function ShoppingList() {
                     {/* The unit is chosen per line, so a market list can be
                         written in grams for something stocked in kilograms. */}
                     <select
-                      value={unit}
+                      value={unit || "kg"}
                       onChange={(e) => setLine(idx, { unit: e.target.value })}
                       className="w-24 rounded-lg border border-ink-200 px-2 py-2 text-sm outline-none focus:border-brand-500"
                     >
