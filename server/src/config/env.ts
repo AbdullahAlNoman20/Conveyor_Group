@@ -104,10 +104,12 @@ if (env.MEAL_CANCEL_CUTOFF_HOUR >= env.MEAL_ORDER_START_HOUR) {
 }
 
 if (isProd) {
-  if (env.DEV_TOOLS) {
+  // Render sets RENDER=true on its own. The demo there may keep the dev tools
+  // for checking; any other production host (the VPS) refuses to boot with it.
+  const onRenderDemo = process.env.RENDER === "true";
+  if (env.DEV_TOOLS && !onRenderDemo) {
     throw new Error(
-      "DEV_TOOLS must be false in production — it exposes a time-travel clock " +
-        "and sample-data generation.",
+      "DEV_TOOLS must be false in production. It is only allowed on the Render demo.",
     );
   }
   if (!env.COOKIE_SECURE) throw new Error("COOKIE_SECURE must be true in production (HTTPS only).");
