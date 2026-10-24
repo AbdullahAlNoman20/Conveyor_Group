@@ -114,9 +114,9 @@ export default function KitchenBoard() {
               </p>
               <div className="space-y-2">
                 {servingNow.length === 0 && (
-                  <div className="rounded-2xl border border-ink-800 bg-ink-900 p-10 text-center text-ink-500">
+                  <p className="rounded-xl border border-dashed border-ink-800 p-6 text-center text-sm text-ink-500">
                     No active orders
-                  </div>
+                  </p>
                 )}
                 {servingNow.map((o) => (
                   <div
