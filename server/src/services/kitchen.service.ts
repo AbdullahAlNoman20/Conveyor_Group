@@ -736,10 +736,12 @@ export async function costInPeriod(from: string, to: string) {
       FROM consumptions WHERE used_date BETWEEN ${from} AND ${to}
       GROUP BY used_date ORDER BY used_date
     `),
-    db.execute<{ d: string; decided: number; cancelled: number }>(sql`
+    db.execute<{ d: string; decided: number; cancelled: number; free: number; charged: string }>(sql`
       SELECT date::text AS d,
              count(*) FILTER (WHERE status IN ('collected','no_show'))::int AS decided,
-             count(*) FILTER (WHERE status = 'cancelled')::int AS cancelled
+             count(*) FILTER (WHERE status = 'cancelled')::int AS cancelled,
+             count(*) FILTER (WHERE status IN ('collected','no_show') AND amount = 0)::int AS free,
+             COALESCE(sum(amount) FILTER (WHERE status IN ('collected','no_show')), 0) AS charged
       FROM meal_attendance WHERE date BETWEEN ${from} AND ${to}
       GROUP BY date
     `),
@@ -775,17 +777,23 @@ export async function costInPeriod(from: string, to: string) {
     const menu = await menuPriceFor(d);
     const costPerMeal = people > 0 ? Math.round(cost / people) : 0;
 
+    // What was really billed, not price times people. Free meals cost the
+    // kitchen the same food but bring in nothing, and that gap is exactly
+    // what the company is paying for.
+    const totalCharged = att && att.decided > 0 ? n(att.charged) : menu.price * people;
+
     return {
       date: d,
       mealName: menu.name,
       people,
+      freeMeals: att?.free ?? 0,
       cost,
       purchased: purchaseByDate.get(d) ?? 0,
       costPerMeal,
       chargedPerMeal: menu.price,
       marginPerMeal: menu.price - costPerMeal,
-      totalCharged: menu.price * people,
-      totalMargin: (menu.price - costPerMeal) * people,
+      totalCharged,
+      totalMargin: totalCharged - cost,
     };
   }));
 
@@ -798,6 +806,7 @@ export async function costInPeriod(from: string, to: string) {
     summary: {
       daysCooked: days.length,
       totalMeals,
+      freeMeals: days.reduce((s, d) => s + d.freeMeals, 0),
       totalCost,
       totalPurchased: days.reduce((s, d) => s + d.purchased, 0),
       totalCharged,
@@ -818,18 +827,21 @@ export async function costInPeriod(from: string, to: string) {
 export async function dishProfitability(from: string, to: string) {
   const rows = await db.execute<{
     meal_name: string; price: string | null; days: number;
-    total_cost: string; total_people: number;
+    total_cost: string; total_people: number; total_charged: string;
   }>(sql`
     WITH day_cost AS (
       SELECT used_date AS d, sum(cost) AS cost
       FROM consumptions WHERE used_date BETWEEN ${from} AND ${to}
       GROUP BY used_date
     ), day_people AS (
-      SELECT date AS d, count(*) FILTER (WHERE status IN ('collected','no_show'))::int AS people
+      SELECT date AS d,
+             count(*) FILTER (WHERE status IN ('collected','no_show'))::int AS people,
+             COALESCE(sum(amount) FILTER (WHERE status IN ('collected','no_show')), 0) AS charged
       FROM meal_attendance WHERE date BETWEEN ${from} AND ${to}
       GROUP BY date
     ), joined AS (
-      SELECT w.meal_name, m.price, c.d, c.cost, COALESCE(p.people, 0) AS people
+      SELECT w.meal_name, m.price, c.d, c.cost,
+             COALESCE(p.people, 0) AS people, COALESCE(p.charged, 0) AS charged
       FROM day_cost c
       LEFT JOIN day_people p ON p.d = c.d
       LEFT JOIN weekly_menu w ON trim(w.day) = trim(to_char(c.d, 'FMDay'))
@@ -839,7 +851,8 @@ export async function dishProfitability(from: string, to: string) {
            max(price) AS price,
            count(*)::int AS days,
            sum(cost) AS total_cost,
-           sum(people)::int AS total_people
+           sum(people)::int AS total_people,
+           sum(charged) AS total_charged
     FROM joined
     GROUP BY meal_name
     ORDER BY sum(cost) DESC
@@ -861,8 +874,9 @@ export async function dishProfitability(from: string, to: string) {
       // Rounded up to the next five taka, because nobody prices a meal at 87.
       suggestedPrice: costPerMeal > 0 ? Math.ceil(costPerMeal / 5) * 5 : charged,
       profitPerMeal: charged - costPerMeal,
-      totalCharged: charged * people,
-      totalProfit: (charged - costPerMeal) * people,
+      // Actual billing, so free meals pull the total down as they really do.
+      totalCharged: n(r.total_charged),
+      totalProfit: n(r.total_charged) - cost,
     };
   });
 

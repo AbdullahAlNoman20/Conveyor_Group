@@ -92,11 +92,11 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
   await assertNotCancelled(args.client.id, orderDate);
 
   const meal = await todaysFixedMeal();
-  // Everyone is charged the same price for the same food. Meal benefit is a
-  // label on the employee record, not a discount, so two people eating the
-  // same dish always produce the same line on their statement.
-  // The price comes from the menu row, never from the request body.
-  const amount = meal.price;
+  // Complimentary means the company pays, as it does for the MD or the CEO.
+  // Everyone else is charged the day's price, taken from the menu row and
+  // never from the request body.
+  const isFree = args.client.mealBenefit === "Complimentary";
+  const amount = isFree ? 0 : meal.price;
 
   const created = await db.transaction(async (tx) => {
     await consumeMealSlot(orderDate);
@@ -114,7 +114,7 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
       priority: "normal",
       specialInstructions: args.specialInstructions,
       amount: String(amount), // no VAT anywhere
-      paymentMethod: "salary",
+      paymentMethod: isFree ? "complimentary" : "salary",
       status: "ready",
       selfPlaced: args.selfPlaced,
       instantOrder: args.instantOrder,
@@ -131,8 +131,8 @@ async function createFixedMealOrder(args: CreateArgs): Promise<OrderRow> {
       unitPrice: String(meal.price),
     });
 
-    // Complimentary clients are billed nothing, so their running total is
-    // left untouched rather than incremented by zero.
+    // A free meal bills nothing, so the running total is left alone rather
+    // than incremented by zero.
     if (amount > 0) {
       await tx.execute(sql`
         UPDATE clients

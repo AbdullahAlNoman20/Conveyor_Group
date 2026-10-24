@@ -222,7 +222,8 @@ export async function sweepNoShows(date = businessDate()) {
       INSERT INTO meal_attendance
         (date, client_id, client_name, employee_id, department, status, amount, charged, decided_at)
       SELECT ${date}, c.id, c.name, c.employee_id, c.department, 'no_show',
-             ${meal.price},
+             -- A missed free meal still costs the kitchen, but bills nobody.
+             CASE WHEN c.meal_benefit = 'Complimentary' THEN 0 ELSE ${meal.price} END,
              false,
              now()
       FROM clients c
@@ -306,6 +307,49 @@ export async function sweepNoShows(date = businessDate()) {
   }
 
   return { date, marked: result.marked, charged: result.charged };
+}
+
+/**
+ * Today's head count, for every "meals remaining" figure in the app.
+ *
+ * The total is the people the kitchen should cook for, which is everyone on
+ * the fixed meal minus whoever cancelled. Remaining is what is still waiting
+ * at the counter. A fixed limit of 300 meant nothing once real attendance
+ * existed, so the numbers come from the roster instead.
+ */
+export async function mealHeadcount(date = businessDate()) {
+  const [row] = await db.execute<{
+    roster: number; cancelled: number; collected: number; missed: number;
+  }>(sql`
+    SELECT
+      (SELECT count(*)::int FROM clients
+        WHERE status = 'active' AND meal_plan = 'Fixed Company Meal') AS roster,
+      (SELECT count(*)::int FROM meal_attendance
+        WHERE date = ${date} AND status = 'cancelled') AS cancelled,
+      (SELECT count(*)::int FROM meal_attendance
+        WHERE date = ${date} AND status = 'collected') AS collected,
+      (SELECT count(*)::int FROM meal_attendance
+        WHERE date = ${date} AND status = 'no_show') AS missed
+  `);
+
+  const roster = row?.roster ?? 0;
+  const cancelled = row?.cancelled ?? 0;
+  const collected = row?.collected ?? 0;
+  const missed = row?.missed ?? 0;
+  const total = Math.max(0, roster - cancelled);
+
+  return {
+    date,
+    total,
+    collected,
+    cancelled,
+    missed,
+    remaining: Math.max(0, total - collected - missed),
+    // The old field names, so screens reading dailyLimit and served keep
+    // working without a change.
+    dailyLimit: total,
+    served: collected,
+  };
 }
 
 /** Manager/Super Admin daily register. */

@@ -161,6 +161,13 @@ export default function CostAnalysis() {
               />
             </div>
 
+            {s.freeMeals > 0 && (
+              <p className="mt-4 rounded-lg bg-white px-3 py-2 text-center text-xs leading-5 text-ink-500">
+                {s.freeMeals} of these meals were free, so the company covered
+                their full cost.
+              </p>
+            )}
+
             <p
               className={`mt-4 rounded-lg px-3 py-2.5 text-center text-sm leading-6 ${
                 s.totalMargin >= 0 ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"

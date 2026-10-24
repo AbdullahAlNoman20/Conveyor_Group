@@ -17,6 +17,7 @@ import backupRoutes from "./backup.route.js";
 import attendanceRoutes from "./attendance.route.js";
 import kitchenRoutes from "./kitchen.route.js";
 import permissionRoutes from "./permission.route.js";
+import headcountRoutes from "./headcount.route.js";
 import devRoutes from "./dev.route.js";
 
 export default async function registerRoutes(app: FastifyInstance) {
@@ -39,6 +40,7 @@ export default async function registerRoutes(app: FastifyInstance) {
     await v1.register(attendanceRoutes, { prefix: "/attendance" });
     await v1.register(kitchenRoutes, { prefix: "/kitchen" });
     await v1.register(permissionRoutes, { prefix: "/permissions" });
+    await v1.register(headcountRoutes, { prefix: "/public" });
     // Registers nothing unless DEV_TOOLS is on.
     await v1.register(devRoutes, { prefix: "/dev" });
   }, { prefix: "/api/v1" });

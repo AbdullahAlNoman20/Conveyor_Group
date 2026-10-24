@@ -84,9 +84,7 @@ export default function ManagerDashboard() {
 
   const valueMonth = monthOrders.reduce((s, o) => s + o.amount, 0);
 
-  const mealsRemaining = mealStatus
-    ? Math.max(0, mealStatus.dailyLimit - mealStatus.served)
-    : null;
+  const mealsRemaining = mealStatus ? mealStatus.remaining : null;
 
   // Last 7 days diners trend
   const last7 = Array.from({ length: 7 }).map((_, i) => {
@@ -182,6 +180,7 @@ export default function ManagerDashboard() {
           value={mealsRemaining ?? "—"}
           
           accent="sky"
+          trend={mealStatus ? `of ${mealStatus.total} today` : undefined}
         />
       </div>
 

@@ -14,6 +14,7 @@ const MealAttendance = lazy(() => import("../manager/pages/MealAttendance"));
 const ManagerReports = lazy(() => import("../manager/pages/ManagerReports"));
 const ClientStatements = lazy(() => import("../manager/pages/ClientStatements"));
 const SuperAdminClients = lazy(() => import("../super-admin/pages/SuperAdminClients"));
+const ClientProfileView = lazy(() => import("../super-admin/pages/ClientProfileView"));
 
 const AccountsRoutes = [
   { index: true, element: <AccountsDashboard /> },
@@ -27,6 +28,7 @@ const AccountsRoutes = [
   { path: "reports", element: <ManagerReports /> },
   { path: "client-statements", element: <ClientStatements /> },
   { path: "clients", element: <SuperAdminClients /> },
+  { path: "clients/:id", element: <ClientProfileView /> },
 ];
 
 export default AccountsRoutes;

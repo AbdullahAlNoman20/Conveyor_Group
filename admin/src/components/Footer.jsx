@@ -7,23 +7,22 @@ export default function Footer() {
         <div>
           <img src={logo} alt="Conveyor Group" className="h-10 w-auto rounded bg-white p-1" />
           <p className="mt-3 max-w-xs text-sm">
-            Corporate Cashless Cafeteria & QR Meal Management System for Conveyor Group
-            Restaurant.
+            Corporate Cashless Dining And  QR Meal Management System for Conveyor Group.
           </p>
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-white">Cafeteria</h3>
+          <h3 className="text-sm font-semibold text-white">DINING</h3>
           <ul className="mt-3 space-y-2 text-sm">
-            <li>Weekly Menu</li>
             <li>Guest Dining</li>
-            <li>Corporate Billing</li>
+            <li>Member Dining</li>
+            <li>Membership & Billing</li>
           </ul>
         </div>
         <div>
           <h3 className="text-sm font-semibold text-white">Support</h3>
           <ul className="mt-3 space-y-2 text-sm">
             <li>Report a lost QR card</li>
-            <li>Contact your Restaurant Manager</li>
+            <li>Contact Dining Manager</li>
             <li>System status</li>
           </ul>
         </div>

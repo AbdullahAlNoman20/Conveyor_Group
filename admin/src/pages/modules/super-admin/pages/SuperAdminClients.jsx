@@ -47,6 +47,15 @@ const EMPTY_FORM = {
 export default function SuperAdminClients() {
   const { push } = useToast();
   const { user } = useAuth();
+
+  // The same list is mounted under every staff role, so links follow the role
+  // instead of always pointing into the Super Admin area.
+  const base =
+    user?.role === "manager"
+      ? "/app/manager"
+      : user?.role === "accounts"
+        ? "/app/accounts"
+        : "/app/super-admin";
   const navigate = useNavigate();
 
   const [clients, setClients] = useState(null);
@@ -60,10 +69,6 @@ export default function SuperAdminClients() {
   const [showArchived, setShowArchived] = useState(false);
 
   const [exporting, setExporting] = useState(false);
-
-  // The same screen is mounted under both roles, so links are built from the
-  // role rather than hard coded to the Super Admin prefix.
-  const base = user?.role === "manager" ? "/app/manager" : "/app/super-admin";
 
   useEffect(() => {
     (async () => setClients(await dataStore.load("clients")))();
@@ -269,7 +274,7 @@ export default function SuperAdminClients() {
             <Button
               variant="primary"
               icon={UserPlus}
-              onClick={() => navigate("/app/super-admin/clients/new")}
+              onClick={() => navigate(`${base}/clients/new`)}
               className="w-full justify-center sm:w-auto"
             >
               <span className="sm:inline">Create Client</span>
@@ -333,7 +338,7 @@ export default function SuperAdminClients() {
                         variant="icon"
                         title="View Profile"
                         onClick={() =>
-                          navigate(`/app/super-admin/clients/${c.id}`)
+                          navigate(`${base}/clients/${c.id}`)
                         }
                       >
                         <IdCard size={14} />

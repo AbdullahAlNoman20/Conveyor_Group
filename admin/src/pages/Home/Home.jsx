@@ -21,23 +21,23 @@ import logo from "../../assets/logo.jpeg";
 const STEPS = [
   {
     Icon: ScanLine,
-    title: "Scan your QR",
-    text: "Show your card at the counter — the Manager scans it in a second.",
+    title: "Scan your QR card",
+    text: "Scan your membership QR card to get started.",
   },
   {
     Icon: UtensilsCrossed,
-    title: "Today's meal is set",
-    text: "The Weekly Planner decides the day's dish — nothing to choose.",
+    title: "Pick Your Meal",
+    text: "Choose from a fresh selection, prepared daily for you.",
   },
   {
     Icon: Timer,
-    title: "Confirmed instantly",
-    text: "No approval steps. Your name goes on the board straight away.",
+    title: "Track Your Order",
+    text: "Follow your order status from preparation to ready",
   },
   {
     Icon: Wallet,
-    title: "Collect at the counter",
-    text: "Watch the live board and pick it up when your name appears.",
+    title: "Pay Without Cash",
+    text: "Enjoy a simple and convenient cashless payment experience.",
   },
 ];
 
@@ -83,17 +83,23 @@ export default function Home() {
     const unsubMealLimit = dataStore.subscribe("mealLimit", async () => {
       setMealStatus(await getMealLimitStatus());
     });
+    // A collection or a cancellation changes the count, so both refresh it.
+    const unsubAttendance = dataStore.subscribe("attendance", async () => {
+      setMealStatus(await getMealLimitStatus());
+    });
 
     return () => {
       clearInterval(t);
       unsubSettings();
       unsubMealLimit();
+      unsubAttendance();
     };
   }, []);
 
-  const mealsRemaining = mealStatus
-    ? Math.max(0, mealStatus.dailyLimit - mealStatus.served)
-    : null;
+  // Remaining is what is still waiting at the counter today: everyone on the
+  // meal, less cancellations, less whoever has already collected or missed.
+  const mealsRemaining = mealStatus ? mealStatus.remaining : null;
+  const mealsTotal = mealStatus ? mealStatus.total : null;
 
   const todayName = DAY_NAMES[new Date().getDay()];
   const lunchItems = menu.filter(
@@ -142,19 +148,17 @@ export default function Home() {
             <div className="max-w-4xl">
               <span className="inline-flex items-center gap-3 rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-brand-400 backdrop-blur-md sm:text-base">
                 <QrCode size={20} />
-                Corporate Cashless Cafeteria
+                Corporate Cashless Dining
               </span>
 
               <h1 className="mt-7 text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl md:text-7xl lg:text-8xl xl:text-[6.5rem]">
-                One QR card.
+                One QR Card
                 <br />
-                Every meal, tracked.
+                Every Meal, Simplified.
               </h1>
 
               <p className="mt-7 max-w-3xl text-lg leading-relaxed text-ink-300 sm:text-xl lg:text-2xl">
-                Conveyor Group Restaurant's cafeteria runs on a single system:
-                scan in, order, watch it cook, and pay without touching cash —
-                from your desk to the counter.
+                Enjoy freshly prepared meals at Conveyor Group Dining. Order your meals, track your orders, and enjoy a convenient cashless dining experience for employees and valued members.
               </p>
 
               <div className="mt-10 flex flex-wrap gap-5">
@@ -162,7 +166,7 @@ export default function Home() {
                   to="/login"
                   className="flex items-center gap-3 rounded-xl bg-brand-600 px-8 py-4 text-base font-bold transition-all hover:bg-brand-700 sm:px-10 sm:py-5 sm:text-lg"
                 >
-                  Sign in to order
+                  Order Now
                   <ArrowRight size={21} />
                 </Link>
 
@@ -170,7 +174,7 @@ export default function Home() {
                   href="#weekly-meals"
                   className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/5 px-8 py-4 text-base font-bold backdrop-blur-sm transition-all hover:bg-white/10 sm:px-10 sm:py-5 sm:text-lg"
                 >
-                  See this week's menu
+                  View Weekly Menu
                 </a>
               </div>
             </div>
@@ -199,7 +203,7 @@ export default function Home() {
                 </div>
 
                 <p className="mt-7 text-center text-xl font-bold text-ink-700 lg:text-2xl">
-                  EMP-1042
+                  MEM-1042
                 </p>
 
                 <p className="mt-1 text-center text-base text-ink-400 lg:text-lg">
@@ -215,12 +219,11 @@ export default function Home() {
       <section id="weekly-meals" className="overflow-hidden bg-ink-50 py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <h2 className="text-2xl font-bold text-ink-900">
-            This Week, On the Belt
+            This Week’s Menu
           </h2>
 
           <p className="mt-1 text-sm text-ink-400">
-            Fixed-Meal employees get the day's dish automatically — watch the
-            belt roll continuously.
+            Choose from a fresh selection, prepared daily for you
           </p>
         </div>
 
@@ -333,11 +336,10 @@ export default function Home() {
       <section id="how-it-works" className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <h2 className="text-center text-2xl font-bold text-ink-900">
-            How the cafeteria works
+            How The Conveyor Group Dining Works
           </h2>
           <p className="mx-auto mt-2 max-w-lg text-center text-sm text-ink-400">
-            Four steps, one system — from a scan at the counter to a paperless
-            invoice.
+            Four simple steps-from scanning your QR card to enjoying your meal.
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map(({ Icon, title, text }, i) => (
@@ -383,10 +385,7 @@ export default function Home() {
                 </h3>
 
                 <p className="mt-4 max-w-lg text-sm leading-7 text-ink-500 sm:text-base">
-                  Fixed-Meal employees: open your dashboard, tap "Scan to
-                  Order," and scan this station code. Today's meal is confirmed
-                  instantly — no Manager or Kitchen approval, straight to the
-                  Token Board.
+                  Members can scan the station QR code, select their meal and place their order instantly– no waiting at the counter.
                 </p>
               </div>
 
@@ -394,17 +393,14 @@ export default function Home() {
               <div className="border-t border-gray-200 px-6 py-10 sm:px-10 md:border-l md:border-t-0 md:px-8 lg:px-12">
                 <div className="flex min-h-[220px] flex-col items-center justify-center rounded-3xl border border-brand-100 bg-brand-50/40 px-6 text-center">
                   <p className="text-7xl font-black leading-none tracking-tight text-brand-600 sm:text-8xl">
-                    {mealsRemaining ?? 300}
+                    {mealsRemaining ?? "—"}
                   </p>
 
                   <div className="mt-7 h-px w-40 bg-brand-300" />
 
                   <p className="mt-5 text-base font-bold text-ink-900 sm:text-lg">
-                    of{" "}
-                    <span className="text-brand-600">
-                      {mealStatus?.dailyLimit ?? 300}
-                    </span>{" "}
-                    meals left today
+                    of <span className="text-brand-600">{mealsTotal ?? "—"}</span>{" "}
+                    meals left
                   </p>
                 </div>
               </div>

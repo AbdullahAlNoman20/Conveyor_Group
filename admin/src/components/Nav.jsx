@@ -4,10 +4,9 @@ import { Menu, X, LogIn, UtensilsCrossed, Monitor } from "lucide-react";
 import logo from "../assets/logo.jpeg";
 
 const LINKS = [
-  { to: "/#weekly-meals", label: "Weekly Meals" },
-  { to: "/#menu", label: "Lunch Menu" },
-  { to: "/#how-it-works", label: "How it Works" },
-  { to: "/kitchen/board", label: "Live Board", Icon: Monitor },
+  { to: "/#weekly-meals", label: "Weekly Menu" },
+  { to: "/#menu", label: "Today’s Menu" },
+  { to: "/kitchen/board", label: "Live Order Status", Icon: Monitor },
 ];
 
 export default function Nav() {
@@ -32,9 +31,9 @@ export default function Nav() {
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <img src={logo} alt="Conveyor Group" className="h-9 w-auto" />
           <span className="hidden flex-col leading-none sm:flex">
-            <span className="text-sm font-bold text-ink-900">Conveyor Group</span>
+            <span className="text-sm font-bold text-ink-900">Conveyor Group Dining</span>
             <span className="text-[10px] font-semibold uppercase tracking-wide text-brand-600">
-              Cafeteria
+              Fresh Meals. Every Day.
             </span>
           </span>
         </Link>
