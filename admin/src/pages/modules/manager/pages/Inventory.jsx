@@ -1,6 +1,7 @@
 // admin/src/pages/modules/manager/pages/Inventory.jsx
 import { useEffect, useState } from "react";
-import { Package, Plus, Save, AlertTriangle, Pencil, History } from "lucide-react";
+import { Package, Plus, Save, AlertTriangle, Pencil, History, Printer } from "lucide-react";
+import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
 import { apiGet, apiPatch, apiPost } from "../../../../components/services/api";
 import { useToast } from "../../../../components/hooks/useToast";
 import { UNITS } from "../../../../components/shared/ItemPicker";
@@ -44,6 +45,31 @@ export default function Inventory() {
 
   const stockValue = items.reduce((s, i) => s + Number(i.stockValue || 0), 0);
   const lowStock = items.filter((i) => i.lowStock);
+
+  function printStock() {
+    if (!items.length) return push("Nothing in stock to print.", "error");
+    printOnLetterhead({
+      title: "Store Room Stock",
+      bodyHtml: `
+        <h2 style="margin:0 0 4px">Store Room Stock</h2>
+        <p style="color:#595959;font-size:13px;margin:0 0 20px">${new Date().toLocaleString()}</p>
+        <table>
+          <thead><tr><th>Item</th><th>Left</th><th>Rate</th><th>Value</th><th>Status</th></tr></thead>
+          <tbody>
+            ${items
+              .map(
+                (i) =>
+                  `<tr><td>${i.name}</td><td>${i.currentQty} ${i.unit}</td><td>Tk ${i.avgUnitCost}/${i.unit}</td><td>Tk ${i.stockValue}</td><td>${i.lowStock ? "Buy soon" : ""}</td></tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>
+        <div class="row"><span class="label">Items</span><span>${items.length}</span></div>
+        <div class="row"><span class="label">Buy soon</span><span>${lowStock.length}</span></div>
+        <div class="row total"><span>Stock value</span><span>Tk ${Math.round(stockValue).toLocaleString()}</span></div>
+      `,
+    });
+  }
 
   async function openHistory(i) {
     try {
@@ -163,13 +189,22 @@ export default function Inventory() {
         <section className="rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="text-sm font-bold text-ink-700">In Stock ({items.length})</h2>
-            <button
-              type="button"
-              onClick={() => setEditing({ ...EMPTY_ITEM })}
-              className="flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-white transition hover:bg-brand-700"
-            >
-              <Plus size={14} /> Add item
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={printStock}
+                className="flex min-h-9 items-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold text-ink-700 transition hover:bg-ink-50"
+              >
+                <Printer size={14} /> Print
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditing({ ...EMPTY_ITEM })}
+                className="flex min-h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-3 text-xs font-semibold text-white transition hover:bg-brand-700"
+              >
+                <Plus size={14} /> Add item
+              </button>
+            </div>
           </div>
 
           {items.length === 0 ? (

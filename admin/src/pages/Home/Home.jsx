@@ -12,11 +12,14 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import Nav from "../../components/Nav";
+
 import Footer from "../../components/Footer";
 import { DishImage } from "../../components/shared/DishImage";
 import { dataStore } from "../../components/services/dataStore";
 import { getMealLimitStatus } from "../../components/services/mealLimit";
 import logo from "../../assets/logo.jpeg";
+import MealQr from "../../components/shared/MealQr";
+import { stationUrl } from "../../components/utils/stationCode";
 
 const STEPS = [
   {
@@ -180,35 +183,32 @@ export default function Home() {
             </div>
 
             {/* RIGHT — QR CARD */}
-            <div className="mx-auto flex w-full max-w-md items-center justify-center rounded-[2rem] bg-white/5 p-8 backdrop-blur-md lg:max-w-lg lg:p-10">
-              <div className="w-full rounded-3xl bg-white p-8 text-ink-900 shadow-2xl lg:p-10">
-                <div className="flex items-center justify-between">
-                  <img
-                    src={logo}
-                    alt="Conveyor Group"
-                    className="h-10 w-auto lg:h-12"
-                  />
+            <div className="mx-auto flex w-full justify-center lg:justify-end" aria-hidden="true">
+              <div className="relative w-fit max-w-full overflow-hidden rounded-[2rem] border border-white/10 bg-ink-900/60 p-5 shadow-2xl backdrop-blur-md sm:p-8 lg:p-10">
+                {/* Brand glow */}
+                <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-600/30 blur-3xl" />
 
-                  <span className="rounded-md bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 lg:text-sm">
-                    Demo
-                  </span>
+                {/* QR tile: equal spacing on all four sides */}
+                <div className="relative flex justify-center">
+                  <div className="rounded-2xl bg-white p-3 shadow-lg ring-4 ring-brand-600/40">
+                    <QRCodeSVG
+                      value="CONVEYOR-GROUP-DEMO-EMP-1042"
+                      size={340}
+                      level="H"
+                      marginSize={0}
+                      bgColor="#ffffff"
+                      fgColor="#0a0a0a"
+                      className="block h-auto w-[min(340px,72vw)] lg:w-[clamp(300px,24vw,400px)]"
+                      imageSettings={{
+                        src: logo,
+                        width: 80,
+                        height: 80,
+                        excavate: true,
+                      }}
+                    />
+                  </div>
                 </div>
 
-                <div className="mt-10 flex justify-center">
-                  <QRCodeSVG
-                    value="CONVEYOR-GROUP-DEMO-EMP-1042"
-                    size={190}
-                    level="M"
-                  />
-                </div>
-
-                <p className="mt-7 text-center text-xl font-bold text-ink-700 lg:text-2xl">
-                  MEM-1042
-                </p>
-
-                <p className="mt-1 text-center text-base text-ink-400 lg:text-lg">
-                  Farzana Karim · Finance
-                </p>
               </div>
             </div>
           </div>
@@ -381,11 +381,12 @@ export default function Home() {
                 </div>
 
                 <h3 className="text-2xl font-extrabold leading-tight text-ink-900 sm:text-3xl">
-                  Skip the wait — scan and go
+                  Skip the wait. Scan and go.
                 </h3>
 
                 <p className="mt-4 max-w-lg text-sm leading-7 text-ink-500 sm:text-base">
-                  Members can scan the station QR code, select their meal and place their order instantly– no waiting at the counter.
+                  Open your phone camera and scan this code. Sign in, tap
+                  "Get my meal", and your name goes straight to the board.
                 </p>
               </div>
 
@@ -407,15 +408,11 @@ export default function Home() {
 
               {/* RIGHT — QR Code */}
               <div className="flex items-center justify-center border-t border-gray-200 px-6 py-10 sm:px-10 md:border-l md:border-t-0 md:px-8 lg:px-12">
-                <div className="flex h-[210px] w-[210px] items-center justify-center rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:h-[230px] sm:w-[230px]">
-                  {settings ? (
-                    <QRCodeSVG
-                      value={settings.selfOrderStationCode}
-                      size={175}
-                      level="M"
-                    />
+                <div className="flex w-full max-w-[260px] items-center justify-center rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                  {settings?.selfOrderStationCode ? (
+                    <MealQr value={stationUrl(settings.selfOrderStationCode)} size={240} fluid />
                   ) : (
-                    <div className="h-[175px] w-[175px] animate-pulse rounded-xl bg-gray-100" />
+                    <div className="aspect-square w-full animate-pulse rounded-xl bg-gray-100" />
                   )}
                 </div>
               </div>
@@ -479,37 +476,7 @@ export default function Home() {
       </section>
 
       {/* Evening Snacks */}
-      <section className="bg-ink-50 py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex items-center gap-2">
-            <Moon className="text-brand-600" size={22} />
-            <h2 className="text-2xl font-bold text-ink-900">
-              Evening Snacks & Beverages
-            </h2>
-          </div>
-          <p className="mt-1 text-sm text-ink-400">
-            Light bites for the evening shift — self-paid, available to
-            everyone.
-          </p>
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {eveningItems.map((m) => (
-              <Link
-                key={m.id}
-                to={`/menu/${m.id}`}
-                className="group overflow-hidden rounded-xl border border-ink-100 bg-white transition-shadow hover:shadow-lg"
-              >
-                <DishImage name={m.name} className="h-24" />
-                <div className="flex items-center justify-between p-3">
-                  <p className="text-sm font-semibold text-ink-900 group-hover:text-brand-600">
-                    {m.name}
-                  </p>
-                  <span className="font-bold text-brand-600">Tk {m.price}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+
 
       <div className="mx-auto max-w-7xl px-4 py-10 text-center sm:px-6">
         <div className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50/60 px-5 py-2.5 shadow-sm">

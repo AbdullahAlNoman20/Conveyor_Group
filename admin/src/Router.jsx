@@ -1,3 +1,4 @@
+// admin/src/Router.jsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import Root from "./Root";
@@ -7,6 +8,7 @@ import Login from "./pages/Login/Login";
 import SetPassword from "./pages/SetPassword/SetPassword";
 import Register from "./pages/Register/Register";
 import KitchenBoard from "./pages/Board/KitchenBoard";
+import SelfOrder from "./pages/SelfOrder/SelfOrder";
 import Unauthorized from "./components/shared/Unauthorized";
 import RoleRoute from "./components/shared/RoleRoute";
 import RouteErrorBoundary from "./components/shared/RouteErrorBoundary";
@@ -34,6 +36,9 @@ const Router = createBrowserRouter([
       { path: "register", element: <Register /> },
       { path: "unauthorized", element: <Unauthorized /> },
       { path: "kitchen/board", element: <KitchenBoard /> },
+      // Opened by the station QR from any phone camera. The page itself
+      // checks the sign-in, so it is not wrapped in RoleRoute.
+      { path: "self-order", element: <SelfOrder /> },
 
       {
         path: "app/super-admin",

@@ -1,14 +1,16 @@
 // admin/src/pages/modules/client/pages/ClientQRCard.jsx
-import { useEffect, useState } from "react";
-import { Printer, ShieldCheck, Utensils, UserRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ShieldCheck, Utensils, Smartphone } from "lucide-react";
 import { apiGet } from "../../../../components/services/api";
 import { useToast } from "../../../../components/hooks/useToast";
 import IdCard from "../../../../components/shared/IdCard";
 import PrintArea from "../../../../components/shared/PrintArea";
+import CardDownloadButtons from "../../../../components/shared/CardDownloadButtons";
 import Loader from "../../../../components/shared/Loader";
 
 export default function ClientQRCard() {
   const { push } = useToast();
+  const cardRef = useRef(null);
   const [me, setMe] = useState(null);
   const [printing, setPrinting] = useState(false);
 
@@ -26,8 +28,7 @@ export default function ClientQRCard() {
 
   if (!me) return <Loader full label="Loading your card..." />;
 
-  // The card's QR is permanent: it is printed once and used every day. A lost
-  // card is killed by the Super Admin reissuing it, which changes this token.
+  // Permanent QR. A lost card is stopped by reissuing it, which changes the token.
   const card = {
     id: me.id,
     name: me.name,
@@ -53,24 +54,25 @@ export default function ClientQRCard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div>
         <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">My Meal Card</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Show this QR at the counter to collect your meal.
+          Show this QR at the counter to collect your meal. You can also save it
+          on your phone as an image or PDF.
         </p>
       </div>
 
-      <IdCard client={card} />
-
-      <div className="mx-auto w-full max-w-[380px]">
-        <button
-          onClick={() => setPrinting(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-600 py-3 text-sm font-semibold text-white transition hover:bg-brand-700"
-        >
-          <Printer size={16} /> Print or Save as PDF
-        </button>
+      <div ref={cardRef} className="w-full">
+        <IdCard client={card} />
       </div>
+
+      <CardDownloadButtons
+        targetRef={cardRef}
+        fileName={`meal-card-${me.employeeId}`}
+        renderCard={() => <IdCard client={card} />}
+        onPrint={() => setPrinting(true)}
+      />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Tip Icon={ShieldCheck} title="Keep it safe">
@@ -78,10 +80,10 @@ export default function ClientQRCard() {
           The old card stops working at once.
         </Tip>
         <Tip Icon={Utensils} title="One meal a day">
-          The card works once per day, inside the counter hours.
+          The card works once a day, while the counter is open.
         </Tip>
-        <Tip Icon={UserRound} title="Only yours">
-          The card is linked to you. Someone else cannot use it.
+        <Tip Icon={Smartphone} title="On your phone">
+          Save the image and show it from your gallery if you forget the card.
         </Tip>
       </div>
     </div>
@@ -91,9 +93,8 @@ export default function ClientQRCard() {
 function Tip({ Icon, title, children }) {
   return (
     <div className="rounded-xl border border-ink-100 bg-white p-4">
-      <p className="flex items-center gap-2 text-sm font-bold text-ink-800">
-        <Icon size={15} className="shrink-0 text-brand-600" />
-        {title}
+      <p className="flex items-center gap-2 text-sm font-semibold text-ink-800">
+        <Icon size={15} className="shrink-0 text-brand-600" /> {title}
       </p>
       <p className="mt-1 text-xs leading-5 text-ink-500">{children}</p>
     </div>

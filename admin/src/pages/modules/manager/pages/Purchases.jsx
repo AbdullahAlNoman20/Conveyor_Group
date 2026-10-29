@@ -50,6 +50,8 @@ export default function Purchases() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [viewing, setViewing] = useState(null);
+  // The list that was filled in by date, not picked by hand.
+  const autoListRef = useRef("");
 
   async function loadItems() {
     setItems(await apiGet("/kitchen/items").catch(() => []));
@@ -88,6 +90,59 @@ export default function Purchases() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range.range.from, range.range.to]);
 
+  /** Fills the lines from a saved list, so only the prices need typing. */
+  async function fillFromList(id, { auto = false } = {}) {
+    setListId(id);
+    autoListRef.current = auto ? id : "";
+    if (!id) {
+      setLines([{ ...EMPTY_LINE }]);
+      return;
+    }
+    try {
+      const list = await apiGet(`/kitchen/lists/${id}`);
+      const units = new Map(items.map((i) => [i.id, i.unit]));
+      setLines(
+        list.items.length
+          ? list.items.map((i) => ({
+              itemId: i.itemId,
+              qty: String(i.qty),
+              unit: i.unit || units.get(i.itemId) || "",
+              lineCost: "",
+            }))
+          : [{ ...EMPTY_LINE }],
+      );
+      push(
+        auto
+          ? `Filled from the list for ${new Date(`${list.forDate}T00:00:00`).toLocaleDateString()}. Put the prices.`
+          : "List loaded. Now put what each item cost.",
+        "info",
+      );
+    } catch (err) {
+      push(err?.message || "Could not load that list.", "error");
+    }
+  }
+
+  // Picks the list for the purchase date, or for the next day (people usually
+  // shop the day before cooking). Never overwrites prices already typed.
+  useEffect(() => {
+    if (loading) return;
+    const typedPrices = lines.some((l) => l.lineCost !== "");
+    const handPicked = listId && listId !== autoListRef.current;
+    const handTyped = !listId && lines.some((l) => l.itemId || l.qty !== "");
+    if (typedPrices || handPicked || handTyped) return;
+
+    const next = new Date(`${purchaseDate}T00:00:00`);
+    next.setDate(next.getDate() + 1);
+    const nextDay = next.toLocaleDateString("en-CA");
+
+    const match =
+      lists.find((l) => l.forDate === purchaseDate) || lists.find((l) => l.forDate === nextDay);
+
+    if (match && match.id !== listId) fillFromList(match.id, { auto: true });
+    else if (!match && listId && listId === autoListRef.current) fillFromList("", { auto: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purchaseDate, lists, loading]);
+
   // Hooks stay above the early return below.
   const {
     page: historyPage,
@@ -120,27 +175,7 @@ export default function Purchases() {
   const addExtra = () => setExtras((rows) => (rows.length >= 10 ? rows : [...rows, { ...EMPTY_EXTRA }]));
   const removeExtra = (idx) => setExtras((rows) => rows.filter((_, i) => i !== idx));
 
-  /** Fills the lines from a saved list, so only the prices need typing. */
-  async function loadFromList(id) {
-    setListId(id);
-    if (!id) return;
-    try {
-      const list = await apiGet(`/kitchen/lists/${id}`);
-      setLines(
-        list.items.length
-          ? list.items.map((i) => ({
-              itemId: i.itemId,
-              qty: String(i.qty),
-              unit: i.unit || byId.get(i.itemId)?.unit || "",
-              lineCost: "",
-            }))
-          : [{ ...EMPTY_LINE }],
-      );
-      push("List loaded. Now put what each item cost.", "info");
-    } catch (err) {
-      push(err?.message || "Could not load that list.", "error");
-    }
-  }
+
 
   /* ── voucher ───────────────────────────────────────────────────────── */
   function clearVoucher() {
@@ -244,6 +279,7 @@ export default function Purchases() {
       setTransportCost("");
       setExtras([]);
       setListId("");
+      autoListRef.current = "";
       setNotes("");
       clearVoucher();
       setPurchaseDate(today());
@@ -327,13 +363,13 @@ export default function Purchases() {
             <select
               id="fromList"
               value={listId}
-              onChange={(e) => loadFromList(e.target.value)}
+              onChange={(e) => fillFromList(e.target.value)}
               className="w-full rounded-lg border border-ink-200 px-3 py-2 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:text-sm"
             >
               <option value="">Not from a list</option>
               {lists.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {new Date(l.forDate).toLocaleDateString()}, {l.itemCount} items
+                  For {new Date(`${l.forDate}T00:00:00`).toLocaleDateString()}, {l.itemCount} items
                 </option>
               ))}
             </select>

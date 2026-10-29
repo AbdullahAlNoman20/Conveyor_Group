@@ -1,9 +1,7 @@
 // admin/src/pages/modules/client/pages/ClientDashboard.jsx
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  Utensils,
-  Receipt,
   QrCode,
   TrendingUp,
   ScanLine,
@@ -12,7 +10,6 @@ import {
   CheckCircle2,
   ShoppingCart,
   ArrowRight,
-  Wallet,
 } from "lucide-react";
 import StatCard from "../../../../components/shared/StatCard";
 import Loader from "../../../../components/shared/Loader";
@@ -21,32 +18,21 @@ import QRScannerCamera from "../../../../components/shared/QRScannerCamera";
 import MealAttendanceCard from "../../../../components/shared/MealAttendanceCard";
 import { useAuth } from "../../../../components/hooks/useAuth";
 import { useToast } from "../../../../components/hooks/useToast";
-import {
-  isMobileDevice,
-  hasCameraSupport,
-} from "../../../../components/utils/device";
+import { isMobileDevice, hasCameraSupport } from "../../../../components/utils/device";
 import { createInstantFixedMealOrder } from "../../../../components/services/selfOrder";
 import { dataStore } from "../../../../components/services/dataStore";
 import { apiGet } from "../../../../components/services/api";
 import { buzzOnBlocked } from "../../../../components/utils/haptics";
+import { stationCodeFrom, takePendingStation } from "../../../../components/utils/stationCode";
 
-const WEEKDAYS = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function ClientDashboard() {
   const { user } = useAuth();
   const { push } = useToast();
+  const navigate = useNavigate();
 
-  // SECURITY: the old `clients.find(byName) || clients[0]` fallback showed this
-  // client someone ELSE's data when no name matched. /reports/dashboard is
-  // resolved from the session user id on the server instead.
+  // Resolved from the session on the server, never from a name match here.
   const [dash, setDash] = useState(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [manualCode, setManualCode] = useState("");
@@ -54,6 +40,12 @@ export default function ClientDashboard() {
   const [scanFailed, setScanFailed] = useState(false);
 
   const canUseCamera = isMobileDevice() && hasCameraSupport();
+
+  // Came from the station QR and had to sign in first: go back and confirm.
+  useEffect(() => {
+    const pending = takePendingStation();
+    if (pending) navigate(`/self-order?c=${encodeURIComponent(pending)}`, { replace: true });
+  }, [navigate]);
 
   useEffect(() => {
     let mounted = true;
@@ -78,27 +70,27 @@ export default function ClientDashboard() {
     };
   }, []);
 
-  async function attemptInstantOrder(scannedCode) {
-    // The station code, the plan check, the cancellation check, the
-    // one-per-day rule and the meal-slot reservation are all verified
-    // server-side in a single transaction.
+  async function attemptInstantOrder(scanned) {
+    // Station code, plan, cancellation, one per day and the counter hours are
+    // all checked on the server in one transaction.
+    const stationCode = stationCodeFrom(scanned);
+    if (!stationCode) {
+      buzzOnBlocked();
+      push("That is not the station QR. Scan the code at the counter.", "error");
+      return;
+    }
+    if (placing) return;
+
     setPlacing(true);
     try {
-      const order = await createInstantFixedMealOrder({
-        source: "self_scan",
-        stationCode: (scannedCode || "").trim(),
-      });
-      push(
-        `Order ${order.id} confirmed — sent straight to the kitchen board!`,
-        "success",
-      );
+      const order = await createInstantFixedMealOrder({ source: "self_scan", stationCode });
+      push(`Order ${order.id} placed. Your name is on the board.`, "success");
       setScannerOpen(false);
       setManualCode("");
     } catch (err) {
-      // The phone is usually at arm's length on the station screen, so a buzz
-      // reaches the person when a toast might not.
+      // The phone is often held away, so a buzz reaches them when a toast might not.
       buzzOnBlocked();
-      push(err?.message || "Couldn't place your order. Please try again.", "error");
+      push(err?.message || "Could not place your order. Please try again.", "error");
     } finally {
       setPlacing(false);
     }
@@ -118,29 +110,26 @@ export default function ClientDashboard() {
 
   const isFixedMealClient = dash.mealPlan === "Fixed Company Meal";
 
-  // A cancelled meal was never cooked and a collected one is already gone, so
-  // both close ordering for the rest of the day — on every path.
-  // Two independent gates: what already happened today, and the clock. The
-  // status reason wins, because "you cancelled" is more useful than "closed".
+  // Two gates: what already happened today, and the clock. The status reason
+  // wins, because "you cancelled" is more useful than "closed".
   const att = dash.attendance ?? {};
   const attendanceStatus = att.status ?? "pending";
   const windowOpen = att.orderWindowOpen !== false;
-  const windowLabel = att.orderWindowLabel || "11:00 AM – 6:00 PM";
+  const windowLabel = att.orderWindowLabel || "11:00 AM to 6:00 PM";
+  const closesAt = windowLabel.split(/–|-|to/).pop().trim();
   const canOrderToday = attendanceStatus === "pending" && windowOpen;
 
   const orderBlockedReason =
     attendanceStatus === "cancelled"
-      ? "You cancelled today's meal — it wasn't prepared."
+      ? "You cancelled today's meal, so it was not cooked."
       : attendanceStatus === "collected"
-        ? "Today's meal has already been collected."
+        ? "You already took today's meal."
         : attendanceStatus === "no_show"
-          ? `Missed — ordering closed at ${windowLabel.split("–").pop().trim()}.`
+          ? `Missed. Ordering closed at ${closesAt}.`
           : !windowOpen
-            ? `Ordering opens ${windowLabel}.`
+            ? `Ordering is open ${windowLabel}.`
             : "";
 
-  // Aggregates come from one indexed SQL query instead of pulling every order
-  // into the browser and summing it there.
   const { todaySpend, weekSpend, monthSpend, todayOrders, monthOrders } = dash.spend;
   const maxSpend = Math.max(todaySpend, weekSpend, monthSpend, 1);
   const recentOrders = dash.recentOrders || [];
@@ -148,14 +137,12 @@ export default function ClientDashboard() {
   const todaysFixedMealName = dash.todaysFixedMeal?.name;
 
   return (
-    <div className="space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <div>
         <h1 className="text-xl font-bold text-ink-900 sm:text-2xl">
           Welcome, {user?.name?.split(" ")[0]}
         </h1>
-        <p className="text-sm text-ink-400">
-          Here's your meal summary for today.
-        </p>
+        <p className="text-sm text-ink-400">Here is your meal summary for today.</p>
       </div>
 
       <MealAttendanceCard
@@ -163,9 +150,7 @@ export default function ClientDashboard() {
         onChange={(next) => setDash((d) => ({ ...d, attendance: next }))}
       />
 
-      {/* Both actions stay VISIBLE when ordering is closed and turn disabled
-          instead, so the reason is obvious rather than the buttons silently
-          vanishing. */}
+      {/* Buttons stay visible and turn grey when closed, so the reason shows. */}
       <div className="grid gap-3 sm:grid-cols-2">
         {isFixedMealClient && (
           <button
@@ -188,20 +173,13 @@ export default function ClientDashboard() {
                 <ScanLine size={20} />
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-bold text-ink-900">
-                  Scan to Order
-                </span>
+                <span className="block text-sm font-bold text-ink-900">Scan to Order</span>
                 <span className="block text-xs text-ink-500">
-                  {canOrderToday
-                    ? "Instant, no approval needed."
-                    : orderBlockedReason}
+                  {canOrderToday ? "Scan the QR at the counter." : orderBlockedReason}
                 </span>
               </span>
             </span>
-            <QrCode
-              size={20}
-              className={`shrink-0 ${canOrderToday ? "text-brand-600" : "text-ink-300"}`}
-            />
+            <QrCode size={20} className={`shrink-0 ${canOrderToday ? "text-brand-600" : "text-ink-300"}`} />
           </button>
         )}
 
@@ -215,12 +193,8 @@ export default function ClientDashboard() {
                 <ShoppingCart size={20} />
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-bold text-ink-900">
-                  Place Order
-                </span>
-                <span className="block text-xs text-ink-500">
-                  Order manually, no QR scan required.
-                </span>
+                <span className="block text-sm font-bold text-ink-900">Place Order</span>
+                <span className="block text-xs text-ink-500">Order without scanning.</span>
               </span>
             </span>
             <ArrowRight size={18} className="shrink-0 text-ink-400" />
@@ -235,12 +209,8 @@ export default function ClientDashboard() {
                 <ShoppingCart size={20} />
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-bold text-ink-900">
-                  Place Order
-                </span>
-                <span className="block text-xs text-ink-500">
-                  {orderBlockedReason}
-                </span>
+                <span className="block text-sm font-bold text-ink-900">Place Order</span>
+                <span className="block text-xs text-ink-500">{orderBlockedReason}</span>
               </span>
             </span>
             <ArrowRight size={18} className="shrink-0 text-ink-300" />
@@ -248,43 +218,27 @@ export default function ClientDashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         <Link to="/app/client/statement">
-          <StatCard
-            label="Today's Orders"
-            value={todayOrders}
-
-            accent="amber"
-          />
+          <StatCard label="Today's Orders" value={todayOrders} accent="amber" />
         </Link>
         <Link to="/app/client/statement">
-          <StatCard
-            label="This Month's Orders"
-            value={monthOrders}
-
-            accent="brand"
-          />
+          <StatCard label="This Month's Orders" value={monthOrders} accent="brand" />
         </Link>
         <Link to="/app/client/statement">
           <StatCard
             label="Total Due"
             value={`Tk ${dash.totalDue ?? 0}`}
-
             accent="emerald"
             trend={
               dash.spend?.monthNoShowSpend > 0
                 ? `Includes Tk ${dash.spend.monthNoShowSpend} for missed meals`
-                : "Deducted from salary"
+                : "Taken from salary"
             }
           />
         </Link>
         <Link to="/app/client/qr-card">
-          <StatCard
-            label="QR Status"
-            value={dash.qrStatus ?? "active"}
-            Icon={QrCode}
-            accent="ink"
-          />
+          <StatCard label="QR Status" value={dash.qrStatus ?? "active"} Icon={QrCode} accent="ink" />
         </Link>
       </div>
 
@@ -293,17 +247,12 @@ export default function ClientDashboard() {
           <h2 className="mb-2 text-sm font-bold text-ink-700">Today's Meal</h2>
           {isFixedMealClient ? (
             <p className="text-sm text-ink-600">
-              Your fixed meal today (
-              <span className="font-semibold text-ink-900">{todayName}</span>) is{" "}
-              <span className="font-semibold text-brand-600">
-                {todaysFixedMealName || "not set yet"}
-              </span>
-              . This is set by the Weekly Meal Planner and can't be changed.
+              Your meal today (<span className="font-semibold text-ink-900">{todayName}</span>) is{" "}
+              <span className="font-semibold text-brand-600">{todaysFixedMealName || "not set yet"}</span>.
+              It comes from the weekly menu.
             </p>
           ) : (
-            <p className="text-sm text-ink-500">
-              Your meal plan doesn't include the daily fixed meal.
-            </p>
+            <p className="text-sm text-ink-500">Your meal plan does not include the daily meal.</p>
           )}
         </div>
 
@@ -312,19 +261,15 @@ export default function ClientDashboard() {
             <h2 className="flex items-center gap-2 text-sm font-bold text-ink-700">
               <TrendingUp size={15} /> Spend Summary
             </h2>
-            <Link
-              to="/app/client/statement"
-              className="text-xs font-semibold text-brand-600 hover:underline"
-            >
+            <Link to="/app/client/statement" className="text-xs font-semibold text-brand-600 hover:underline">
               View Details
             </Link>
           </div>
-          {/* Missed meals are charged at full price, so they belong in the same
-              bars as meals actually eaten. */}
+
           {dash.spend?.monthNoShowSpend > 0 && (
             <p className="mb-3 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-5 text-amber-800">
-              Tk {dash.spend.monthNoShowSpend} of this month's total is for
-              meals that weren't collected or cancelled.
+              Tk {dash.spend.monthNoShowSpend} of this month is for meals that were
+              not taken or cancelled.
             </p>
           )}
 
@@ -354,10 +299,7 @@ export default function ClientDashboard() {
       <div className="rounded-xl border border-ink-100 bg-white p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-bold text-ink-700">Recent Orders</h2>
-          <Link
-            to="/app/client/statement"
-            className="text-xs font-semibold text-brand-600 hover:underline"
-          >
+          <Link to="/app/client/statement" className="text-xs font-semibold text-brand-600 hover:underline">
             View All
           </Link>
         </div>
@@ -374,47 +316,35 @@ export default function ClientDashboard() {
                 <div className="flex min-w-0 items-center gap-2">
                   <CheckCircle2 size={16} className="shrink-0 text-emerald-600" />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink-800">
-                      {o.id}
-                    </p>
+                    <p className="truncate text-sm font-semibold text-ink-800">{o.id}</p>
                     <p className="truncate text-xs text-ink-400">
                       {o.items?.map((i) => `${i.qty}x ${i.name}`).join(", ")}
                     </p>
                   </div>
                 </div>
-                <span className="shrink-0 text-sm font-bold text-ink-900">
-                  Tk {o.amount}
-                </span>
+                <span className="shrink-0 text-sm font-bold text-ink-900">Tk {o.amount}</span>
               </Link>
             ))}
           </div>
         )}
       </div>
 
-      <Modal
-        open={scannerOpen}
-        onClose={closeScanner}
-        title="Scan Self-Order Station"
-        size="sm"
-      >
+      <Modal open={scannerOpen} onClose={closeScanner} title="Scan the Counter QR" size="sm">
         <div className="space-y-4">
           {canUseCamera && !scanFailed ? (
-            <QRScannerCamera
-              onScan={attemptInstantOrder}
-              onError={() => setScanFailed(true)}
-            />
+            <QRScannerCamera onScan={attemptInstantOrder} onError={() => setScanFailed(true)} />
           ) : (
             <div className="space-y-3">
               <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
                 <Keyboard size={14} className="mt-0.5 shrink-0" />
-                Camera isn't available right now — type the station code shown on
-                the counter's Self-Order screen instead.
+                Camera is not available. Type the station code shown at the counter.
               </div>
               <input
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
-                placeholder="Enter station code..."
-                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+                maxLength={300}
+                placeholder="Station code"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 sm:text-sm"
               />
               <button
                 type="button"
@@ -428,9 +358,7 @@ export default function ClientDashboard() {
           )}
           <p className="text-center text-xs text-ink-400">
             Today's meal:{" "}
-            <span className="font-semibold text-ink-700">
-              {todaysFixedMealName || "—"}
-            </span>
+            <span className="font-semibold text-ink-700">{todaysFixedMealName || "Not set"}</span>
           </p>
           <button
             type="button"

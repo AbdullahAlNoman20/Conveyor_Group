@@ -4,6 +4,7 @@ import {
   CalendarDays, Plus, Trash2, Save, Wand2, AlertTriangle, Pencil, Check, X, Lock,
 } from "lucide-react";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../../../../components/services/api";
+import { printOnLetterhead } from "../../../../components/utils/printLetterhead";
 import { useToast } from "../../../../components/hooks/useToast";
 import ItemPicker from "../../../../components/shared/ItemPicker";
 import Loader from "../../../../components/shared/Loader";
@@ -156,6 +157,29 @@ export default function DailyUsage({ items, onItemsChanged }) {
     }
   }
 
+  function printToday() {
+    if (!recorded.items.length) return push("Nothing saved today to print.", "error");
+    printOnLetterhead({
+      title: `Food Used, ${date}`,
+      bodyHtml: `
+        <h2 style="margin:0 0 4px">Food Used</h2>
+        <p style="color:#595959;font-size:13px;margin:0 0 20px">${dateLabel}${mealName ? `, ${mealName}` : ""}</p>
+        <table>
+          <thead><tr><th>Item</th><th>Used</th><th>Rate</th><th>Cost</th><th>Note</th></tr></thead>
+          <tbody>
+            ${recorded.items
+              .map(
+                (r) =>
+                  `<tr><td>${r.name}</td><td>${r.qty} ${r.unit}</td><td>Tk ${r.unitCost}</td><td>Tk ${r.cost}</td><td>${r.note || ""}</td></tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>
+        <div class="row total"><span>Total</span><span>Tk ${recorded.totalCost}</span></div>
+      `,
+    });
+  }
+
   if (loading) return <Loader label="Loading..." />;
 
   const dateLabel = date
@@ -293,7 +317,17 @@ export default function DailyUsage({ items, onItemsChanged }) {
       <section className="rounded-xl border border-ink-100 bg-white p-4 sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-sm font-bold text-ink-700">Saved today</h3>
-          <span className="text-sm font-bold text-brand-600">{tk(recorded.totalCost)}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-brand-600">{tk(recorded.totalCost)}</span>
+            <button
+              type="button"
+              onClick={printToday}
+              disabled={!recorded.items.length}
+              className="flex min-h-9 items-center gap-1.5 rounded-lg border border-ink-200 px-3 text-xs font-semibold text-ink-700 transition hover:bg-ink-50 disabled:opacity-50"
+            >
+              Print
+            </button>
+          </div>
         </div>
 
         {recorded.items.length === 0 ? (

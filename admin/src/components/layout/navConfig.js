@@ -3,7 +3,7 @@ import {
   LayoutDashboard, UserCircle, ScanLine, ClipboardCheck, CalendarRange,
   ClipboardList, Receipt, Package, Calculator, BarChart3, FileText,
   Users, UserCog, UserPlus, Archive, UtensilsCrossed, Wallet,
-  HardDriveDownload, Monitor, ShieldCheck, IdCard as IdCardIcon,
+  HardDriveDownload, Monitor, ShieldCheck, IdCard as IdCardIcon, QrCode,
 } from "lucide-react";
 import { PERMISSIONS as P } from "../constants/roles";
 
@@ -32,6 +32,7 @@ export function buildNavGroups(base, can, role) {
         { to: `${base}/scan-qr`, label: "Scan QR — Serve", Icon: ScanLine, permission: P.ORDER_SCAN },
         { to: `${base}/attendance`, label: "Daily Attendance", Icon: ClipboardCheck, permission: P.ATTENDANCE_VIEW },
         { to: "/kitchen/board", label: "Token Board", Icon: Monitor, permission: P.ORDER_VIEW },
+        { to: `${base}/self-order-qr`, label: "Self-Order QR", Icon: QrCode, permission: P.ORDER_SCAN },
       ],
     },
     {

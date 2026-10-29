@@ -27,7 +27,7 @@ export default function Nav() {
         scrolled ? "border-ink-100 shadow-sm" : "border-transparent"
       }`}
     >
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+      <nav className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3 sm:px-6 md:px-16 xl:px-20">
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <img src={logo} alt="Conveyor Group" className="h-9 w-auto" />
           <span className="hidden flex-col leading-none sm:flex">
