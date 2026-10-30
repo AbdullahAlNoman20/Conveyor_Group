@@ -1,11 +1,11 @@
-// backend/src/config/env.ts
-import "dotenv/config"; // belt-and-braces: works even if --env-file isn't passed
+// server/src/config/env.ts
+import "dotenv/config"; // works even if --env-file isn't passed
+import path from "node:path";
 import { z } from "zod";
 
 /**
  * .env values are always strings, and Boolean("false") === true, so
- * z.coerce.boolean() silently turns every flag on. This parses the actual
- * word instead.
+ * z.coerce.boolean() silently turns every flag on. This parses the word.
  */
 const envBool = (defaultValue: boolean) =>
   z
@@ -16,18 +16,16 @@ const envBool = (defaultValue: boolean) =>
       return ["true", "1", "yes", "on"].includes(v.trim().toLowerCase());
     });
 
-// zod v4: the string-method forms (.email(), .url()) are now top-level helpers.
 const schema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   HOST: z.string().default("0.0.0.0"),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
-  // Comma-separated allow-list so localhost and the deployed frontend can both
-  // be permitted during a rollout.
+  // Comma separated allow-list of frontend origins.
   APP_PUBLIC_URL: z.string().min(1),
 
   DATABASE_URL: z.string().min(1),
-  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(20),
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().max(50).default(10),
   DATABASE_SSL: envBool(false),
 
   REDIS_URL: z.string().min(1),
@@ -36,28 +34,26 @@ const schema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
-  // Blank on purpose in production: the frontend and API live on different
-  // Render subdomains, so a Domain attribute would make the cookie unusable.
+  // Frontend and API share one domain on the VPS, so lax is enough and still
+  // keeps the session when the station QR link is opened from the camera.
   COOKIE_DOMAIN: z.string().default(""),
   COOKIE_SECURE: envBool(false),
-  // Cross-site cookies need SameSite=None + Secure. "strict" only works when
-  // both apps share one origin.
-  COOKIE_SAMESITE: z.enum(["strict", "lax", "none"]).default("strict"),
+  COOKIE_SAMESITE: z.enum(["strict", "lax", "none"]).default("lax"),
 
-  SUPABASE_URL: z.url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  SUPABASE_BUCKET: z.string().default("cccms"),
-  SIGNED_URL_TTL_SECONDS: z.coerce.number().int().positive().default(300),
-  MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(2097152),
+  // Uploaded files live on this server's disk.
+  STORAGE_DIR: z.string().min(1).default("./uploads"),
+  // Start of every file link, e.g. https://canteen.conveyor.com.bd/api/v1/files
+  FILES_BASE_URL: z.string().min(1).default("/api/v1/files"),
+  // Signs file links. openssl rand -hex 64
+  FILE_URL_SECRET: z.string().min(32),
+  // Hard ceiling for any single upload. Each kind has its own lower limit too.
+  MAX_UPLOAD_BYTES: z.coerce.number().int().positive().max(20 * 1024 * 1024).default(10 * 1024 * 1024),
 
-  // Every business-day boundary (the one-meal-per-day rule, the cancellation
-  // cutoff, the nightly sweep) is evaluated in this zone, not UTC. Without it,
-  // midnight-to-6am local traffic is booked against the previous day.
+  // Every business-day boundary is evaluated in this zone, not UTC.
   APP_TIMEZONE: z.string().default("Asia/Dhaka"),
   // Local hour after which today's meal can no longer be cancelled.
   MEAL_CANCEL_CUTOFF_HOUR: z.coerce.number().int().min(0).max(23).default(6),
-  // The counter is only open between these local hours. Outside the window no
-  // order can be placed by anyone — client, station scan or Manager scan.
+  // The counter is open only between these local hours.
   MEAL_ORDER_START_HOUR: z.coerce.number().int().min(0).max(23).default(11),
   MEAL_ORDER_END_HOUR: z.coerce.number().int().min(1).max(24).default(18),
 
@@ -69,9 +65,8 @@ const schema = z.object({
   ENABLE_SWAGGER: envBool(false),
 
   /**
-   * Unlocks the development toolkit: a shiftable clock, sample-data
-   * generation, and a manual day-close. Refused outright in production below,
-   * so it cannot reach a live deployment by accident.
+   * Development toolkit: shiftable clock, sample data, manual day close.
+   * Local only. The server refuses to start with it in production.
    */
   DEV_TOOLS: envBool(false),
 });
@@ -98,23 +93,26 @@ if (env.MEAL_ORDER_END_HOUR <= env.MEAL_ORDER_START_HOUR) {
 }
 if (env.MEAL_CANCEL_CUTOFF_HOUR >= env.MEAL_ORDER_START_HOUR) {
   throw new Error(
-    "MEAL_CANCEL_CUTOFF_HOUR must be before MEAL_ORDER_START_HOUR — the kitchen " +
+    "MEAL_CANCEL_CUTOFF_HOUR must be before MEAL_ORDER_START_HOUR. The kitchen " +
       "needs the final headcount before the counter opens.",
   );
 }
 
 if (isProd) {
-  // Render sets RENDER=true on its own. The demo there may keep the dev tools
-  // for checking; any other production host (the VPS) refuses to boot with it.
-  const onRenderDemo = process.env.RENDER === "true";
-  if (env.DEV_TOOLS && !onRenderDemo) {
-    throw new Error(
-      "DEV_TOOLS must be false in production. It is only allowed on the Render demo.",
-    );
+  if (env.DEV_TOOLS) {
+    throw new Error("DEV_TOOLS must be false in production.");
   }
   if (!env.COOKIE_SECURE) throw new Error("COOKIE_SECURE must be true in production (HTTPS only).");
-  // SameSite=None without Secure is rejected outright by every modern browser.
   if (env.COOKIE_SAMESITE === "none" && !env.COOKIE_SECURE) {
     throw new Error("COOKIE_SAMESITE=none requires COOKIE_SECURE=true.");
+  }
+  if (!path.isAbsolute(env.STORAGE_DIR)) {
+    throw new Error("STORAGE_DIR must be an absolute path in production, e.g. /home/conveyor/uploads.");
+  }
+  if (!env.FILES_BASE_URL.startsWith("https://")) {
+    throw new Error("FILES_BASE_URL must be a full https:// link in production.");
+  }
+  if (env.SEED_DEFAULT_PASSWORD === "Demo@123") {
+    console.warn("SEED_DEFAULT_PASSWORD is still the demo password. Change it before seeding.");
   }
 }

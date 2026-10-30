@@ -8,7 +8,7 @@ import { clientRepo } from "../repositories/client.repo.js";
 import { genId } from "../lib/ids.js";
 import { conflict, notFound } from "../lib/errors.js";
 import { escapeHtml, sanitizeEmail, sanitizeText } from "../lib/sanitize.js";
-import { signedUrl } from "../storage/supabase.js";
+import { signedUrl } from "../storage/index.js";
 import { emitCollectionChanged } from "../sockets/index.js";
 import { offsetOf, type Pagination } from "../lib/pagination.js";
 

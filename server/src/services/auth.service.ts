@@ -11,7 +11,7 @@ import { generatePassword, randomToken, uuid } from "../lib/ids.js";
 import { AppError, unauthorized } from "../lib/errors.js";
 import { redis } from "../lib/redis.js";
 import { env } from "../config/env.js";
-import { signedUrl } from "../storage/supabase.js";
+import { signedUrl } from "../storage/index.js";
 import { effectivePermissions } from "./permission.service.js";
 
 const sha = (v: string) => createHash("sha256").update(v).digest("hex");

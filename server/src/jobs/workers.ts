@@ -5,7 +5,7 @@ import { redis } from "../lib/redis.js";
 import { logger } from "../lib/logger.js";
 import { db } from "../db/index.js";
 import { storageObjects } from "../db/schema.js";
-import { hardDelete } from "../storage/supabase.js";
+import { hardDelete } from "../storage/index.js";
 import { refreshDashboardViews } from "../services/report.service.js";
 import { getMealLimitStatus } from "../services/mealLimit.service.js";
 import { sweepNoShows } from "../services/attendance.service.js";

@@ -15,7 +15,7 @@ import { businessDate } from "../lib/clock.js";
 import { convertQty } from "../lib/units.js";
 import { AppError, conflict, notFound } from "../lib/errors.js";
 import { escapeHtml, sanitizeText } from "../lib/sanitize.js";
-import { markOrphan, signedUrl } from "../storage/supabase.js";
+import { markOrphan, signedUrl } from "../storage/index.js";
 import { emitCollectionChanged } from "../sockets/index.js";
 
 const n = (v: unknown) => Number(v ?? 0);

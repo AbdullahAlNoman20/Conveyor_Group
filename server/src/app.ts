@@ -33,7 +33,14 @@ export async function buildApp(): Promise<FastifyInstance> {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "blob:", new URL(env.SUPABASE_URL).origin],
+        // Files are served from this API. When FILES_BASE_URL is a full link,
+        // its origin is allowed too (it is the same site on the VPS).
+        imgSrc: [
+          "'self'",
+          "data:",
+          "blob:",
+          ...(env.FILES_BASE_URL.startsWith("http") ? [new URL(env.FILES_BASE_URL).origin] : []),
+        ],
         connectSrc: ["'self'", ...ALLOWED_ORIGINS, "ws:", "wss:"],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],

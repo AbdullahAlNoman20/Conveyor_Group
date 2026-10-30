@@ -5,7 +5,7 @@ import { getForClient } from "./attendance.service.js";
 import { businessDate, orderWindowOpen } from "../lib/clock.js";
 import { getSettings } from "./settings.service.js";
 import { AppError } from "../lib/errors.js";
-import { signedUrl } from "../storage/supabase.js";
+import { signedUrl } from "../storage/index.js";
 
 export interface ScanResult {
   ok: boolean;

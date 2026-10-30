@@ -8,7 +8,7 @@ import { hashPassword } from "../lib/password.js";
 import { deriveEmail, generatePassword, genId } from "../lib/ids.js";
 import { conflict, notFound } from "../lib/errors.js";
 import { escapeHtml, sanitizeEmail, sanitizeText } from "../lib/sanitize.js";
-import { markOrphan, signedUrl, signedUrlMany } from "../storage/supabase.js";
+import { markOrphan, signedUrl, signedUrlMany } from "../storage/index.js";
 import { revokeAllForUser } from "./auth.service.js";
 import { emitCollectionChanged } from "../sockets/index.js";
 import { logger } from "../lib/logger.js";

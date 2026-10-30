@@ -10,7 +10,7 @@ import { notifyEvent, SOCKET_EVENTS } from "./notification.service.js";
 import { emitCollectionChanged } from "../sockets/index.js";
 import { genId } from "../lib/ids.js";
 import { AppError, notFound } from "../lib/errors.js";
-import { signedUrlMany } from "../storage/supabase.js";
+import { signedUrlMany } from "../storage/index.js";
 import { escapeHtml } from "../lib/sanitize.js";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;

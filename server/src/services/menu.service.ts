@@ -7,7 +7,7 @@ import { CACHE_KEYS, cached, invalidate } from "../lib/redis.js";
 import { genId } from "../lib/ids.js";
 import { conflict, notFound } from "../lib/errors.js";
 import { escapeHtml, sanitizeText } from "../lib/sanitize.js";
-import { markOrphan, signedUrlMany } from "../storage/supabase.js";
+import { markOrphan, signedUrlMany } from "../storage/index.js";
 import { emitCollectionChanged } from "../sockets/index.js";
 
 const DAY_ORDER = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];

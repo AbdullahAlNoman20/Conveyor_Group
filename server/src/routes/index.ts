@@ -19,6 +19,7 @@ import kitchenRoutes from "./kitchen.route.js";
 import permissionRoutes from "./permission.route.js";
 import headcountRoutes from "./headcount.route.js";
 import devRoutes from "./dev.route.js";
+import fileRoutes from "./files.route.js";
 
 export default async function registerRoutes(app: FastifyInstance) {
   await app.register(healthRoutes);
@@ -43,5 +44,7 @@ export default async function registerRoutes(app: FastifyInstance) {
     await v1.register(headcountRoutes, { prefix: "/public" });
     // Registers nothing unless DEV_TOOLS is on.
     await v1.register(devRoutes, { prefix: "/dev" });
+    // Uploaded files, served only through signed links.
+    await v1.register(fileRoutes, { prefix: "/files" });
   }, { prefix: "/api/v1" });
 }
