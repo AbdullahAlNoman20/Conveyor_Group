@@ -116,8 +116,19 @@ export const menuItemSchema = z.object({
 });
 export const menuItemPatchSchema = menuItemSchema.partial();
 
+// One entry per day. A day can be left empty ("No meal"), and the dish is
+// picked by id so renaming it later does not break the plan.
 export const weeklyMenuSchema = z.object({
-  days: z.array(z.object({ day: z.enum(ENUMS.DAYS), meal: reqText(100) })).length(7),
+  days: z
+    .array(
+      z.object({
+        day: z.enum(ENUMS.DAYS),
+        menuItemId: text(40).optional(),
+        meal: text(100).optional(),
+      }),
+    )
+    .length(7)
+    .refine((d) => new Set(d.map((x) => x.day)).size === 7, { message: "Each day must appear once." }),
 });
 
 /**

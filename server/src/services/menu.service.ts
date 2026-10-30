@@ -174,19 +174,38 @@ export async function setIngredients(
 }
 
 
-export async function saveWeeklyMenu(days: { day: string; meal: string }[], userId: string) {
+export async function saveWeeklyMenu(
+  days: { day: string; menuItemId?: string; meal?: string }[],
+  userId: string,
+) {
   const menu = await menuRepo.all();
-  const byName = new Map(menu.map((m) => [m.name.toLowerCase(), m.id]));
+  const byId = new Map(menu.map((m) => [m.id, m]));
+  const byName = new Map(menu.map((m) => [m.name.toLowerCase(), m]));
 
   await db.transaction(async (tx) => {
     for (const d of days) {
-      const mealName = sanitizeText(d.meal, 100);
-      const menuItemId = byName.get(mealName.toLowerCase()) ?? null;
+      // The id wins. The name is only a fallback for older callers.
+      const dish = d.menuItemId
+        ? byId.get(d.menuItemId)
+        : d.meal
+          ? byName.get(sanitizeText(d.meal, 100).toLowerCase())
+          : undefined;
+
+      if (d.menuItemId && !dish) {
+        throw conflict("VALIDATION_ERROR", { message: `The dish for ${d.day} no longer exists. Pick another one.` });
+      }
+
+      // Nothing picked: no meal that day.
+      if (!dish) {
+        await tx.delete(weeklyMenu).where(eq(weeklyMenu.day, d.day));
+        continue;
+      }
+
       await tx.insert(weeklyMenu)
-        .values({ day: d.day, mealName, menuItemId, updatedBy: userId })
+        .values({ day: d.day, mealName: dish.name, menuItemId: dish.id, updatedBy: userId })
         .onConflictDoUpdate({
           target: weeklyMenu.day,
-          set: { mealName, menuItemId, updatedBy: userId, updatedAt: new Date() },
+          set: { mealName: dish.name, menuItemId: dish.id, updatedBy: userId, updatedAt: new Date() },
         });
     }
   });
